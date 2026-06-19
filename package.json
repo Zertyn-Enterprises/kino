@@ -1,0 +1,48 @@
+{
+  "name": "kino",
+  "version": "1.0.0",
+  "description": "Claude-directed product launch video system",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zertyn-Enterprises/kino.git"
+  },
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.475",
+    "@remotion/fonts": "4.0.475",
+    "@remotion/google-fonts": "4.0.475",
+    "@remotion/layout-utils": "4.0.475",
+    "@remotion/light-leaks": "4.0.475",
+    "@remotion/media": "4.0.475",
+    "@remotion/media-utils": "4.0.475",
+    "@remotion/motion-blur": "4.0.475",
+    "@remotion/noise": "4.0.475",
+    "@remotion/transitions": "4.0.475",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.475"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.475",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.4",
+    "music-tempo": "1.0.3",
+    "playwright": "1.60.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.8"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "test": "vitest run",
+    "format": "prettier --write src videos"
+  }
+}

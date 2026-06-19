@@ -1,0 +1,30 @@
+node_modules
+dist
+
+# Local env files (never commit real keys)
+.env
+.env.local
+.env.*.local
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# Generated smoke-test media
+public/smoke
+public/review-tmp
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+*.log
+
+# Test coverage
+coverage
+
+# Playwright auth sessions (per-app QA logins), if you add capture scripts
+scripts/capture/.auth
+
+# Antigravity CLI configurations
+.antigravitycli
