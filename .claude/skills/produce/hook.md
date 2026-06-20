@@ -6,6 +6,8 @@ Run `scripts/hook.sh <CompId>` to produce the evidence this gate needs:
 - `out/review/<CompId>/hook/mid.png` — full-res ~60% of hook window (background-activity sample)
 - `out/review/<CompId>/hook/sheet/` — contact sheet, frames 0..hookFrames at step 3
 - `out/review/<CompId>/hook/final.png` — full-res final frame (loop-seam comparison)
+- `out/review/<CompId>/hook/metrics.json` — machine-readable gate verdict (source of truth)
+- `out/review/<CompId>/hook/metrics.txt` — human-readable table (tee'd output)
 
 Hook craft rules live in `direction.md` §2 (v1/v2/v3). This file turns them
 into measurable pass/fail gates.
@@ -37,9 +39,22 @@ the code's intent cannot excuse the pixels' reality.
 | Open loop closed | The question the hook poses is answered by the reveal — not forgotten (satisfied = delight; dangling = clickbait) |
 | Loop seam | `final.png` visually rhymes with `frame0.png` — compatible color field, similar energy level, or deliberate visual echo; autoplay restart is not jarring |
 
-## 2. Example results
+## 2. Captured metrics
 
-Recorded 2026-06-20. Command: `scripts/hook.sh <CompId>` (hookFrames auto-derived from timeline; step=3). Gates marked 🤖 are machine-asserted by `scripts/hook-metrics.mjs` (args: frame0/early/mid/final) — measured pixel values shown. Remaining gates are human-judged from the contact sheet.
+`scripts/hook.sh` writes `metrics.json` and `metrics.txt` to `out/review/<CompId>/hook/` on every run — these are the source of truth for measured gate values. No manual transcription needed or expected.
+
+```
+cat out/review/<CompId>/hook/metrics.json   # machine verdict (hardGatesPass, per-gate results)
+cat out/review/<CompId>/hook/metrics.txt    # human-readable table
+```
+
+The closing line of `hook.sh` prints `HARD GATES: PASS` or `HARD GATES: FAIL` and the script exits non-zero on hard-gate failure — consumable by automated loops.
+
+---
+
+**Recorded snapshot — 2026-06-20. Do not hand-edit; re-run `scripts/hook.sh <CompId>` to update.**
+
+Gates marked 🤖 are machine-asserted (see `metrics.json`). Remaining gates are human-judged from the contact sheet.
 
 ### RelayLaunch
 

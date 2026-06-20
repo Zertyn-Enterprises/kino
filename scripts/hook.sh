@@ -114,8 +114,14 @@ else
 fi
 
 # --- 4. Pixel metrics ---
-node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" "$OUT/final.png" || \
-  echo "  (hook-metrics.mjs failed — pixel metrics unavailable)" >&2
+# Capture JSON first (artifact of record), then display + tee human-readable.
+# METRICS_EXIT is captured before summary output so a FAIL is reported after
+# all artifacts are written, not mid-flight (preserves set -euo pipefail intent).
+METRICS_EXIT=0
+node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" "$OUT/final.png" --json \
+  > "$OUT/metrics.json" || METRICS_EXIT=$?
+node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" "$OUT/final.png" \
+  | tee "$OUT/metrics.txt" || true
 
 echo "Hook review — $OUT/"
 echo "  frame0.png"
@@ -126,3 +132,13 @@ ls "$OUT/sheet" | sed 's/^/    /'
 if [ -f "$OUT/final.png" ]; then
   echo "  final.png"
 fi
+echo "  metrics.json"
+echo "  metrics.txt"
+
+if [ "$METRICS_EXIT" -eq 0 ]; then
+  echo "HARD GATES: PASS"
+else
+  echo "HARD GATES: FAIL"
+fi
+
+exit "$METRICS_EXIT"
