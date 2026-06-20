@@ -71,6 +71,26 @@ Read the whole filmstrip start to finish and answer in writing:
 Run `scripts/hook.sh <CompId>` and judge against `hook.md`. This gate is
 mandatory on the solo/portable path — not multi-agent-only.
 
+### Blocking vs advisory enforcement
+
+**Hard gates 1–3** (Motion by frame 10 / Frame-0 contrast / Loop seam) are
+**BLOCKING**. A video whose hook fails any hard gate cannot be presented as a
+rough cut (checkpoint 2) until the failure is fixed. Do not proceed to the
+rough-cut listen with a non-zero `hook.sh` exit code.
+
+**Advisory gates 4–5** (Background activity / Frame-0 liveness 🤖) are
+**advisory**. A failing advisory gate does not block the rough cut, but it
+requires a named, written justification in the review before continuing —
+describe the specific creative reason the defect is acceptable (mirrors the
+"Named defects" practice in `hook.md`). Unjustified advisory failures are not
+acceptable.
+
+**Machine signal**: `metrics.json` (`out/review/<CompId>/hook/metrics.json`) is
+the artifact of record — inspect `hardGatesPass` and the per-gate `pass`/`hard`
+fields. The `hook.sh` exit code (0 = all hard gates pass, non-zero = at least
+one hard gate fails) is the signal an autonomous loop or QA pipeline consumes.
+Human-readable verdict is tee'd to `metrics.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.
