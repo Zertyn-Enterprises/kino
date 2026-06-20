@@ -66,6 +66,11 @@ Read the whole filmstrip start to finish and answer in writing:
   says a move is fast (>40px/frame) ensure motion blur regardless of how the
   tiles look.
 
+## 6. Hook gate (run on EVERY video, both build paths)
+
+Run `scripts/hook.sh <CompId>` and judge against `hook.md`. This gate is
+mandatory on the solo/portable path — not multi-agent-only.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.
