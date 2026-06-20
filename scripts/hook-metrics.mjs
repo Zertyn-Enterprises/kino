@@ -2,9 +2,10 @@
 // Computes objective PASS/FAIL for five pixel-computable hook gates.
 // Decodes PNG frames using Node's built-in zlib (zero new deps).
 //
-// Usage: node scripts/hook-metrics.mjs <frame0.png> <early.png> <mid.png> <final.png>
+// Usage: node scripts/hook-metrics.mjs <frame0.png> <early.png> <mid.png> <final.png> [--json]
+//        --json  emit structured JSON verdict instead of human-readable table
 //
-// Gates:
+// Gates (1–3 HARD block on FAIL; 4–5 advisory, never affect exit code):
 //   1. Motion by frame 10      — mean abs luminance delta (frame0 vs early) > MOTION_THRESHOLD
 //   2. Frame-0 contrast        — luminance stddev of frame0 > CONTRAST_THRESHOLD
 //   3. Loop seam               — mean abs luminance delta (frame0 vs final) < SEAM_THRESHOLD
@@ -12,6 +13,9 @@
 //                                (frame0 vs mid) > GRID_MOTION_THRESHOLD
 //   5. Frame-0 liveness        — 4×4 grid cells on frame0 with local stddev > GRID_STDDEV_THRESHOLD
 //                                span ≥2 rows and total ≥ LIVENESS_MIN_CELLS
+//
+// Exit code: 0 when all HARD gates pass or are skipped; non-zero only on HARD gate FAIL.
+// Advisory gate failures (4, 5) never affect the exit code.
 //
 // Thresholds are calibrated so both RelayLaunch and GranipaLaunch PASS gates 1–3;
 // gates 4–5 are calibrated to flag the two named defects as FAIL:
@@ -27,6 +31,7 @@
 
 import { inflateSync } from 'node:zlib';
 import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 // Gate 1–3 thresholds — unchanged, calibrated against both shipped examples.
 const MOTION_THRESHOLD   = 0.1;   // mean abs lum delta; catches truly frozen/static openings
@@ -205,7 +210,7 @@ function hasSeparatedPair(cells) {
   return false;
 }
 
-function loadFrame(path) {
+export function loadFrame(path) {
   if (!existsSync(path)) return null;
   try {
     return decodePNG(readFileSync(path));
@@ -214,75 +219,181 @@ function loadFrame(path) {
   }
 }
 
-const [,, frame0Path, earlyPath, midPath, finalPath] = process.argv;
-if (!frame0Path || !earlyPath || !midPath || !finalPath) {
-  process.stderr.write(
-    'Usage: node scripts/hook-metrics.mjs <frame0.png> <early.png> <mid.png> <final.png>\n',
-  );
-  process.exit(1);
+/**
+ * Pure computation: evaluate all five hook gates for the given decoded frames.
+ * @param {{ frame0, early, mid, final }} frames — decoded PNG images (from loadFrame), or null
+ * @returns {{ gates: Array, summary: Object, hardGatesPass: boolean }}
+ *
+ * Each gate entry: { id, name, hard, advisory, pass, skip, measured, threshold, skipReason? }
+ * hardGatesPass is true when all hard gates (1–3) pass or are skipped (missing frame = not a FAIL).
+ */
+export function computeHookMetrics({ frame0, early, mid, final: finalFrame }) {
+  const lum0 = frame0     ? toLuminance(frame0)     : null;
+  const lumE = early      ? toLuminance(early)      : null;
+  const lumM = mid        ? toLuminance(mid)        : null;
+  const lumF = finalFrame ? toLuminance(finalFrame) : null;
+
+  const gates = [];
+
+  // Gate 1: Motion by frame 10 (HARD)
+  if (!lum0 || !lumE) {
+    gates.push({
+      id: 1, name: 'Motion by frame 10', hard: true, advisory: false,
+      pass: false, skip: true, measured: null, threshold: MOTION_THRESHOLD,
+      skipReason: !lum0 ? 'frame0 missing or unreadable' : 'early missing or unreadable',
+    });
+  } else {
+    const measured = meanAbsDelta(lum0, lumE);
+    gates.push({
+      id: 1, name: 'Motion by frame 10', hard: true, advisory: false,
+      pass: measured > MOTION_THRESHOLD, skip: false, measured, threshold: MOTION_THRESHOLD,
+    });
+  }
+
+  // Gate 2: Frame-0 contrast (HARD)
+  if (!lum0) {
+    gates.push({
+      id: 2, name: 'Frame-0 contrast', hard: true, advisory: false,
+      pass: false, skip: true, measured: null, threshold: CONTRAST_THRESHOLD,
+      skipReason: 'frame0 missing or unreadable',
+    });
+  } else {
+    const measured = stddev(lum0);
+    gates.push({
+      id: 2, name: 'Frame-0 contrast', hard: true, advisory: false,
+      pass: measured > CONTRAST_THRESHOLD, skip: false, measured, threshold: CONTRAST_THRESHOLD,
+    });
+  }
+
+  // Gate 3: Loop seam (HARD)
+  if (!lum0 || !lumF) {
+    gates.push({
+      id: 3, name: 'Loop seam', hard: true, advisory: false,
+      pass: false, skip: true, measured: null, threshold: SEAM_THRESHOLD,
+      skipReason: !lum0 ? 'frame0 missing or unreadable' : 'final missing or unreadable',
+    });
+  } else {
+    const measured = meanAbsDelta(lum0, lumF);
+    gates.push({
+      id: 3, name: 'Loop seam', hard: true, advisory: false,
+      pass: measured < SEAM_THRESHOLD, skip: false, measured, threshold: SEAM_THRESHOLD,
+    });
+  }
+
+  // Gate 4: Background / parallel activity (advisory)
+  if (!lum0 || !lumM) {
+    gates.push({
+      id: 4, name: 'Background activity', hard: false, advisory: true,
+      pass: false, skip: true, measured: null,
+      threshold: { minActive: 2, separated: true, cellThreshold: GRID_MOTION_THRESHOLD },
+      skipReason: !lum0 ? 'frame0 missing or unreadable' : 'mid missing or unreadable',
+    });
+  } else {
+    const grid        = computeGrid(lum0, lumM, frame0.width, frame0.height);
+    const activeCells = grid.filter(cell => cell.meanDelta > GRID_MOTION_THRESHOLD);
+    const separated   = hasSeparatedPair(activeCells);
+    const pass        = activeCells.length >= 2 && separated;
+    gates.push({
+      id: 4, name: 'Background activity', hard: false, advisory: true,
+      pass, skip: false,
+      measured: { active: activeCells.length, total: GRID_ROWS * GRID_COLS, separated },
+      threshold: { minActive: 2, separated: true, cellThreshold: GRID_MOTION_THRESHOLD },
+    });
+  }
+
+  // Gate 5: Frame-0 liveness (advisory)
+  if (!lum0) {
+    gates.push({
+      id: 5, name: 'Frame-0 liveness', hard: false, advisory: true,
+      pass: false, skip: true, measured: null,
+      threshold: { minCells: LIVENESS_MIN_CELLS, minRows: 2, cellThreshold: GRID_STDDEV_THRESHOLD },
+      skipReason: 'frame0 missing or unreadable',
+    });
+  } else {
+    const grid         = computeGrid(lum0, null, frame0.width, frame0.height);
+    const contentCells = grid.filter(cell => cell.stddev0 > GRID_STDDEV_THRESHOLD);
+    const rowSpread    = new Set(contentCells.map(cell => cell.row)).size;
+    const pass         = rowSpread >= 2 && contentCells.length >= LIVENESS_MIN_CELLS;
+    gates.push({
+      id: 5, name: 'Frame-0 liveness', hard: false, advisory: true,
+      pass, skip: false,
+      measured: { cells: contentCells.length, total: GRID_ROWS * GRID_COLS, rows: rowSpread },
+      threshold: { minCells: LIVENESS_MIN_CELLS, minRows: 2, cellThreshold: GRID_STDDEV_THRESHOLD },
+    });
+  }
+
+  const hardGatesPass = gates.filter(g => g.hard).every(g => g.skip || g.pass);
+  const summary = {
+    passed:  gates.filter(g => !g.skip &&  g.pass).length,
+    failed:  gates.filter(g => !g.skip && !g.pass).length,
+    skipped: gates.filter(g =>  g.skip).length,
+  };
+
+  return { gates, summary, hardGatesPass };
 }
 
-const f0 = loadFrame(frame0Path);
-const fe = loadFrame(earlyPath);
-const fm = loadFrame(midPath);
-const ff = loadFrame(finalPath);
+function printHumanReadable({ gates }) {
+  console.log('\n── Hook pixel metrics ─────────────────────────────────────');
+  for (const gate of gates) {
+    const adv    = gate.advisory ? ' (advisory)' : '';
+    const status = gate.skip ? 'SKIP' : (gate.pass ? 'PASS' : 'FAIL');
 
-const lum0 = f0 ? toLuminance(f0) : null;
-const lumM = fm ? toLuminance(fm) : null;
+    if (gate.skip) {
+      console.log(`${gate.name.padEnd(21)}${status}  (${gate.skipReason})${adv}`);
+      continue;
+    }
 
-console.log('\n── Hook pixel metrics ─────────────────────────────────────');
-
-// Gate 1: Motion by frame 10
-if (!lum0 || !fe) {
-  const missing = !lum0 ? 'frame0' : 'early';
-  console.log(`Motion by frame 10   SKIP  (${missing} missing or unreadable)`);
-} else {
-  const delta = meanAbsDelta(lum0, toLuminance(fe));
-  const pass  = delta > MOTION_THRESHOLD;
-  console.log(`Motion by frame 10   ${pass ? 'PASS' : 'FAIL'}  delta=${delta.toFixed(2)} (threshold >${MOTION_THRESHOLD})`);
+    switch (gate.id) {
+      case 1:
+        console.log(`Motion by frame 10   ${status}  delta=${gate.measured.toFixed(2)} (threshold >${gate.threshold})`);
+        break;
+      case 2:
+        console.log(`Frame-0 contrast     ${status}  stddev=${gate.measured.toFixed(2)} (threshold >${gate.threshold})`);
+        break;
+      case 3:
+        console.log(`Loop seam            ${status}  delta=${gate.measured.toFixed(2)} (threshold <${gate.threshold})`);
+        break;
+      case 4: {
+        const { active, total, separated } = gate.measured;
+        console.log(`Background activity  ${status}  active=${active}/${total} separated=${separated} (threshold ≥2 separated, cell>${gate.threshold.cellThreshold})${adv}`);
+        break;
+      }
+      case 5: {
+        const { cells, total, rows } = gate.measured;
+        console.log(`Frame-0 liveness     ${status}  cells=${cells}/${total} rows=${rows} (threshold ≥2 rows,≥${gate.threshold.minCells} cells, cell>${gate.threshold.cellThreshold})${adv}`);
+        break;
+      }
+    }
+  }
+  console.log('───────────────────────────────────────────────────────────\n');
 }
 
-// Gate 2: Frame-0 contrast
-if (!lum0) {
-  console.log('Frame-0 contrast     SKIP  (frame0 missing or unreadable)');
-} else {
-  const sd   = stddev(lum0);
-  const pass = sd > CONTRAST_THRESHOLD;
-  console.log(`Frame-0 contrast     ${pass ? 'PASS' : 'FAIL'}  stddev=${sd.toFixed(2)} (threshold >${CONTRAST_THRESHOLD})`);
-}
+// CLI — only runs when this file is the entry point, not when imported.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const args      = process.argv.slice(2);
+  const jsonMode  = args.includes('--json');
+  const positional = args.filter(a => !a.startsWith('--'));
+  const [frame0Path, earlyPath, midPath, finalPath] = positional;
 
-// Gate 3: Loop seam
-if (!lum0 || !ff) {
-  const missing = !lum0 ? 'frame0' : 'final';
-  console.log(`Loop seam            SKIP  (${missing} missing or unreadable)`);
-} else {
-  const delta = meanAbsDelta(lum0, toLuminance(ff));
-  const pass  = delta < SEAM_THRESHOLD;
-  console.log(`Loop seam            ${pass ? 'PASS' : 'FAIL'}  delta=${delta.toFixed(2)} (threshold <${SEAM_THRESHOLD})`);
-}
+  if (!frame0Path || !earlyPath || !midPath || !finalPath) {
+    process.stderr.write(
+      'Usage: node scripts/hook-metrics.mjs <frame0.png> <early.png> <mid.png> <final.png> [--json]\n',
+    );
+    process.exit(1);
+  }
 
-// Gate 4: Background / parallel activity (motion spread)
-if (!lum0 || !lumM) {
-  const missing = !lum0 ? 'frame0' : 'mid';
-  console.log(`Background activity  SKIP  (${missing} missing or unreadable)`);
-} else {
-  const grid        = computeGrid(lum0, lumM, f0.width, f0.height);
-  const activeCells = grid.filter(cell => cell.meanDelta > GRID_MOTION_THRESHOLD);
-  const separated   = hasSeparatedPair(activeCells);
-  const pass        = activeCells.length >= 2 && separated;
-  console.log(`Background activity  ${pass ? 'PASS' : 'FAIL'}  active=${activeCells.length}/${GRID_ROWS * GRID_COLS} separated=${separated} (threshold ≥2 separated, cell>${GRID_MOTION_THRESHOLD})`);
-}
+  const frame0  = loadFrame(frame0Path);
+  const early   = loadFrame(earlyPath);
+  const mid     = loadFrame(midPath);
+  const final_  = loadFrame(finalPath);
 
-// Gate 5: Frame-0 liveness (anti-static-card)
-if (!lum0) {
-  console.log('Frame-0 liveness     SKIP  (frame0 missing or unreadable)');
-} else {
-  const grid         = computeGrid(lum0, null, f0.width, f0.height);
-  const contentCells = grid.filter(cell => cell.stddev0 > GRID_STDDEV_THRESHOLD);
-  const rowSet       = new Set(contentCells.map(cell => cell.row));
-  const rowSpread    = rowSet.size;
-  const pass         = rowSpread >= 2 && contentCells.length >= LIVENESS_MIN_CELLS;
-  console.log(`Frame-0 liveness     ${pass ? 'PASS' : 'FAIL'}  cells=${contentCells.length}/${GRID_ROWS * GRID_COLS} rows=${rowSpread} (threshold ≥2 rows,≥${LIVENESS_MIN_CELLS} cells, cell>${GRID_STDDEV_THRESHOLD})`);
-}
+  const verdict = computeHookMetrics({ frame0, early, mid, final: final_ });
 
-console.log('───────────────────────────────────────────────────────────\n');
+  if (jsonMode) {
+    process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
+  } else {
+    printHumanReadable(verdict);
+  }
+
+  process.exit(verdict.hardGatesPass ? 0 : 1);
+}

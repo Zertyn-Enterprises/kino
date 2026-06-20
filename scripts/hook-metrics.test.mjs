@@ -1,0 +1,326 @@
+/**
+ * Regression tests for computeHookMetrics.
+ *
+ * Three fixture sets:
+ *   - Golden positive:   16×16 synthetic frame engineered to PASS all 5 gates.
+ *   - Golden negative:   16×16 synthetic frame engineered to FAIL gates 1, 4, 5
+ *                        (gates 2 and 3 pass; hardGatesPass=false via gate-1 FAIL).
+ *   - Reference videos:  loadFrame from out/review/<CompId>/hook/; tests are
+ *                        skipped if those files are not present — run
+ *                        `scripts/hook.sh <CompId>` to populate them.
+ *
+ * Frames are { width, height, channels, pixels } objects — the same shape
+ * decodePNG returns — so we exercise the pure-computation path without PNG I/O.
+ *
+ * 16×16 grid: 4×4 cells of floor(16/4)=4 × floor(16/4)=4 pixels each.
+ * For R=G=B=v, luminance = 0.299v + 0.587v + 0.114v = v (coefficients sum to 1).
+ */
+
+import { describe, expect, it } from "vitest";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { computeHookMetrics, loadFrame } from "./hook-metrics.mjs";
+
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+// ---------------------------------------------------------------------------
+// Synthetic frame factory
+// ---------------------------------------------------------------------------
+
+const W = 16;
+const H = 16;
+
+/** Build a 16×16 RGB frame where every channel equals fillFn(x, y). */
+function makeFrame(fillFn) {
+  const pixels = Buffer.alloc(W * H * 3);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const v = fillFn(x, y);
+      const base = (y * W + x) * 3;
+      pixels[base] = v;
+      pixels[base + 1] = v;
+      pixels[base + 2] = v;
+    }
+  }
+  return { width: W, height: H, channels: 3, pixels };
+}
+
+// ---------------------------------------------------------------------------
+// Golden positive fixture — all 5 gates pass
+//
+// 4×4 grid layout (each cell = 4×4 pixels):
+//   Row 0 (y 0-3):   all cells flat 200   — gate4 baseline for corner (0,0)
+//   Row 1, cols 0-1: alternating 50/200   — stddev=75 → gate5 content (row=1)
+//   Row 1, cols 2-3: flat 100
+//   Row 2, cols 0-1: flat 100
+//   Row 2, cols 2-3: alternating 50/200   — stddev=75 → gate5 content (row=2)
+//   Row 3 (y 12-15): all cells flat 50    — gate4 baseline for corner (3,3)
+//
+// Gate 1 (motion >0.1):   early=all-255; mean|frame0−255| ≈ 136 >> 0.1       PASS
+// Gate 2 (contrast >5):   frame0 stddev ≈ 66                                  PASS
+// Gate 3 (seam <60):      final=frame0; delta=0                                PASS
+// Gate 4 (≥2 sep. cells): mid changes (0,0)→170 and (3,3)→80; delta=30>5,
+//                         Chebyshev distance=3 ≥ 2 → separated                PASS
+// Gate 5 (≥2 rows, ≥2):  content cells (1,0),(1,1),(2,2),(2,3); rows={1,2}   PASS
+// ---------------------------------------------------------------------------
+
+function posPixel(x, y) {
+  const row = Math.floor(y / 4);
+  const col = Math.floor(x / 4);
+  if (row === 0) return 200;
+  if (row === 3) return 50;
+  if (row === 1 && col <= 1) return (x + y) % 2 === 0 ? 200 : 50;
+  if (row === 2 && col >= 2) return (x + y) % 2 === 0 ? 200 : 50;
+  return 100;
+}
+
+const posFrame0 = makeFrame(posPixel);
+const posEarly = makeFrame(() => 255);
+const posMid = makeFrame((x, y) => {
+  const row = Math.floor(y / 4);
+  const col = Math.floor(x / 4);
+  if (row === 0 && col === 0) return 170; // was 200, delta=30 > threshold of 5 → active
+  if (row === 3 && col === 3) return 80; // was 50,  delta=30 > threshold of 5 → active
+  return posPixel(x, y);
+});
+const posFinal = makeFrame(posPixel); // identical to frame0 → seam delta=0
+
+// ---------------------------------------------------------------------------
+// Golden negative fixture — gate 1 hard-FAIL; gates 4 and 5 advisory-FAIL
+//
+// Layout:
+//   Row 0: flat 100
+//   Row 1: alternating 50/200 across all 4 columns → stddev=75 in every cell
+//   Row 2: flat 100
+//   Row 3: flat 100
+//
+// Gate 1 (motion >0.1):  early=frame0; delta=0                          FAIL (hard)
+// Gate 2 (contrast >5):  overall stddev ≈ 39 > 5                        PASS (hard)
+// Gate 3 (seam <60):     final=frame0; delta=0 < 60                     PASS (hard)
+// Gate 4 (advisory):     mid=frame0; all cell deltas=0; active=0        FAIL
+// Gate 5 (advisory):     4 content cells all in row 1; rowSpread=1 < 2  FAIL
+// hardGatesPass = false (gate 1 fails)
+// ---------------------------------------------------------------------------
+
+function negPixel(x, y) {
+  const row = Math.floor(y / 4);
+  if (row === 1) return (x + y) % 2 === 0 ? 200 : 50;
+  return 100;
+}
+
+const negFrame0 = makeFrame(negPixel);
+const negEarly = makeFrame(negPixel); // identical → gate1 delta=0 FAIL
+const negMid = makeFrame(negPixel); // identical → gate4 no active cells FAIL
+const negFinal = makeFrame(negPixel); // identical → gate3 delta=0 PASS
+
+// ---------------------------------------------------------------------------
+// Reference video frames — loaded now; null when not yet rendered
+// ---------------------------------------------------------------------------
+
+function hookFrames(compId) {
+  const dir = join(projectRoot, "out/review", compId, "hook");
+  return {
+    frame0: loadFrame(join(dir, "frame0.png")),
+    early: loadFrame(join(dir, "early.png")),
+    mid: loadFrame(join(dir, "mid.png")),
+    final: loadFrame(join(dir, "final.png")),
+  };
+}
+
+const relay = hookFrames("RelayLaunch");
+const relayAvailable = Object.values(relay).every((f) => f !== null);
+
+const granipa = hookFrames("GranipaLaunch");
+const granipaAvailable = Object.values(granipa).every((f) => f !== null);
+
+// ---------------------------------------------------------------------------
+// Tests: golden positive
+// ---------------------------------------------------------------------------
+
+describe("computeHookMetrics — golden positive control (all 5 gates pass)", () => {
+  const verdict = computeHookMetrics({
+    frame0: posFrame0,
+    early: posEarly,
+    mid: posMid,
+    final: posFinal,
+  });
+
+  it("hardGatesPass is true", () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it("summary: 5 passed, 0 failed, 0 skipped", () => {
+    expect(verdict.summary.passed).toBe(5);
+    expect(verdict.summary.failed).toBe(0);
+    expect(verdict.summary.skipped).toBe(0);
+  });
+
+  it("gate 1 (motion >0.1) passes with measurable delta", () => {
+    const g = verdict.gates.find((g) => g.id === 1);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+    expect(g.hard).toBe(true);
+    expect(g.measured).toBeGreaterThan(0.1);
+  });
+
+  it("gate 2 (contrast >5) passes", () => {
+    const g = verdict.gates.find((g) => g.id === 2);
+    expect(g.pass).toBe(true);
+    expect(g.measured).toBeGreaterThan(5);
+  });
+
+  it("gate 3 (seam <60) passes with delta=0 (final=frame0)", () => {
+    const g = verdict.gates.find((g) => g.id === 3);
+    expect(g.pass).toBe(true);
+    expect(g.measured).toBeLessThan(60);
+  });
+
+  it("gate 4 (background activity, advisory) passes with ≥2 spatially-separated active cells", () => {
+    const g = verdict.gates.find((g) => g.id === 4);
+    expect(g.pass).toBe(true);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.active).toBeGreaterThanOrEqual(2);
+    expect(g.measured.separated).toBe(true);
+  });
+
+  it("gate 5 (frame-0 liveness, advisory) passes with content in ≥2 grid rows", () => {
+    const g = verdict.gates.find((g) => g.id === 5);
+    expect(g.pass).toBe(true);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.rows).toBeGreaterThanOrEqual(2);
+    expect(g.measured.cells).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: golden negative
+// ---------------------------------------------------------------------------
+
+describe("computeHookMetrics — golden negative control (expected FAILs)", () => {
+  const verdict = computeHookMetrics({
+    frame0: negFrame0,
+    early: negEarly,
+    mid: negMid,
+    final: negFinal,
+  });
+
+  it("hardGatesPass is false (gate 1 hard FAIL)", () => {
+    expect(verdict.hardGatesPass).toBe(false);
+  });
+
+  it("gate 1 (motion) fails — early identical to frame0", () => {
+    const g = verdict.gates.find((g) => g.id === 1);
+    expect(g.pass).toBe(false);
+    expect(g.hard).toBe(true);
+    expect(g.measured).toBeLessThanOrEqual(0.1);
+  });
+
+  it("gate 2 (contrast) passes — alternating row gives stddev >5", () => {
+    const g = verdict.gates.find((g) => g.id === 2);
+    expect(g.pass).toBe(true);
+    expect(g.measured).toBeGreaterThan(5);
+  });
+
+  it("gate 3 (seam) passes — final identical to frame0, delta=0 <60", () => {
+    const g = verdict.gates.find((g) => g.id === 3);
+    expect(g.pass).toBe(true);
+    expect(g.measured).toBeLessThan(60);
+  });
+
+  it("gate 4 (advisory) fails — mid identical to frame0, no active cells", () => {
+    const g = verdict.gates.find((g) => g.id === 4);
+    expect(g.pass).toBe(false);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.active).toBe(0);
+  });
+
+  it("gate 5 (advisory) fails — all content cells confined to row 1", () => {
+    const g = verdict.gates.find((g) => g.id === 5);
+    expect(g.pass).toBe(false);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.rows).toBe(1);
+    expect(g.measured.cells).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: reference videos (skip if frames not yet rendered)
+//
+// Documented verdicts from hook.md §2 (recorded 2026-06-20):
+//   RelayLaunch:   g1=PASS(δ=0.29) g2=PASS(σ=7.45) g3=PASS(δ=6.56)
+//                  g4=FAIL(active=1,separated=false) g5=FAIL(cells=2,rows=1)
+//   GranipaLaunch: g1=PASS(δ=1.40) g2=PASS(σ=20.64) g3=PASS(δ=9.46)
+//                  g4=PASS(active=3,separated=true)   g5=FAIL(cells=3,rows=1)
+// Both: hardGatesPass=true (gates 1–3 hard; 4–5 advisory).
+// ---------------------------------------------------------------------------
+
+describe(
+  "computeHookMetrics — RelayLaunch reference (skip if not rendered)",
+  () => {
+    const verdict = relayAvailable ? computeHookMetrics(relay) : null;
+
+    it.skipIf(!relayAvailable)(
+      "hard gates 1–3 all pass; hardGatesPass=true",
+      () => {
+        expect(verdict.hardGatesPass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 1).pass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 2).pass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 3).pass).toBe(true);
+      },
+    );
+
+    it.skipIf(!relayAvailable)(
+      "gate 4 (advisory) fails — single terminal region (active=1, separated=false)",
+      () => {
+        const g = verdict.gates.find((g) => g.id === 4);
+        expect(g.pass).toBe(false);
+        expect(g.measured.separated).toBe(false);
+        expect(g.measured.active).toBe(1);
+      },
+    );
+
+    it.skipIf(!relayAvailable)(
+      "gate 5 (advisory) fails — terminal in single grid row (rows=1)",
+      () => {
+        const g = verdict.gates.find((g) => g.id === 5);
+        expect(g.pass).toBe(false);
+        expect(g.measured.rows).toBe(1);
+      },
+    );
+  },
+);
+
+describe(
+  "computeHookMetrics — GranipaLaunch reference (skip if not rendered)",
+  () => {
+    const verdict = granipaAvailable ? computeHookMetrics(granipa) : null;
+
+    it.skipIf(!granipaAvailable)(
+      "hard gates 1–3 all pass; hardGatesPass=true",
+      () => {
+        expect(verdict.hardGatesPass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 1).pass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 2).pass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 3).pass).toBe(true);
+      },
+    );
+
+    it.skipIf(!granipaAvailable)(
+      "gate 4 (advisory) passes — text settle spans separated cells",
+      () => {
+        const g = verdict.gates.find((g) => g.id === 4);
+        expect(g.pass).toBe(true);
+        expect(g.measured.separated).toBe(true);
+      },
+    );
+
+    it.skipIf(!granipaAvailable)(
+      "gate 5 (advisory) fails — title-card text band (rows=1)",
+      () => {
+        const g = verdict.gates.find((g) => g.id === 5);
+        expect(g.pass).toBe(false);
+        expect(g.measured.rows).toBe(1);
+      },
+    );
+  },
+);
