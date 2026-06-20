@@ -73,6 +73,15 @@ craft.md §1.5–1.7 + §2 apply unchanged. Motion serves the styleframe.
   bar; "would a motion designer sign this?" is. Would it stop a muted X scroller and hold through the full video?
 
 ### G · Ship gate
+
+**Hook gate prerequisite**: before the visual comparison below, confirm that
+`metrics.json` (`out/review/<CompId>/hook/metrics.json`) shows
+`hardGatesPass: true` and `hook.sh` exited 0. Hard gates 1–3 (motion / frame-0
+contrast / loop seam) must be green. Advisory gates 4–5 (background activity /
+frame-0 liveness) failing are acceptable only if each has a written, named
+justification already recorded in the review. A video with an unjustified
+hard-gate failure does not ship.
+
 Side-by-side: our best 3 frames vs 3 frames of the reference class
 (Apple/Linear/Vercel-grade). If ours is visibly the weaker poster, do not
 ship — return to C with named gaps. The reference is a BAR, never a
