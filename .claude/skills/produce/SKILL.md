@@ -149,6 +149,8 @@ For each scene, in storyboard order:
 3. Read the stills. Critique against `review.md` gates. Fix. Re-render.
 4. `scripts/filmstrip.sh <Comp> 8` for the scene's frame range when motion
    needs judging (step 8 ≈ 4 sheets/min — fine for one scene).
+   **Hook scene only**: also run `scripts/hook.sh <Comp>` and assert every
+   gate in `hook.md` (see `review.md` §6) before continuing.
 5. Mark `built` → after gates pass, `reviewed` in the storyboard table.
 
 Commit after each scene passes (small commits = resumable production).
@@ -157,6 +159,8 @@ Commit after each scene passes (small commits = resumable production).
 
 - `scripts/filmstrip.sh <Comp> 15` — judge the WHOLE video per `review.md` §3:
   rhythm, dead air, attention flow, transition placement.
+- `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
+  before the rough-cut listen.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).
 
