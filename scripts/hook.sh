@@ -5,15 +5,28 @@
 #   final.png   — full-res final frame (loop-seam comparison)
 # All output lands in out/review/<CompId>/hook/.
 #
-# Usage: scripts/hook.sh <CompId> [hookFrames=90] [step=3] [propsJson]
-#   e.g. scripts/hook.sh GranipaLaunch 90 3 '{"debug":true}'
+# Usage: scripts/hook.sh <CompId> [hookFrames] [step=3] [propsJson]
+#   hookFrames defaults to the first scene's length from the composition's
+#   timeline.ts (derived via scripts/hook-window.mjs); falls back to 90 if
+#   derivation fails. An explicit value overrides the auto-derived window.
+#   e.g. scripts/hook.sh GranipaLaunch       # auto-derives hook length
+#        scripts/hook.sh GranipaLaunch 73     # explicit override
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMP="${1:?usage: scripts/hook.sh <CompId> [hookFrames=90] [step=3] [propsJson]}"
-HOOK_FRAMES="${2:-90}"
+COMP="${1:?usage: scripts/hook.sh <CompId> [hookFrames] [step=3] [propsJson]}"
 STEP="${3:-3}"
 PROPS="${4:-}"
+
+# Determine hook window: explicit 2nd arg overrides; else auto-derive from timeline.
+if [ -n "${2:-}" ]; then
+  HOOK_FRAMES="${2}"
+else
+  HOOK_FRAMES=$(node scripts/hook-window.mjs "$COMP" 2>/dev/null) || {
+    echo "WARNING: could not derive hook window for $COMP — falling back to 90 frames" >&2
+    HOOK_FRAMES=90
+  }
+fi
 
 # Concurrent-safe temp dir (PID-scoped so parallel runs don't collide).
 TMP="public/review-tmp/${COMP}-hook-$$"
