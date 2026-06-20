@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Renders hook-window review assets for a composition:
 #   frame0.png  — full-res frame 0 (thumbnail test)
+#   early.png   — full-res frame 9 (motion-by-frame-10 sample)
 #   sheet/      — contact sheet of frames 0..hookFrames at the given step
 #   final.png   — full-res final frame (loop-seam comparison)
+# After rendering, runs scripts/hook-metrics.mjs for objective PASS/FAIL output.
 # All output lands in out/review/<CompId>/hook/.
 #
 # Usage: scripts/hook.sh <CompId> [hookFrames] [step=3] [propsJson]
@@ -28,6 +30,10 @@ else
   }
 fi
 
+# EARLY_FRAME: frame 9 aligns with the "Motion by frame 10" gate name; clamped to HOOK_FRAMES.
+EARLY_FRAME=9
+if [ "$HOOK_FRAMES" -lt "$EARLY_FRAME" ]; then EARLY_FRAME="$HOOK_FRAMES"; fi
+
 # Concurrent-safe temp dir (PID-scoped so parallel runs don't collide).
 TMP="public/review-tmp/${COMP}-hook-$$"
 OUT="out/review/$COMP/hook"
@@ -41,6 +47,13 @@ if [ -n "$PROPS" ]; then
   STILL_ARGS+=("--props=$PROPS")
 fi
 npx remotion "${STILL_ARGS[@]}"
+
+# --- 1.5. early frame — full resolution (motion-by-frame-10 sample) ---
+EARLY_ARGS=(still "$COMP" "$OUT/early.png" --frame="$EARLY_FRAME")
+if [ -n "$PROPS" ]; then
+  EARLY_ARGS+=("--props=$PROPS")
+fi
+npx remotion "${EARLY_ARGS[@]}"
 
 # --- 2. Hook-window contact sheet (frames 0..hookFrames at step) ---
 RENDER_ARGS=(render "$COMP" "$TMP" --sequence --image-format=jpeg \
@@ -88,8 +101,13 @@ else
   npx remotion "${FINAL_ARGS[@]}"
 fi
 
+# --- 4. Pixel metrics ---
+node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/final.png" || \
+  echo "  (hook-metrics.mjs failed — pixel metrics unavailable)" >&2
+
 echo "Hook review — $OUT/"
 echo "  frame0.png"
+echo "  early.png  (frame $EARLY_FRAME)"
 echo "  sheet/"
 ls "$OUT/sheet" | sed 's/^/    /'
 if [ -f "$OUT/final.png" ]; then
