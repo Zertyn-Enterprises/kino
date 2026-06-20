@@ -2,6 +2,7 @@
 
 Run `scripts/hook.sh <CompId>` to produce the evidence this gate needs:
 - `out/review/<CompId>/hook/frame0.png` — full-res frame 0 (thumbnail test)
+- `out/review/<CompId>/hook/early.png` — full-res frame 9 (motion-by-frame-10 sample)
 - `out/review/<CompId>/hook/mid.png` — full-res ~60% of hook window (background-activity sample)
 - `out/review/<CompId>/hook/sheet/` — contact sheet, frames 0..hookFrames at step 3
 - `out/review/<CompId>/hook/final.png` — full-res final frame (loop-seam comparison)
