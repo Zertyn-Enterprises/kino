@@ -2,6 +2,7 @@
 # Renders hook-window review assets for a composition:
 #   frame0.png  — full-res frame 0 (thumbnail test)
 #   early.png   — full-res frame 9 (motion-by-frame-10 sample)
+#   mid.png     — full-res frame at ~60% of hook window (background-activity sample)
 #   sheet/      — contact sheet of frames 0..hookFrames at the given step
 #   final.png   — full-res final frame (loop-seam comparison)
 # After rendering, runs scripts/hook-metrics.mjs for objective PASS/FAIL output.
@@ -34,6 +35,10 @@ fi
 EARLY_FRAME=9
 if [ "$HOOK_FRAMES" -lt "$EARLY_FRAME" ]; then EARLY_FRAME="$HOOK_FRAMES"; fi
 
+# MID_FRAME: ~60% of hook window — background-activity sample (gate 4). Clamped to HOOK_FRAMES.
+MID_FRAME=$(( HOOK_FRAMES * 6 / 10 ))
+if [ "$MID_FRAME" -gt "$HOOK_FRAMES" ]; then MID_FRAME="$HOOK_FRAMES"; fi
+
 # Concurrent-safe temp dir (PID-scoped so parallel runs don't collide).
 TMP="public/review-tmp/${COMP}-hook-$$"
 OUT="out/review/$COMP/hook"
@@ -54,6 +59,13 @@ if [ -n "$PROPS" ]; then
   EARLY_ARGS+=("--props=$PROPS")
 fi
 npx remotion "${EARLY_ARGS[@]}"
+
+# --- 1.6. mid frame — full resolution (~60% of hook window; background-activity sample) ---
+MID_ARGS=(still "$COMP" "$OUT/mid.png" --frame="$MID_FRAME")
+if [ -n "$PROPS" ]; then
+  MID_ARGS+=("--props=$PROPS")
+fi
+npx remotion "${MID_ARGS[@]}"
 
 # --- 2. Hook-window contact sheet (frames 0..hookFrames at step) ---
 RENDER_ARGS=(render "$COMP" "$TMP" --sequence --image-format=jpeg \
@@ -102,12 +114,13 @@ else
 fi
 
 # --- 4. Pixel metrics ---
-node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/final.png" || \
+node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" "$OUT/final.png" || \
   echo "  (hook-metrics.mjs failed — pixel metrics unavailable)" >&2
 
 echo "Hook review — $OUT/"
 echo "  frame0.png"
 echo "  early.png  (frame $EARLY_FRAME)"
+echo "  mid.png    (frame $MID_FRAME)"
 echo "  sheet/"
 ls "$OUT/sheet" | sed 's/^/    /'
 if [ -f "$OUT/final.png" ]; then
