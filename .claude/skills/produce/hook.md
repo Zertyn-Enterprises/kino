@@ -2,7 +2,8 @@
 
 Run `scripts/hook.sh <CompId>` to produce the evidence this gate needs:
 - `out/review/<CompId>/hook/frame0.png` — full-res frame 0 (thumbnail test)
-- `out/review/<CompId>/hook/sheet/` — contact sheet, frames 0–90 at step 3
+- `out/review/<CompId>/hook/mid.png` — full-res ~60% of hook window (background-activity sample)
+- `out/review/<CompId>/hook/sheet/` — contact sheet, frames 0..hookFrames at step 3
 - `out/review/<CompId>/hook/final.png` — full-res final frame (loop-seam comparison)
 
 Hook craft rules live in `direction.md` §2 (v1/v2/v3). This file turns them
