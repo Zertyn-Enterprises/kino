@@ -15,6 +15,7 @@ npm test                                     # vitest (timeline math)
 npx remotion render <CompId> out/<name>.mp4  # render (--crf=16 for final)
 scripts/stills.sh <CompId> <frames...> --props='{"debug":true}'   # review stills
 scripts/filmstrip.sh <CompId> [step] [props] # contact sheets → out/review/<CompId>/strip/
+scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]        # hook-window review → out/review/<CompId>/hook/
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
 ```

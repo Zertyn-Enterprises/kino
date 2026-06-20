@@ -23,6 +23,9 @@ identity. The agent is the **director** — don't templatize. Read
 - `npm run lint` — eslint + tsc (must be green)
 - `npm test` — vitest (timeline math)
 - `npx remotion render <CompId> out/<name>.mp4` — render
+- `scripts/stills.sh <CompId> <frames...>` — full-res review stills
+- `scripts/filmstrip.sh <CompId> [step] [props]` — contact sheets → out/review/<CompId>/strip/
+- `scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]` — hook-window review → out/review/<CompId>/hook/
 
 ## Hard rules
 

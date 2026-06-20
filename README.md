@@ -89,9 +89,11 @@ in `.claude/skills/produce/` (start with `SKILL.md`) and `CLAUDE.md` /
 | `npm test` | `vitest` — timeline math |
 | `npm run build` | bundle the project |
 | `npx remotion render <CompId> out/<name>.mp4` | render a composition |
+| `scripts/stills.sh <CompId> <frames...>` | full-res review stills → `out/review/<CompId>/` |
+| `scripts/filmstrip.sh <CompId> [step] [props]` | contact sheets → `out/review/<CompId>/strip/` |
+| `scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]` | hook-window review → `out/review/<CompId>/hook/` |
 
-More helpers (review stills, contact sheets, music tooling) live in `scripts/`
-and are documented in `CLAUDE.md`.
+More helpers (music generation, analysis) live in `scripts/` and are documented in `CLAUDE.md`.
 
 ## Project structure
 
