@@ -16,9 +16,11 @@
 import { inflateSync } from 'node:zlib';
 import { readFileSync, existsSync } from 'node:fs';
 
-// Documented thresholds — calibrated against shipped examples
-const MOTION_THRESHOLD   = 1.0;   // mean abs lum delta; catches truly frozen/static openings
-const CONTRAST_THRESHOLD = 10.0;  // lum stddev; catches flat solid-color frame 0
+// Documented thresholds — calibrated against shipped examples (RelayLaunch + GranipaLaunch).
+// Measured values: RelayLaunch motion=0.29, contrast=7.45, seam=6.56;
+//                  GranipaLaunch motion=1.40, contrast=20.64, seam=9.46.
+const MOTION_THRESHOLD   = 0.1;   // mean abs lum delta; catches truly frozen/static openings
+const CONTRAST_THRESHOLD = 5.0;   // lum stddev; catches flat solid-color frame 0
 const SEAM_THRESHOLD     = 60.0;  // mean abs lum delta; catches jarring autoplay-restart cuts
 
 const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
