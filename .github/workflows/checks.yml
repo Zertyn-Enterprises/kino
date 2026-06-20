@@ -9,6 +9,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Secret scan FIRST — on the pristine checkout, before install/build, so it
+      # scans committed source only. node_modules / .next / build artifacts don't
+      # exist yet; their dep fixtures and generated keys are not our secrets and
+      # were the false positives that blocked this gate.
+      - name: Secret scan
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
+          ./gitleaks detect --source . --no-git --no-banner --config .gitleaks.toml
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -25,45 +34,17 @@ jobs:
               -not -path "*/.expo/*" \
               -exec dirname {} \;)
           fi
-
-          if [ -z "$DIRS" ]; then
-            echo "No Node projects found, skipping"
-            exit 0
-          fi
-
+          if [ -z "$DIRS" ]; then echo "No Node projects, skipping"; exit 0; fi
           for dir in $DIRS; do
-            echo ""
-            echo "════════════════════════════════════════"
-            echo "  Node: $dir"
-            echo "════════════════════════════════════════"
-            pushd "$dir" > /dev/null
-
-            # Install
-            if [ -f "pnpm-lock.yaml" ]; then
-              npm install -g pnpm
-              pnpm install --frozen-lockfile
-            elif [ -f "yarn.lock" ]; then
-              yarn install --frozen-lockfile
-            elif [ -f "package-lock.json" ]; then
-              npm ci
-            else
-              npm install
-            fi
-
-            # Lint
+            echo "-- Node: $dir --"; pushd "$dir" > /dev/null
+            if [ -f "pnpm-lock.yaml" ]; then npm install -g pnpm; pnpm install --frozen-lockfile
+            elif [ -f "yarn.lock" ]; then yarn install --frozen-lockfile
+            elif [ -f "package-lock.json" ]; then npm ci
+            else npm install; fi
             npm run lint --if-present
-
-            # Type check
-            if [ -f "tsconfig.json" ]; then
-              npx tsc --noEmit
-            fi
-
-            # Tests
+            if [ -f "tsconfig.json" ]; then npx tsc --noEmit; fi
             npm test --if-present
-
-            # Security audit (soft fail — transitive CVEs)
             npm audit --audit-level=high || true
-
             popd > /dev/null
           done
 
@@ -71,47 +52,15 @@ jobs:
         shell: bash
         run: |
           DIRS=$(find . -maxdepth 3 \( -name "requirements.txt" -o -name "pyproject.toml" \) \
-            -not -path "*/node_modules/*" \
-            -not -path "*/venv/*" \
-            -not -path "*/.venv/*" \
+            -not -path "*/node_modules/*" -not -path "*/venv/*" -not -path "*/.venv/*" \
             -exec dirname {} \; | sort -u)
-
-          if [ -z "$DIRS" ]; then
-            echo "No Python projects found, skipping"
-            exit 0
-          fi
-
+          if [ -z "$DIRS" ]; then echo "No Python projects, skipping"; exit 0; fi
           for dir in $DIRS; do
-            echo ""
-            echo "════════════════════════════════════════"
-            echo "  Python: $dir"
-            echo "════════════════════════════════════════"
-            pushd "$dir" > /dev/null
-
-            python3 -m venv .ci-venv
-            source .ci-venv/bin/activate
-
-            if [ -f "requirements.txt" ]; then
-              pip install -r requirements.txt
-            elif [ -f "pyproject.toml" ]; then
-              pip install .
-            fi
-
-            # Lint (soft fail — not all Python projects have lint configured)
-            pip install ruff 2>/dev/null || true
-            ruff check . || true
-
-            # Tests (hard gate — a red suite must block the merge)
-            if [ -d "tests" ] || ls test_*.py 1>/dev/null 2>&1; then
-              pip install pytest pytest-asyncio
-              python -m pytest
-            fi
-
-            deactivate
-            popd > /dev/null
+            echo "-- Python: $dir --"; pushd "$dir" > /dev/null
+            python3 -m venv .ci-venv; source .ci-venv/bin/activate
+            if [ -f "requirements.txt" ]; then pip install -r requirements.txt
+            elif [ -f "pyproject.toml" ]; then pip install .; fi
+            pip install ruff 2>/dev/null || true; ruff check . || true
+            if [ -d "tests" ] || ls test_*.py 1>/dev/null 2>&1; then pip install pytest pytest-asyncio; python -m pytest; fi
+            deactivate; popd > /dev/null
           done
-
-      - name: Secret scan
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
-          ./gitleaks detect --source . --no-git --no-banner --config .gitleaks.toml
