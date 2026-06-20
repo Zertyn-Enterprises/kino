@@ -1,0 +1,18 @@
+# Secret scan targets OUR source — not generated artifacts or vendored deps.
+# CI runs gitleaks after install/build, so node_modules/.next/etc. exist and
+# carry high-entropy strings (Next prerender keys, dep fixtures) that are not
+# our secrets. Real secrets committed to source are still caught.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "ignore generated + vendored + local-env paths"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)\.next/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+  '''(^|/)out/''',
+  '''(^|/)coverage/''',
+  '''(^|/)\.env(\..*)?$''',
+]
