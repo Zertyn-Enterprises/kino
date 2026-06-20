@@ -1,19 +1,38 @@
 #!/usr/bin/env bash
 # Renders hook-window review assets for a composition:
 #   frame0.png  — full-res frame 0 (thumbnail test)
+#   early.png   — full-res frame 9 (motion-by-frame-10 sample)
 #   sheet/      — contact sheet of frames 0..hookFrames at the given step
 #   final.png   — full-res final frame (loop-seam comparison)
+# After rendering, runs scripts/hook-metrics.mjs for objective PASS/FAIL output.
 # All output lands in out/review/<CompId>/hook/.
 #
-# Usage: scripts/hook.sh <CompId> [hookFrames=90] [step=3] [propsJson]
-#   e.g. scripts/hook.sh GranipaLaunch 90 3 '{"debug":true}'
+# Usage: scripts/hook.sh <CompId> [hookFrames] [step=3] [propsJson]
+#   hookFrames defaults to the first scene's length from the composition's
+#   timeline.ts (derived via scripts/hook-window.mjs); falls back to 90 if
+#   derivation fails. An explicit value overrides the auto-derived window.
+#   e.g. scripts/hook.sh GranipaLaunch       # auto-derives hook length
+#        scripts/hook.sh GranipaLaunch 73     # explicit override
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMP="${1:?usage: scripts/hook.sh <CompId> [hookFrames=90] [step=3] [propsJson]}"
-HOOK_FRAMES="${2:-90}"
+COMP="${1:?usage: scripts/hook.sh <CompId> [hookFrames] [step=3] [propsJson]}"
 STEP="${3:-3}"
 PROPS="${4:-}"
+
+# Determine hook window: explicit 2nd arg overrides; else auto-derive from timeline.
+if [ -n "${2:-}" ]; then
+  HOOK_FRAMES="${2}"
+else
+  HOOK_FRAMES=$(node scripts/hook-window.mjs "$COMP" 2>/dev/null) || {
+    echo "WARNING: could not derive hook window for $COMP — falling back to 90 frames" >&2
+    HOOK_FRAMES=90
+  }
+fi
+
+# EARLY_FRAME: frame 9 aligns with the "Motion by frame 10" gate name; clamped to HOOK_FRAMES.
+EARLY_FRAME=9
+if [ "$HOOK_FRAMES" -lt "$EARLY_FRAME" ]; then EARLY_FRAME="$HOOK_FRAMES"; fi
 
 # Concurrent-safe temp dir (PID-scoped so parallel runs don't collide).
 TMP="public/review-tmp/${COMP}-hook-$$"
@@ -28,6 +47,13 @@ if [ -n "$PROPS" ]; then
   STILL_ARGS+=("--props=$PROPS")
 fi
 npx remotion "${STILL_ARGS[@]}"
+
+# --- 1.5. early frame — full resolution (motion-by-frame-10 sample) ---
+EARLY_ARGS=(still "$COMP" "$OUT/early.png" --frame="$EARLY_FRAME")
+if [ -n "$PROPS" ]; then
+  EARLY_ARGS+=("--props=$PROPS")
+fi
+npx remotion "${EARLY_ARGS[@]}"
 
 # --- 2. Hook-window contact sheet (frames 0..hookFrames at step) ---
 RENDER_ARGS=(render "$COMP" "$TMP" --sequence --image-format=jpeg \
@@ -75,8 +101,13 @@ else
   npx remotion "${FINAL_ARGS[@]}"
 fi
 
+# --- 4. Pixel metrics ---
+node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/final.png" || \
+  echo "  (hook-metrics.mjs failed — pixel metrics unavailable)" >&2
+
 echo "Hook review — $OUT/"
 echo "  frame0.png"
+echo "  early.png  (frame $EARLY_FRAME)"
 echo "  sheet/"
 ls "$OUT/sheet" | sed 's/^/    /'
 if [ -f "$OUT/final.png" ]; then

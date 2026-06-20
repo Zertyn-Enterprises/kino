@@ -35,46 +35,46 @@ the code's intent cannot excuse the pixels' reality.
 
 ## 2. Example results
 
-Recorded 2026-06-20. Command: `scripts/hook.sh <CompId>` (defaults: hookFrames=90, step=3).
+Recorded 2026-06-20. Command: `scripts/hook.sh <CompId>` (hookFrames auto-derived from timeline; step=3). Gates marked 🤖 are machine-asserted by `scripts/hook-metrics.mjs` — measured pixel values shown. Remaining gates are human-judged from the contact sheet.
 
 ### RelayLaunch
 
-Hook scene: f0–f149 (10 beats @ 120 bpm). Sheet covers f0–f90 (6 of 10 hook beats — useful; full hook extends to f149).
+Hook scene: f0–f149 (10 beats @ 120 bpm). Hook window auto-derived: 149 frames (full hook, no manual override needed).
 
 | Gate | Measured value | Pass? |
 |---|---|---|
 | Frame-0 thumbnail | `git push` half-typed, cursor block lit; terminal is single focal point; high-contrast white on near-black (#0A0E0B) | ✓ |
 | Text density | `git push` (2 words) | ✓ |
-| Motion by frame 10 | Typing animation: tile 0 (f0) shows `git push █`; tile 3 (f9) shows more chars typed + cursor shift | ✓ |
+| Motion by frame 10 🤖 | delta=0.29 (frame0 vs frame9); typing animation: f0 shows `git push █`, f9 shows more chars typed + cursor shift | ✓ (threshold >0.1) |
+| Frame-0 contrast 🤖 | stddev=7.45; white terminal text on near-black field | ✓ (threshold >5.0) |
 | Focal + alive | Terminal = sole focal ✓; background is static dark with no active parallel layer — "airy" identity choice for Relay, but the background-activity sub-gate is absent | ⚠ borderline |
 | Hook pattern committed | "Dramatized pain": typing → git output → "Queued — waiting for runner" (f52) → red elapsed timer (f75) | ✓ |
-| Promise by 2.5s | Red elapsed timer `0:00 elapsed` appears at exactly f75; **tension number** (wait-time counter, arc B) — clock accelerates to 14:32 by f148; pain scale is legible by f90 (tile 30, element-1.png) | ✓ (arc B) |
+| Promise by 2.5s | Red elapsed timer `0:00 elapsed` appears at exactly f75; **tension number** (wait-time counter, arc B) — clock accelerates to 14:32 by f148; pain scale is legible on element-1.png | ✓ (arc B) |
 | Open loop closed | Hook poses "how long will I wait?" → closed at reveal scene (f240+, "Push. It's already live.") | ✓ |
-| Loop seam | final.png: dark, "Relay" wordmark, relay.dev CTA; f0: dark terminal, `git push` — same near-black palette, quiet energy on both ends | ✓ |
+| Loop seam 🤖 | delta=6.56 (frame0 vs final); dark terminal `git push` vs dark "Relay" wordmark — same near-black palette, quiet energy on both ends | ✓ (threshold <60) |
 
 **Named defects:**
 1. **f0/background static** — no active parallel layer behind the terminal in any hook frame. Terminal content is kinetic (text appears, cursor blinks); absence of a background layer is an intentional airy choice, but "Focal + alive" sub-gate (≥1 background layer) is not met.
-2. **f75 timer reads 0:00** — a reviewer reading only the contact sheet might not realize the timer _starts_ here and accelerates off-screen; element-1.png (the 31st tile, f90) shows the clock in motion and confirms the number is real.
-3. **element-1.png overflow page** — 31 tiles at 30-per-page puts f90 alone on a second page; not a script bug (ContactSheet layout), but looks like a nearly empty sheet. Expected; not actionable.
+2. **f75 timer reads 0:00** — a reviewer reading only the contact sheet might not realize the timer _starts_ here and accelerates off-screen; element-1.png (second-page tiles) shows the clock in motion and confirms the number is real.
 
 ---
 
 ### GranipaLaunch
 
-Hook scene: f0–f73 (5 beats @ 122 bpm = 2.46s). Sheet covers f0–f90 — the final ~16 frames (tiles 25–29 in element-0.png) are the first beat of the **indict** scene, not the hook.
+Hook scene: f0–f73 (5 beats @ 122 bpm = 2.46s). Hook window auto-derived: 73 frames (full hook, no indict-scene bleed).
 
 | Gate | Measured value | Pass? |
 |---|---|---|
 | Frame-0 thumbnail | "what your mac tools see in a day:" in serif display; readable at thumbnail; menu bar composed at top; icons not yet visible — micro-settle only (opacity 0.85→1.0, 3px translate, f0–f8) | ⚠ borderline |
 | Text density | "what your mac tools see in a day:" = **8 words** — exceeds ≤6 limit | ✗ |
-| Motion by frame 10 | Subtle: line-settle animation (opacity + translateY) f0–f8; imperceptible at contact-sheet scale but measurable in source | ✓ (subtle) |
+| Motion by frame 10 🤖 | delta=1.40 (frame0 vs frame9); line-settle animation (opacity + translateY) f0–f8 — measurable in pixels | ✓ (threshold >0.1) |
+| Frame-0 contrast 🤖 | stddev=20.64; ominous serif question on dark field | ✓ (threshold >5.0) |
 | Focal + alive | Serif question = dominant focal ✓; three icons stamp in as active secondary layer at f38, f46, f54 ✓ | ✓ |
 | Hook pattern committed | Indictment / open question: "what your mac tools see in a day:" (open colon) sustained through f73 without mixing patterns | ✓ |
-| Promise by 2.5s | Hook ends f73 (2.46s); no promise/number within the hook — Arc F defers the positive number ("$0", "$14/mo → $0") to the kicker scene. f75 is already the indict scene for this comp. | N/A (arc F) |
+| Promise by 2.5s | Hook ends f73 (2.46s); no promise/number within the hook — Arc F defers the positive number ("$0", "$14/mo → $0") to the kicker scene. | N/A (arc F) |
 | Open loop closed | "what … in a day:" (surveillance open colon) → closed at reveal + sovereignty scenes ("your account. your rules.") | ✓ |
-| Loop seam | final.png: Grañipa mark, dark blue (#0C0F17), "open source · on-device · free"; f0: dark charcoal (#0A0B0E), ominous question — compatible darkness; energy shift ominous→resolved is deliberate | ✓ |
+| Loop seam 🤖 | delta=9.46 (frame0 vs final); dark charcoal (#0A0B0E) ominous question vs dark blue (#0C0F17) Grañipa mark — compatible darkness; energy shift ominous→resolved is deliberate | ✓ (threshold <60) |
 
 **Named defects:**
 1. **Text density** — 8 words fails ≤6 gate. The full question is copy-essential for arc F indictment; shortening it breaks the setup. This is a known tension between the gate and copy-first hooks where the question IS the action. No fix without creative change.
 2. **Frame-0 mid-action** — icons don't stamp until f38; f0 reads as a composed text-only card. The micro-settle (3px, opacity) is insufficient to satisfy "motion already underway" strictly. Mitigation: the open colon is rhetorical motion; the gate's spirit (not a logo or empty state) is met.
-3. **Sheet overlap into indict** — tiles 25–29 on element-0.png are from the indict scene (f75–f87). Useful as transition context but could mislead a reviewer into assessing non-hook frames against hook gates. When your hook is shorter than 90 frames, pass the actual hook length: `scripts/hook.sh GranipaLaunch 73`.
