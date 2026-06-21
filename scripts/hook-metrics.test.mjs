@@ -133,6 +133,11 @@ const relayAvailable = Object.values(relay).every((f) => f !== null);
 const granipa = hookFrames("GranipaLaunch");
 const granipaAvailable = Object.values(granipa).every((f) => f !== null);
 
+const ambientCheck = hookFrames("AmbientCheck");
+const ambientCheckAvailable = Object.values(ambientCheck).every(
+  (f) => f !== null,
+);
+
 // ---------------------------------------------------------------------------
 // Tests: golden positive
 // ---------------------------------------------------------------------------
@@ -320,6 +325,54 @@ describe(
         const g = verdict.gates.find((g) => g.id === 5);
         expect(g.pass).toBe(false);
         expect(g.measured.rows).toBe(1);
+      },
+    );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Tests: AmbientCheck (gate-pass reference — skip if frames not yet rendered)
+//
+// Documented verdicts from hook.md §2 (recorded 2026-06-21):
+//   AmbientCheck: g1=PASS(δ=1.80) g2=PASS(σ=16.40) g3=PASS(δ=4.52)
+//                 g4=PASS(active=6,separated=true) g5=PASS(cells=11,rows=4)
+// hardGatesPass=true. First composition to PASS both advisory gates 4 and 5.
+// ---------------------------------------------------------------------------
+
+describe(
+  "computeHookMetrics — AmbientCheck reference (skip if not rendered)",
+  () => {
+    const verdict = ambientCheckAvailable
+      ? computeHookMetrics(ambientCheck)
+      : null;
+
+    it.skipIf(!ambientCheckAvailable)(
+      "hard gates 1–3 all pass; hardGatesPass=true",
+      () => {
+        expect(verdict.hardGatesPass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 1).pass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 2).pass).toBe(true);
+        expect(verdict.gates.find((g) => g.id === 3).pass).toBe(true);
+      },
+    );
+
+    it.skipIf(!ambientCheckAvailable)(
+      "gate 4 (advisory) passes — AmbientField strips activate ≥2 separated cells",
+      () => {
+        const g = verdict.gates.find((g) => g.id === 4);
+        expect(g.pass).toBe(true);
+        expect(g.measured.separated).toBe(true);
+        expect(g.measured.active).toBeGreaterThanOrEqual(2);
+      },
+    );
+
+    it.skipIf(!ambientCheckAvailable)(
+      "gate 5 (advisory) passes — AmbientField distributes content across ≥2 grid rows",
+      () => {
+        const g = verdict.gates.find((g) => g.id === 5);
+        expect(g.pass).toBe(true);
+        expect(g.measured.rows).toBeGreaterThanOrEqual(2);
+        expect(g.measured.cells).toBeGreaterThanOrEqual(2);
       },
     );
   },
