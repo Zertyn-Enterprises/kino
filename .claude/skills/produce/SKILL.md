@@ -19,6 +19,9 @@ Read these before any creative decision (all in this folder):
 - `quality.md` — THE PRODUCTION CONTRACT: brand-truth intake, design-system
   lock, styleframes-before-motion, ears-on audio, AI-tells checklist, ship
   gate. Stages are mandatory and ordered; read before any scene work.
+- `contrast.md` — WCAG contrast gate: hard/advisory floors, run instructions,
+  assert protocol, and recorded relay+granipa snapshots. Run at design-system
+  lock (stage B) before any scene code.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
