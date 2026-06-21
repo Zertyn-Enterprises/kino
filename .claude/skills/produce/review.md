@@ -45,15 +45,23 @@ Same-session review drifts toward approval. Counteract mechanically:
 
 ## 3. Full-cut judgment (after all scenes pass)
 
-Read the whole filmstrip start to finish and answer in writing:
+Run `scripts/retention.sh <Comp>` first and record the verdict before
+reading the filmstrip:
+
+- **Dead-air (HARD):** confirm `hardGatesPass: true` in
+  `out/review/<Comp>/retention/metrics.json`. Non-zero exit = dead air detected;
+  fix the timeline. Add `--holds=S:E,...` for intentional freeze-frames.
+- **Energy build-to-climax (advisory):** record `peakFrame`, `boundaryFrame`,
+  `peakAfterBoundary` from `metrics.json`. Supply `--climax=<narrativeClimaxFrame>`
+  when the edit is final. Failing requires a named written justification.
+- **Re-hook cadence (advisory):** record `longestFlatSec` and its start frame.
+  Failing (>8s flat) requires a named written justification or cut the stretch.
+
+Then read the whole filmstrip start to finish and answer in writing:
 
 1. Where does the eye go in each second, and is that where the story is?
-2. Does energy build toward the climax, or plateau? (Tile-to-tile change
-   should generally INCREASE until the climax, then resolve.)
-3. Could a muted viewer state the one message after one viewing?
-4. Which 2 seconds would you cut? (There are always 2 seconds. Cut them in
-   `timeline.ts`.)
-5. Side-by-side with the most similar prior video's filmstrip
+2. Could a muted viewer state the one message after one viewing?
+3. Side-by-side with the most similar prior video's filmstrip
    (`src/videos/_registry.md` → `out/review/<that>/strip/`): would a viewer
    suspect the same template? Must be NO on structure/rhythm, not just colors.
 

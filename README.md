@@ -92,6 +92,7 @@ in `.claude/skills/produce/` (start with `SKILL.md`) and `CLAUDE.md` /
 | `scripts/stills.sh <CompId> <frames...>` | full-res review stills → `out/review/<CompId>/` |
 | `scripts/filmstrip.sh <CompId> [step] [props]` | contact sheets → `out/review/<CompId>/strip/` |
 | `scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]` | hook-window review → `out/review/<CompId>/hook/` |
+| `scripts/retention.sh <CompId> [step=5] [--holds=S:E,...] [--climax=F] [--rehook=N]` | full-timeline retention gate → `out/review/<CompId>/retention/` |
 
 More helpers (music generation, analysis) live in `scripts/` and are documented in `CLAUDE.md`.
 
