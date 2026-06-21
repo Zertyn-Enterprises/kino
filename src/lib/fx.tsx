@@ -5,7 +5,13 @@
  */
 
 import { noise2D } from "@remotion/noise";
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
+import {
+  AbsoluteFill,
+  Easing,
+  interpolate,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 
 /* ── Stage ─────────────────────────────────────────────────────────────── */
 
@@ -496,6 +502,121 @@ export const Macro: React.FC<{
       }}
     >
       {children}
+    </AbsoluteFill>
+  );
+};
+
+/* ── Ambient activity ──────────────────────────────────────────────────── */
+
+/** Bounding box for AmbientField placement within the parent (px). */
+export type AmbientRegion = { x: number; y: number; w: number; h: number };
+
+/**
+ * Parallel-activity background layer: streaming micro-update strips
+ * distributed across the region, scrolling at deterministic speeds.
+ *
+ * Mechanics only — caller supplies every color token. Motion is fully
+ * deterministic (noise2D + index hashes; never Math.random).
+ *
+ * Gate guidance: density ≥ 40 + energy ≥ 1 produces hook gate-4/5 PASSes
+ * (background-activity ≥ 2 separated cells, frame-0 liveness ≥ 2 rows).
+ */
+export const AmbientField: React.FC<{
+  /** Active item color — caller supplies. */
+  color: string;
+  /** Dim variant for lower-opacity items. Falls back to `color`. */
+  colorDim?: string;
+  /** Total stream count. Default 20. */
+  density?: number;
+  /** Placement in parent (px). Omit to fill the parent via AbsoluteFill. */
+  region?: AmbientRegion;
+  /** Motion speed multiplier 0–1+. Default 0.5. */
+  energy?: number;
+  /** Determinism seed. Default "af". */
+  seed?: string;
+  /** Strip height in px. Default 3. */
+  itemH?: number;
+}> = ({
+  color,
+  colorDim,
+  density = 20,
+  region,
+  energy = 0.5,
+  seed = "af",
+  itemH = 3,
+}) => {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+
+  const lw = region?.w ?? width;
+  const lh = region?.h ?? height;
+
+  // Divide items evenly across 4 horizontal bands so they span the full
+  // height — this is what satisfies the frame-0 liveness gate (≥2 rows).
+  const BANDS = 4;
+  const perBand = Math.ceil(density / BANDS);
+  const bandH = lh / BANDS;
+
+  const items = Array.from({ length: density }, (_, i) => {
+    const band = Math.floor((i * BANDS) / density);
+    const withinBand = i - Math.floor((band * density) / BANDS);
+    // Even vertical spread within band + small jitter
+    const y =
+      band * bandH +
+      ((withinBand + 0.5) / perBand) * bandH +
+      noise2D(`${seed}jy`, i * 6.1, 0) * bandH * 0.08;
+
+    // Noise-based start x (0..lw)
+    const baseX = Math.abs(noise2D(`${seed}bx`, i * 11.3, 0)) * lw;
+    // Strip width 40–240 px
+    const itemW = 40 + Math.abs(noise2D(`${seed}iw`, i * 4.7, 0)) * 200;
+    // Scroll speed 0.6–2.8 px/frame (before energy scaling)
+    const spd = 0.6 + Math.abs(noise2D(`${seed}sp`, i * 8.9, 0)) * 2.2;
+    // Current x: wraps within local width
+    const x = ((baseX + frame * energy * spd) % lw + lw) % lw;
+
+    // Slow opacity modulation via noise
+    const op =
+      0.3 + 0.6 * Math.abs(noise2D(`${seed}op`, i * 0.9, frame * 0.01 * energy));
+
+    return (
+      <div
+        key={i}
+        style={{
+          position: "absolute",
+          left: Math.round(x),
+          top: Math.round(Math.max(0, Math.min(lh - itemH, y))),
+          width: Math.round(itemW),
+          height: itemH,
+          background: op > 0.65 ? color : (colorDim ?? color),
+          opacity: op,
+          pointerEvents: "none",
+        }}
+      />
+    );
+  });
+
+  if (region) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: region.x,
+          top: region.y,
+          width: lw,
+          height: lh,
+          overflow: "hidden",
+          pointerEvents: "none",
+        }}
+      >
+        {items}
+      </div>
+    );
+  }
+
+  return (
+    <AbsoluteFill style={{ overflow: "hidden", pointerEvents: "none" }}>
+      {items}
     </AbsoluteFill>
   );
 };

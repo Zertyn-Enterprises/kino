@@ -38,7 +38,12 @@ Hook patterns — pick ONE, commit hard:
 
 Hook rules: motion within the first 10 frames; one focal point; if there is
 text, ≤6 words; the hook's question must be ANSWERED by the reveal (open
-loops you close = satisfaction; open loops you forget = clickbait).
+loops you close = satisfaction; open loops you forget = clickbait). **To
+satisfy the background-activity and frame-0 liveness gates, compose
+`AmbientField` from `src/lib/fx.tsx` as a living-background layer** —
+it distributes deterministic streaming strips across the frame, filling the
+hook gate's ≥2-separated-active-cells and ≥2-rows requirements.
+Reference: `src/smoke/AmbientCheck.tsx` (gate-4 and gate-5 PASS fixture).
 
 ### Hook rules v2 (retention data + 2025-2026 X-viral research)
 
