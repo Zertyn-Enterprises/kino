@@ -91,6 +91,28 @@ fields. The `hook.sh` exit code (0 = all hard gates pass, non-zero = at least
 one hard gate fails) is the signal an autonomous loop or QA pipeline consumes.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 7. Retention gate (run on EVERY video at full-cut, both build paths)
+
+Run `scripts/retention.sh <CompId>` after the full cut is assembled and judge
+against the three retention gates. Optional flags:
+  `--holds=S:E,...`  exclude declared holds from the dead-air gate (frame ranges)
+  `--climax=F`       climax frame for the energy-build gate
+  `--rehook=N`       max seconds between re-hook punches (default 8)
+
+### Blocking vs advisory enforcement
+
+**Gate 1 — Dead-air (HARD):** A video with >1s of identical-looking tiles
+(outside declared holds) cannot proceed to rough-cut checkpoint 2 until fixed.
+Do not proceed with a non-zero `retention.sh` exit code.
+
+**Gates 2–3 — Energy build-to-climax / Re-hook cadence (ADVISORY):**
+Failing either requires a named, written justification in the review before
+continuing. Unjustified advisory failures are not acceptable.
+
+**Machine signal**: `out/review/<CompId>/retention/metrics.json` is the artifact
+of record — inspect `hardGatesPass` and the per-gate `pass`/`hard` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.

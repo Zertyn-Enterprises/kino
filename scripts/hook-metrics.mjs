@@ -59,7 +59,7 @@ const LIVENESS_MIN_CELLS    = 2;     // minimum content cells; content must also
 
 const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
-function paethPredictor(a, b, c) {
+export function paethPredictor(a, b, c) {
   const p = a + b - c;
   const pa = Math.abs(p - a);
   const pb = Math.abs(p - b);
@@ -69,7 +69,7 @@ function paethPredictor(a, b, c) {
   return c;
 }
 
-function decodePNG(buf) {
+export function decodePNG(buf) {
   if (!PNG_SIG.equals(buf.subarray(0, 8))) throw new Error('Not a PNG');
 
   let offset = 8;
@@ -132,7 +132,7 @@ function decodePNG(buf) {
   return { width, height, channels, pixels };
 }
 
-function toLuminance(img) {
+export function toLuminance(img) {
   const { pixels, channels, width, height } = img;
   const count = width * height;
   const lum = new Float32Array(count);
@@ -143,14 +143,14 @@ function toLuminance(img) {
   return lum;
 }
 
-function meanAbsDelta(a, b) {
+export function meanAbsDelta(a, b) {
   const n = Math.min(a.length, b.length);
   let sum = 0;
   for (let i = 0; i < n; i++) sum += Math.abs(a[i] - b[i]);
   return sum / n;
 }
 
-function stddev(arr) {
+export function stddev(arr) {
   const n = arr.length;
   let mean = 0;
   for (let i = 0; i < n; i++) mean += arr[i];
@@ -163,7 +163,7 @@ function stddev(arr) {
 // Computes per-cell stats for the 4×4 grid.
 // Returns array of { row, col, stddev0, meanDelta } where meanDelta is vs lumMid
 // (0 if lumMid is null). Cells cover floor(width/4) × floor(height/4) pixels each.
-function computeGrid(lum0, lumMid, width, height) {
+export function computeGrid(lum0, lumMid, width, height) {
   const cellH = Math.floor(height / GRID_ROWS);
   const cellW = Math.floor(width  / GRID_COLS);
   const cells = [];
@@ -199,7 +199,7 @@ function computeGrid(lum0, lumMid, width, height) {
 
 // Returns true if any two cells in the array have Chebyshev distance ≥ 2
 // (i.e. are not directly adjacent including diagonals — not a single contiguous blob).
-function hasSeparatedPair(cells) {
+export function hasSeparatedPair(cells) {
   for (let i = 0; i < cells.length; i++) {
     for (let j = i + 1; j < cells.length; j++) {
       const dr = Math.abs(cells[i].row - cells[j].row);

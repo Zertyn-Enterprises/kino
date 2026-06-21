@@ -82,6 +82,15 @@ frame-0 liveness) failing are acceptable only if each has a written, named
 justification already recorded in the review. A video with an unjustified
 hard-gate failure does not ship.
 
+**Retention gate prerequisite**: confirm that
+`metrics.json` (`out/review/<CompId>/retention/metrics.json`) shows
+`hardGatesPass: true` and `retention.sh` exited 0. Gate 1 (dead-air) is a
+hard block. Advisory gates 2–3 (energy build-to-climax / re-hook cadence)
+failing are acceptable only with a named, written justification. Run
+`scripts/retention.sh <CompId>` (with `--holds`, `--climax`, `--rehook` as
+needed) before the visual comparison. A video with an unjustified hard-gate
+failure does not ship.
+
 Side-by-side: our best 3 frames vs 3 frames of the reference class
 (Apple/Linear/Vercel-grade). If ours is visibly the weaker poster, do not
 ship — return to C with named gaps. The reference is a BAR, never a
