@@ -13,6 +13,7 @@ import { GranipaLaunch } from "./videos/granipa/Main";
 import { granipaTimeline } from "./videos/granipa/timeline";
 import { RelayLaunch } from "./videos/relay/Main";
 import { relayTimeline } from "./videos/relay/timeline";
+import { AmbientCheck } from "./smoke/AmbientCheck";
 import { SmokeClip } from "./smoke/SmokeClip";
 import { SmokeTest } from "./smoke/SmokeTest";
 
@@ -89,6 +90,14 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={640}
         height={360}
+      />
+      <Composition
+        id="AmbientCheck"
+        component={AmbientCheck}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
       />
     </>
   );

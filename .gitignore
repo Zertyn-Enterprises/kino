@@ -8,6 +8,12 @@ dist
 
 # Ignore the output video from Git but not videos you import into src/.
 out
+# Allow metrics.json verdicts from review runs (pinned proof of gate state)
+!out/
+!out/review/
+!out/review/*/
+!out/review/*/hook/
+!out/review/*/hook/metrics.json
 
 # Generated smoke-test media
 public/smoke
