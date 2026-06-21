@@ -94,7 +94,7 @@ Human-readable verdict is tee'd to `metrics.txt`.
 ## 7. Retention gate (run on EVERY video at full-cut, both build paths)
 
 Run `scripts/retention.sh <CompId>` after the full cut is assembled and judge
-against the three retention gates. Optional flags:
+against `retention.md`. Optional flags:
   `--holds=S:E,...`  exclude declared holds from the dead-air gate (frame ranges)
   `--climax=F`       climax frame for the energy-build gate
   `--rehook=N`       max seconds between re-hook punches (default 8)
