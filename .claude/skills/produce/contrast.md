@@ -48,10 +48,16 @@ cat out/review/<slug>/contrast/metrics.txt    # human-readable table
 
 ---
 
-**Recorded snapshot — 2026-06-21. Do not hand-edit; re-run
-`scripts/contrast.sh <slug> ...` with the resolved palette to update.**
+**Recorded snapshot — 2026-06-21. Do not hand-edit; re-run the command shown
+under each video with its resolved palette to update.**
 
 ### RelayLaunch
+
+```bash
+scripts/contrast.sh relay \
+  --bg='#0A0E0B' --surface='#131A14' --text='#F2F5F0' \
+  --textDim='#8FA098' --accent='#B6F22E' --accentAlt='#E5484D'
+```
 
 Palette: bg `#0A0E0B` · surface `#131A14` · text `#F2F5F0` · textDim `#8FA098` · accent `#B6F22E` · accentAlt `#E5484D`
 
@@ -67,6 +73,12 @@ Palette: bg `#0A0E0B` · surface `#131A14` · text `#F2F5F0` · textDim `#8FA098
 `hardGatesPass: true` — all HARD pairs clear their floors.
 
 ### GranipaLaunch
+
+```bash
+scripts/contrast.sh granipa \
+  --bg='#0A0B0E' --surface='#14161D' --text='#F1F2F6' \
+  --textDim='#8E93A3' --accent='#3D8BFF' --accentAlt='#F4604C'
+```
 
 Palette: bg `#0A0B0E` · surface `#14161D` · text `#F1F2F6` · textDim `#8E93A3` · accent `#3D8BFF` · accentAlt `#F4604C`
 
