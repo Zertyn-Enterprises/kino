@@ -83,6 +83,22 @@ describe('computeContrastMetrics — relay palette (golden positive)', () => {
   it('emits 6 pairs (including accentAlt)', () => {
     expect(verdict.pairs).toHaveLength(6);
   });
+
+  it('HARD pair ratios match dogfood snapshot', () => {
+    const byRole = role => verdict.pairs.find(p => p.role === role);
+    expect(byRole('text-on-bg').ratio).toBe(17.67);
+    expect(byRole('text-on-surface').ratio).toBe(16.11);
+    expect(byRole('textDim-on-bg').ratio).toBe(7.08);
+    expect(byRole('textDim-on-surface').ratio).toBe(6.45);
+  });
+
+  it('all pairs report correct floor', () => {
+    const byRole = role => verdict.pairs.find(p => p.role === role);
+    expect(byRole('text-on-bg').floor).toBe(7);
+    expect(byRole('text-on-surface').floor).toBe(7);
+    expect(byRole('textDim-on-bg').floor).toBe(4.5);
+    expect(byRole('textDim-on-surface').floor).toBe(4.5);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -133,6 +149,22 @@ describe('computeContrastMetrics — granipa palette (golden positive)', () => {
     expect(p.pass).toBe(true);
     expect(p.ratio).toBeGreaterThanOrEqual(4.5);
   });
+
+  it('HARD pair ratios match dogfood snapshot', () => {
+    const byRole = role => verdict.pairs.find(p => p.role === role);
+    expect(byRole('text-on-bg').ratio).toBe(17.59);
+    expect(byRole('text-on-surface').ratio).toBe(16.15);
+    expect(byRole('textDim-on-bg').ratio).toBe(6.42);
+    expect(byRole('textDim-on-surface').ratio).toBe(5.9);
+  });
+
+  it('all pairs report correct floor', () => {
+    const byRole = role => verdict.pairs.find(p => p.role === role);
+    expect(byRole('text-on-bg').floor).toBe(7);
+    expect(byRole('text-on-surface').floor).toBe(7);
+    expect(byRole('textDim-on-bg').floor).toBe(4.5);
+    expect(byRole('textDim-on-surface').floor).toBe(4.5);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -176,6 +208,14 @@ describe('computeContrastMetrics — golden negative 1 (body text <7:1 HARD FAIL
     expect(p.pass).toBe(true);
     expect(p.ratio).toBeGreaterThanOrEqual(4.5);
   });
+
+  it('offending pair identity: text-on-bg fg=#777777 bg=#000000 floor=7 ratio=4.69', () => {
+    const p = verdict.pairs.find(p => p.role === 'text-on-bg');
+    expect(p.fg).toBe('#777777');
+    expect(p.bg).toBe('#000000');
+    expect(p.floor).toBe(7);
+    expect(p.ratio).toBe(4.69);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -218,6 +258,14 @@ describe('computeContrastMetrics — golden negative 2 (textDim <4.5:1 HARD FAIL
     expect(p.hard).toBe(true);
     expect(p.pass).toBe(false);
     expect(p.ratio).toBeLessThan(4.5);
+  });
+
+  it('offending pair identity: textDim-on-bg fg=#555555 bg=#000000 floor=4.5 ratio=2.82', () => {
+    const p = verdict.pairs.find(p => p.role === 'textDim-on-bg');
+    expect(p.fg).toBe('#555555');
+    expect(p.bg).toBe('#000000');
+    expect(p.floor).toBe(4.5);
+    expect(p.ratio).toBe(2.82);
   });
 });
 
