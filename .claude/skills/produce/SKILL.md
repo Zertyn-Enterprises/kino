@@ -19,6 +19,9 @@ Read these before any creative decision (all in this folder):
 - `quality.md` — THE PRODUCTION CONTRACT: brand-truth intake, design-system
   lock, styleframes-before-motion, ears-on audio, AI-tells checklist, ship
   gate. Stages are mandatory and ordered; read before any scene work.
+- `contrast.md` — WCAG contrast gate: hard/advisory floors, run instructions,
+  assert protocol, and recorded relay+granipa snapshots. Run at design-system
+  lock (stage B) before any scene code.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -127,6 +130,12 @@ status table:
 
 Then scaffold `theme.ts`, `timeline.ts`, `Main.tsx` (scenes as placeholders),
 register the composition, and verify `npm run lint` + a 1-frame still render.
+
+**Contrast gate (design-system lock):** immediately after the palette is declared
+in `theme.ts`, run `scripts/contrast.sh <slug> --bg=.. --surface=.. --text=.. --textDim=.. --accent=.. [--accentAlt=..]`
+with the resolved hex values. All HARD pairs must pass (non-zero exit blocks
+scene work). Record `out/review/<slug>/contrast/metrics.json` as the artifact
+of record. See `contrast.md` + `quality.md` stage B for the full spec.
 
 ### 4 — Build, scene by scene
 
