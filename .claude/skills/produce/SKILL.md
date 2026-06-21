@@ -128,6 +128,12 @@ status table:
 Then scaffold `theme.ts`, `timeline.ts`, `Main.tsx` (scenes as placeholders),
 register the composition, and verify `npm run lint` + a 1-frame still render.
 
+**Contrast gate (design-system lock):** immediately after the palette is declared
+in `theme.ts`, run `scripts/contrast.sh <slug> --bg=.. --surface=.. --text=.. --textDim=.. --accent=.. [--accentAlt=..]`
+with the resolved hex values. All HARD pairs must pass (non-zero exit blocks
+scene work). Record `out/review/<slug>/contrast/metrics.json` as the artifact
+of record. See `contrast.md` + `quality.md` stage B for the full spec.
+
 ### 4 — Build, scene by scene
 
 **Preferred at scale (the multi-agent build pattern — needs a Claude Code setup that can dispatch parallel subagents):** build the foundation

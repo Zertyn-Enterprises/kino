@@ -27,6 +27,7 @@ identity. The agent is the **director** — don't templatize. Read
 - `scripts/filmstrip.sh <CompId> [step] [props]` — contact sheets → out/review/<CompId>/strip/
 - `scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]` — hook-window review → out/review/<CompId>/hook/
 - `scripts/retention.sh <CompId> [step=5] [--holds=S:E,...] [--climax=F] [--rehook=N]` — full-timeline retention gate → out/review/<CompId>/retention/
+- `scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]` — WCAG contrast gate (design-system lock) → out/review/<slug>/contrast/
 
 ## Hard rules
 
