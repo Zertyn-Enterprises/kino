@@ -23,7 +23,7 @@ Same-session review drifts toward approval. Counteract mechanically:
 |---|---|
 | Safe margins | No text/UI beyond the DebugGrid 5% rect (bleed-by-design excepted) |
 | Text size | Captions ≥22px; check the SMALLEST text in frame |
-| Contrast | Body ≥7:1, display ≥4.5:1 vs actual local bg (compute from hex; gradients at worst point) |
+| Contrast 🤖 | Palette gate run at design-system lock (stage B): `scripts/contrast.sh <slug> ...` → `out/review/<slug>/contrast/metrics.json` must show `hardGatesPass: true`. Assert each pair: text ≥7:1 on bg+surface (HARD), textDim ≥4.5:1 on bg+surface (HARD). Advisory: accent/accentAlt ≥4.5:1 on bg. For gradients, compute against the worst-point bg hex. See `contrast.md`. |
 | Focal clarity | One focal point, findable in <0.5s at thumbnail size |
 | Alignment | Edges align to something (grid, optical center, each other); no almost-aligned |
 | Realism | UI data plausible & dense; no Lorem/John Doe; nothing stretched or upscaled-blurry |

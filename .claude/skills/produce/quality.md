@@ -39,6 +39,11 @@ Approximating an existing brand mark is forbidden — use the file.
   a region. No unplanned overlaps survive review.
 - **Color**: brand palette + ONE accent doing emotional work; gradient
   text at most once per video.
+- **Contrast gate**: run `scripts/contrast.sh <slug> --bg=.. --surface=.. --text=.. --textDim=.. --accent=.. [--accentAlt=..]`
+  with the resolved palette hex values immediately after the palette is locked.
+  All HARD pairs (text ≥7:1, textDim ≥4.5:1) must pass before any scene code
+  is written. Record `out/review/<slug>/contrast/metrics.json` as the artifact
+  of record. See `contrast.md` for the full gate spec and ship snapshots.
 
 ### C · Styleframes before motion (the biggest unlock)
 For each scene, build the STATIC frame at its most important moment first.
@@ -73,6 +78,14 @@ craft.md §1.5–1.7 + §2 apply unchanged. Motion serves the styleframe.
   bar; "would a motion designer sign this?" is. Would it stop a muted X scroller and hold through the full video?
 
 ### G · Ship gate
+
+**Contrast gate prerequisite**: confirm that
+`metrics.json` (`out/review/<slug>/contrast/metrics.json`) shows
+`hardGatesPass: true` and `contrast.sh` exited 0. All 4 HARD pairs (text ≥7:1
+on both bg and surface; textDim ≥4.5:1 on both bg and surface) must be green.
+This was verified at design-system lock (stage B); confirm the palette was not
+changed since that run. Advisory pairs failing are acceptable only with a named
+justification in the review.
 
 **Hook gate prerequisite**: before the visual comparison below, confirm that
 `metrics.json` (`out/review/<CompId>/hook/metrics.json`) shows
