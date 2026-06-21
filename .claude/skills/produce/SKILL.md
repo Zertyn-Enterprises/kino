@@ -159,6 +159,8 @@ Commit after each scene passes (small commits = resumable production).
 
 - `scripts/filmstrip.sh <Comp> 15` — judge the WHOLE video per `review.md` §3:
   rhythm, dead air, attention flow, transition placement.
+- `scripts/retention.sh <Comp>` — assert the retention gate per `retention.md` (`review.md` §7).
+  Hard gate (dead-air) must pass; record advisory verdicts with named justification if failing.
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
