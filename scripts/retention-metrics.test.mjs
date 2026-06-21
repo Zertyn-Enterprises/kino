@@ -119,6 +119,41 @@ const posFrames = [
 const negFrames = Array.from({ length: 10 }, () => makeFrame(128));
 
 // ---------------------------------------------------------------------------
+// Golden negative #2 — gate 2 advisory FAIL (energy peaks in first third)
+//
+// 20 frames, step=5, fps=30 → totalFrames=(20-1)*5=95, firstThirdFrame=floor(95/3)=31
+// Spike at pair 0 (fill=100 → fill=200, delta=100) = peakFrame=0*5=0 < 31.
+// Remaining pairs delta=1 (above DEAD_AIR_FLOOR=0.05 → no dead air → gate1 PASS).
+// Gate 1: PASS (longestStaticSec=0, all deltas≥1)
+// Gate 2: FAIL advisory (peakAfterBoundary=false — peak at frame 0 < boundary=31)
+// Gate 3: PASS (only spike at pair 0; anchors=[0,5,95]; longestFlat=90f=3s < 8s)
+// hardGatesPass: true (gate 2 advisory only; gate 1 hard PASS)
+// ---------------------------------------------------------------------------
+
+const neg2Frames = [
+  makeFrame(100), // frame 0
+  makeFrame(200), // frame 1 — peak spike (delta=100)
+  makeFrame(201), // frame 2  (delta=1)
+  makeFrame(202), // frame 3
+  makeFrame(203), // frame 4
+  makeFrame(204), // frame 5
+  makeFrame(205), // frame 6
+  makeFrame(206), // frame 7
+  makeFrame(207), // frame 8
+  makeFrame(208), // frame 9
+  makeFrame(209), // frame 10
+  makeFrame(210), // frame 11
+  makeFrame(211), // frame 12
+  makeFrame(212), // frame 13
+  makeFrame(213), // frame 14
+  makeFrame(214), // frame 15
+  makeFrame(215), // frame 16
+  makeFrame(216), // frame 17
+  makeFrame(217), // frame 18
+  makeFrame(218), // frame 19
+];
+
+// ---------------------------------------------------------------------------
 // Tests: golden positive
 // ---------------------------------------------------------------------------
 
@@ -188,6 +223,41 @@ describe('computeRetentionMetrics — golden negative control (gate 1 hard FAIL)
     const g3 = verdict.gates.find(g => g.id === 3);
     expect(g2.hard).toBe(false);
     expect(g3.hard).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: golden negative #2 (gate 2 advisory FAIL — climax in first third)
+// ---------------------------------------------------------------------------
+
+describe('computeRetentionMetrics — golden negative #2 (gate 2 advisory FAIL: climax in first third)', () => {
+  const verdict = computeRetentionMetrics(neg2Frames, { step: 5, fps: 30 });
+
+  it('hardGatesPass is true — gate 2 is advisory, does not block', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('gate 2 (energy build-to-climax) fails — peak at frame 0, before first-third boundary 31', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(false);
+    expect(g.measured.peakAfterBoundary).toBe(false);
+    expect(g.measured.peakFrame).toBe(0);
+    expect(g.measured.boundaryFrame).toBe(31);
+  });
+
+  it('gate 1 (dead-air) passes — no static run (all consecutive deltas ≥ 1)', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.measured.longestStaticSec).toBe(0);
+  });
+
+  it('gate 3 (re-hook cadence) passes — flat stretch after initial spike is 3s < 8s', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.measured.longestFlatSec).toBeCloseTo(3.0, 1);
   });
 });
 
