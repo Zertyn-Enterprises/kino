@@ -25,6 +25,8 @@ Read these before any creative decision (all in this folder):
 - `hook.md` — hook gate rubric + `scripts/hook.sh` usage; recorded snapshots for
   RelayLaunch, GranipaLaunch, and AmbientCheck (the first PASS for gates 4+5).
   Use `AmbientField` from `src/lib/fx.tsx` to satisfy the background-activity gate.
+- `ship.md` — unified ship gate: `scripts/ship-gate.sh` usage, `report.json`
+  shape, and re-run command. The single entrypoint for the final ship verdict.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -175,6 +177,9 @@ Commit after each scene passes (small commits = resumable production).
   Hard gate (dead-air) must pass; record advisory verdicts with named justification if failing.
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
+- `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]` — run
+  the unified ship gate (composes hook + retention + contrast); inspect
+  `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).
 
@@ -187,6 +192,10 @@ editing `timeline.ts`, not scenes.
 
 ### 7 — Finish
 
+- Run the unified ship gate one final time (confirms nothing changed since
+  the full-cut review):
+  `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]`
+  Must print `SHIP: READY` and exit 0 before the final render. See `ship.md`.
 - Final render: `npx remotion render <Comp> out/<slug>.mp4 --crf=16`
   (and `--scale=2` if 4K is wanted). Verify with `npx remotion ffprobe`.
 - Append the video's identity fingerprint to `src/videos/_registry.md`.
