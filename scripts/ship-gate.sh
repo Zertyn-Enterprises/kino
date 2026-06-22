@@ -22,6 +22,8 @@ COMP="${1:?usage: scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- re
 SLUG="${2:?usage: scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]}"
 shift 2
 
+START_SECONDS=$SECONDS
+
 # Split remaining args at -- into palette flags (for contrast) and retention flags.
 PALETTE_ARGS=()
 RETENTION_ARGS=()
@@ -48,59 +50,115 @@ CODE_CRAFT_JSON="out/review/$COMP/code-craft/metrics.json"
 MUSICSYNC_JSON="out/review/$COMP/musicsync/metrics.json"
 PAYOFF_JSON="out/review/$COMP/payoff/metrics.json"
 
-# --- 1. Run each gate, capturing exit codes without aborting ---
+# --- 0. Build shared render corpus once (pixel gates slice this instead of self-rendering) ---
 
-echo "==> Running hook gate..."
-HOOK_EXIT=0
-scripts/hook.sh "$COMP" || HOOK_EXIT=$?
-
+echo "==> Building shared render corpus for $COMP..."
+CORPUS_MANIFEST=$(node scripts/render-corpus.mjs "$COMP")
+export CORPUS_MANIFEST
 echo ""
-echo "==> Running retention gate..."
+
+# --- 1. Launch all 8 gates concurrently ---
+
+echo "==> Launching all 8 gates concurrently..."
+
+HOOK_LOG="$SHIP_OUT/hook.log"
+RETENTION_LOG="$SHIP_OUT/retention.log"
+CONTRAST_LOG="$SHIP_OUT/contrast.log"
+MOTION_LOG="$SHIP_OUT/motion.log"
+LEGIBILITY_LOG="$SHIP_OUT/legibility.log"
+CODE_CRAFT_LOG="$SHIP_OUT/code-craft.log"
+MUSICSYNC_LOG="$SHIP_OUT/musicsync.log"
+PAYOFF_LOG="$SHIP_OUT/payoff.log"
+
+HOOK_EXIT=0
+scripts/hook.sh "$COMP" >"$HOOK_LOG" 2>&1 &
+HOOK_PID=$!
+
 RETENTION_EXIT=0
 if [ "${#RETENTION_ARGS[@]}" -gt 0 ]; then
-  scripts/retention.sh "$COMP" 5 "" "${RETENTION_ARGS[@]}" || RETENTION_EXIT=$?
+  scripts/retention.sh "$COMP" 5 "" "${RETENTION_ARGS[@]}" >"$RETENTION_LOG" 2>&1 &
 else
-  scripts/retention.sh "$COMP" || RETENTION_EXIT=$?
+  scripts/retention.sh "$COMP" >"$RETENTION_LOG" 2>&1 &
 fi
+RETENTION_PID=$!
 
-echo ""
-echo "==> Running contrast gate..."
 CONTRAST_EXIT=0
+CONTRAST_PID=""
 if [ "${#PALETTE_ARGS[@]}" -gt 0 ]; then
-  scripts/contrast.sh "$SLUG" "${PALETTE_ARGS[@]}" || CONTRAST_EXIT=$?
+  scripts/contrast.sh "$SLUG" "${PALETTE_ARGS[@]}" >"$CONTRAST_LOG" 2>&1 &
+  CONTRAST_PID=$!
 else
-  echo "WARNING: no palette flags supplied — contrast gate cannot run" >&2
+  printf "WARNING: no palette flags supplied — contrast gate cannot run\n" >"$CONTRAST_LOG"
   CONTRAST_EXIT=1
 fi
 
-echo ""
-echo "==> Running motion gate..."
 MOTION_EXIT=0
-scripts/motion.sh "$COMP" || MOTION_EXIT=$?
+scripts/motion.sh "$COMP" >"$MOTION_LOG" 2>&1 &
+MOTION_PID=$!
 
-echo ""
-echo "==> Running legibility gate..."
 LEGIBILITY_EXIT=0
-scripts/legibility.sh "$COMP" || LEGIBILITY_EXIT=$?
+scripts/legibility.sh "$COMP" >"$LEGIBILITY_LOG" 2>&1 &
+LEGIBILITY_PID=$!
 
-echo ""
-echo "==> Running code-craft gate..."
 CODE_CRAFT_EXIT=0
-scripts/code-craft.sh "$COMP" "$SLUG" || CODE_CRAFT_EXIT=$?
+scripts/code-craft.sh "$COMP" "$SLUG" >"$CODE_CRAFT_LOG" 2>&1 &
+CODE_CRAFT_PID=$!
 
-echo ""
-echo "==> Running musicsync gate..."
 MUSICSYNC_EXIT=0
-scripts/musicsync.sh "$COMP" "$SLUG" || MUSICSYNC_EXIT=$?
+scripts/musicsync.sh "$COMP" "$SLUG" >"$MUSICSYNC_LOG" 2>&1 &
+MUSICSYNC_PID=$!
 
-echo ""
-echo "==> Running payoff gate..."
 PAYOFF_EXIT=0
-scripts/payoff.sh "$COMP" || PAYOFF_EXIT=$?
+scripts/payoff.sh "$COMP" >"$PAYOFF_LOG" 2>&1 &
+PAYOFF_PID=$!
+
+# --- 2. Collect exit codes ---
+
+wait "$HOOK_PID"      || HOOK_EXIT=$?
+wait "$RETENTION_PID" || RETENTION_EXIT=$?
+[ -n "$CONTRAST_PID" ] && { wait "$CONTRAST_PID" || CONTRAST_EXIT=$?; }
+wait "$MOTION_PID"    || MOTION_EXIT=$?
+wait "$LEGIBILITY_PID" || LEGIBILITY_EXIT=$?
+wait "$CODE_CRAFT_PID" || CODE_CRAFT_EXIT=$?
+wait "$MUSICSYNC_PID"  || MUSICSYNC_EXIT=$?
+wait "$PAYOFF_PID"    || PAYOFF_EXIT=$?
+
+# --- 3. Print buffered gate output in order ---
+
+echo "==> hook gate:"
+cat "$HOOK_LOG"
+
+echo ""
+echo "==> retention gate:"
+cat "$RETENTION_LOG"
+
+echo ""
+echo "==> contrast gate:"
+cat "$CONTRAST_LOG"
+
+echo ""
+echo "==> motion gate:"
+cat "$MOTION_LOG"
+
+echo ""
+echo "==> legibility gate:"
+cat "$LEGIBILITY_LOG"
+
+echo ""
+echo "==> code-craft gate:"
+cat "$CODE_CRAFT_LOG"
+
+echo ""
+echo "==> musicsync gate:"
+cat "$MUSICSYNC_LOG"
+
+echo ""
+echo "==> payoff gate:"
+cat "$PAYOFF_LOG"
 
 echo ""
 
-# --- 2. Aggregate via ship-metrics.mjs ---
+# --- 4. Aggregate via ship-metrics.mjs ---
 
 SHIP_EXIT=0
 node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" --json \
@@ -108,9 +166,12 @@ node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$
 node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" \
   | tee "$SHIP_OUT/report.txt" || true
 
+ELAPSED=$((SECONDS - START_SECONDS))
+
 echo "Ship review — $SHIP_OUT/"
 echo "  report.json"
 echo "  report.txt"
+echo "  wall-clock: ${ELAPSED}s"
 
 if [ "$SHIP_EXIT" -eq 0 ]; then
   echo "SHIP: READY"
