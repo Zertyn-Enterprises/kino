@@ -19,6 +19,7 @@ scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]        # hook-window r
 scripts/retention.sh <CompId> [step=5] [props] [--holds=S:E,...] [--climax=F] [--rehook=N]  # retention metrics → out/review/<CompId>/retention/
 scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]  # contrast gate → out/review/<slug>/contrast/
 scripts/motion.sh <CompId> [step=3] [props] [--window=S:E]               # motion-craft gate → out/review/<CompId>/motion/
+scripts/legibility.sh <CompId> [step=3] [props] [--window=S:E]           # legibility-dwell gate → out/review/<CompId>/legibility/
 scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate → out/review/<CompId>/ship/
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
