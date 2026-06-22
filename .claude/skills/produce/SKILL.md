@@ -37,6 +37,10 @@ Read these before any creative decision (all in this folder):
   (all advisory). `scripts/code-craft.sh` usage, calibration rationale, and recorded
   RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at any point during
   scene work.
+- `musicsync.md` — music-sync gate: MS1 tempo-lock / MS2 downbeat-lock (HARD when
+  analysis present; SKIP otherwise) / MS3 climax-on-drop / MS4 cut-on-beat coverage
+  (advisory). `scripts/musicsync.sh` usage, thresholds + calibration rationale,
+  degraded/SKIP-mode note, and recorded RelayLaunch + GranipaLaunch snapshots.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -113,6 +117,11 @@ makes re-cutting to the real track a one-file change.
    detected energy-jump (`drops`). Record source + license + bpm in
    `public/<slug>/MANIFEST.md`, move the pick to `public/<slug>/music.mp3`,
    set `MUSIC` in `Main.tsx`.
+5. `scripts/musicsync.sh <CompId> <slug> [--climax=F]` — run the music-sync
+   gate immediately after updating `timeline.ts` to confirm MS1 (tempo) and
+   MS2 (downbeat) match the analysis. A HARD fail here means every cut in the
+   video is phase-shifted; fix `bpm` / `firstDownbeatSec` in `timeline.ts`
+   before proceeding to scene work. See `musicsync.md`.
 
 ### 2 — Treatment (CHECKPOINT 1)
 
@@ -220,6 +229,12 @@ Commit after each scene passes (small commits = resumable production).
 - Fix at the timeline level if pacing is off (that's why it's one file).
 
 ### 6 — Rough cut with music (CHECKPOINT 2)
+
+**Beat pre-check (mechanical, before the human listen):**
+`scripts/musicsync.sh <Comp> <slug> [--climax=F]` — assert `HARD GATES: PASS`
+before sending the rough cut. MS1/MS2 failures mean cuts are systematically
+off-beat regardless of how the render sounds; fix `timeline.ts` first. See
+`musicsync.md` + `review.md §11`.
 
 `npx remotion render <Comp> out/<slug>-rough.mp4` and have the user WATCH and
 LISTEN. Ask pointed questions: does the impact land on the drop? any moment

@@ -199,6 +199,33 @@ appropriate, or (b) updated to use an explicit easing curve.
 of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 11. Music-sync gate (run before the rough-cut listen, when analysis present)
+
+Run `scripts/musicsync.sh <CompId> <slug> [--climax=F]` after `analyze-music.mjs`
+updates `timeline.ts` and before the render. Optional flag:
+  `--climax=F`  declared climax cut frame (enables MS3 gate)
+
+### Blocking vs advisory enforcement
+
+**Gates MS1–MS2 — Tempo lock / Downbeat lock (HARD, when analysis present):**
+A declared BPM or downbeat that does not match the track shifts every cut in the
+video away from the beat grid. A video where MS1 or MS2 fails cannot proceed to
+rough-cut checkpoint 2 until the mismatch in `timeline.ts` is corrected. Do not
+proceed with a non-zero `musicsync.sh` exit code (when analysis is present).
+
+**SKIP mode (no analysis):** When no `public/<slug>/*.analysis.json` is found, all
+gates report `skip: true` and the script exits 0. SKIP never blocks. This is the
+normal state for any video whose track has not yet been committed and analyzed.
+
+**Gates MS3–MS4 — Climax on drop / Cut-on-beat coverage (ADVISORY):**
+Failing either requires a named, written justification in the review before
+continuing. Common justified MS4 fail: a storyboard-documented off-beat SFX cut
+or intentional syncopation. Unjustified advisory failures are not acceptable.
+
+**Machine signal**: `out/review/<CompId>/musicsync/metrics.json` is the artifact
+of record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.
