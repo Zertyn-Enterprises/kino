@@ -79,30 +79,37 @@ craft.md §1.5–1.7 + §2 apply unchanged. Motion serves the styleframe.
 
 ### G · Ship gate
 
-**Contrast gate prerequisite**: confirm that
-`metrics.json` (`out/review/<slug>/contrast/metrics.json`) shows
-`hardGatesPass: true` and `contrast.sh` exited 0. All 4 HARD pairs (text ≥7:1
-on both bg and surface; textDim ≥4.5:1 on both bg and surface) must be green.
-This was verified at design-system lock (stage B); confirm the palette was not
-changed since that run. Advisory pairs failing are acceptable only with a named
-justification in the review.
+Run the unified ship gate before committing the render as final:
 
-**Hook gate prerequisite**: before the visual comparison below, confirm that
-`metrics.json` (`out/review/<CompId>/hook/metrics.json`) shows
-`hardGatesPass: true` and `hook.sh` exited 0. Hard gates 1–3 (motion / frame-0
-contrast / loop seam) must be green. Advisory gates 4–5 (background activity /
-frame-0 liveness) failing are acceptable only if each has a written, named
-justification already recorded in the review. A video with an unjustified
-hard-gate failure does not ship.
+```bash
+scripts/ship-gate.sh <CompId> <slug> \
+  --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..] \
+  [-- --holds=S:E,... --climax=F --rehook=N]
+```
 
-**Retention gate prerequisite**: confirm that
-`metrics.json` (`out/review/<CompId>/retention/metrics.json`) shows
-`hardGatesPass: true` and `retention.sh` exited 0. Gate 1 (dead-air) is a
-hard block. Advisory gates 2–3 (energy build-to-climax / re-hook cadence)
-failing are acceptable only with a named, written justification. Run
-`scripts/retention.sh <CompId>` (with `--holds`, `--climax`, `--rehook` as
-needed) before the visual comparison. A video with an unjustified hard-gate
-failure does not ship.
+This runs `hook.sh`, `retention.sh`, and `contrast.sh` in sequence, writes
+`out/review/<CompId>/ship/report.json` (machine source of truth) and
+`report.txt` (human-readable table), and prints `SHIP: READY` or
+`SHIP: BLOCKED`. A missing gate metrics.json is a hard blocker. See `ship.md`
+for the full report shape, re-run command, and recorded snapshots.
+
+**Per-gate semantics (preserved):**
+
+- **Hook hard gates 1–3** (Motion by frame 10 / Frame-0 contrast / Loop seam)
+  are BLOCKING. Advisory gates 4–5 (Background activity / Frame-0 liveness)
+  failing require a named, written justification before continuing.
+- **Retention gate 1 — Dead-air** is HARD BLOCKING. Advisory gates 2–3
+  (Energy build-to-climax / Re-hook cadence) failing require a named, written
+  justification. Supply `--holds`, `--climax`, `--rehook` (after `--`) as needed.
+- **Contrast HARD pairs** (text ≥7:1 on bg+surface; textDim ≥4.5:1 on
+  bg+surface) are BLOCKING. Confirm the palette was not changed since the
+  design-system lock run at stage B. Advisory pairs failing require a named
+  justification.
+
+**Named-justification rule:** advisory failures are acceptable only with a
+named, written justification recorded in the review (mirrors the "Named
+defects" practice in `hook.md` / `retention.md` / `contrast.md`). A video with
+any unjustified hard-gate failure does not ship.
 
 Side-by-side: our best 3 frames vs 3 frames of the reference class
 (Apple/Linear/Vercel-grade). If ours is visibly the weaker poster, do not

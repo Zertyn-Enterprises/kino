@@ -94,6 +94,7 @@ in `.claude/skills/produce/` (start with `SKILL.md`) and `CLAUDE.md` /
 | `scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]` | hook-window review → `out/review/<CompId>/hook/` |
 | `scripts/retention.sh <CompId> [step=5] [--holds=S:E,...] [--climax=F] [--rehook=N]` | full-timeline retention gate → `out/review/<CompId>/retention/` |
 | `scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]` | WCAG contrast gate (design-system lock) → `out/review/<slug>/contrast/` |
+| `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]` | unified ship gate: hook + retention + contrast → `out/review/<CompId>/ship/` |
 
 More helpers (music generation, analysis) live in `scripts/` and are documented in `CLAUDE.md`.
 

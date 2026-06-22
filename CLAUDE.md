@@ -18,6 +18,7 @@ scripts/filmstrip.sh <CompId> [step] [props] # contact sheets → out/review/<Co
 scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]        # hook-window review → out/review/<CompId>/hook/
 scripts/retention.sh <CompId> [step=5] [props] [--holds=S:E,...] [--climax=F] [--rehook=N]  # retention metrics → out/review/<CompId>/retention/
 scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]  # contrast gate → out/review/<slug>/contrast/
+scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate → out/review/<CompId>/ship/
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
 ```
