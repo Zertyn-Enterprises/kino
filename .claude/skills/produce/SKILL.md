@@ -31,6 +31,10 @@ Read these before any creative decision (all in this folder):
 - `legibility.md` — legibility-dwell gate: L1 text-flash floor (HARD), L2 reading-budget
   share (advisory), L3 detail stability (advisory). `scripts/legibility.sh` usage,
   threshold reference, and recorded RelayLaunch + GranipaLaunch snapshots.
+- `code-craft.md` — code-craft source gate: C1-emoji / C1-font / C2-hex / C3-easing
+  (all advisory). `scripts/code-craft.sh` usage, calibration rationale, and recorded
+  RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at any point during
+  scene work.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -169,7 +173,10 @@ For each scene, in storyboard order:
    needs judging (step 8 ≈ 4 sheets/min — fine for one scene).
    **Hook scene only**: also run `scripts/hook.sh <Comp>` and assert every
    gate in `hook.md` (see `review.md` §6) before continuing.
-5. Mark `built` → after gates pass, `reviewed` in the storyboard table.
+5. After the last scene is built: `scripts/code-craft.sh <Comp> <slug>` —
+   assert `hardGatesPass: true` in `out/review/<Comp>/code-craft/metrics.json`
+   and document any advisory fails per `code-craft.md` (see `review.md §10`).
+6. Mark `built` → after gates pass, `reviewed` in the storyboard table.
 
 Commit after each scene passes (small commits = resumable production).
 
@@ -185,11 +192,14 @@ Commit after each scene passes (small commits = resumable production).
 - `scripts/legibility.sh <Comp>` — assert the legibility-dwell gate per `legibility.md` (`review.md` §9).
   Hard gate L1 (text-flash floor) must pass; record advisory L2/L3 verdicts with
   named justification if failing.
+- `scripts/code-craft.sh <Comp> <slug>` — assert the code-craft source gate per
+  `code-craft.md` (`review.md §10`). All gates are advisory; record any fails with
+  named justification. No render required — runs instantly.
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
 - `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]` — run
-  the unified ship gate (composes hook + retention + contrast + motion + legibility); inspect
-  `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
+  the unified ship gate (composes hook + retention + contrast + motion + legibility + code-craft);
+  inspect `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).
 

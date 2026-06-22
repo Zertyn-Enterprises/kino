@@ -96,7 +96,8 @@ in `.claude/skills/produce/` (start with `SKILL.md`) and `CLAUDE.md` /
 | `scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]` | WCAG contrast gate (design-system lock) → `out/review/<slug>/contrast/` |
 | `scripts/motion.sh <CompId> [step=3] [--window=S:E]` | motion-craft gate (M1/M2/M3) → `out/review/<CompId>/motion/` |
 | `scripts/legibility.sh <CompId> [step=3] [--window=S:E]` | legibility-dwell gate (L1/L2/L3) → `out/review/<CompId>/legibility/` |
-| `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]` | unified ship gate: hook + retention + contrast + motion + legibility → `out/review/<CompId>/ship/` |
+| `scripts/code-craft.sh <CompId> <slug>` | code-craft source gate (C1-C3, no render) → `out/review/<CompId>/code-craft/` |
+| `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]` | unified ship gate: hook + retention + contrast + motion + legibility + code-craft → `out/review/<CompId>/ship/` |
 
 More helpers (music generation, analysis) live in `scripts/` and are documented in `CLAUDE.md`.
 

@@ -84,6 +84,12 @@ craft.md §1.5–1.7 + §2 apply unchanged. Motion serves the styleframe.
   `hardGatesPass: true` in `out/review/<CompId>/legibility/metrics.json`.
   L1 (text-flash floor) is HARD; L2 (reading-budget share) and L3 (detail
   stability) are advisory. See `review.md §9`.
+- **Code-craft source AI-tells 🤖 (C1–C3):** emojis in on-screen copy · system /
+  default-stack / Inter as primary font · raw non-theme hex in scene files ·
+  linear/absent easing in `interpolate()` calls — now machine-checked (no render
+  required). Run `scripts/code-craft.sh <CompId> <slug>` and assert
+  `hardGatesPass: true` in `out/review/<CompId>/code-craft/metrics.json`.
+  All four sub-gates are advisory (calibrated against relay+granipa). See `review.md §10`.
 - **X-virality production audit** (from 2025-2026 top launches): Hook unmissable in first 1-3s (contrarian claim + live parallel demo with constant background activity)? Frame feels alive with things happening / micro-updates in every shot (no static/slow)? Fast pacing + re-hooks every 5-8s? Professional native chrome + dynamic layered motion? Muted-first (strong visuals + big text)? If any fail, fix before motion pass.
 - Minimum two polish rounds per scene. "Compiles and renders" is not a
   bar; "would a motion designer sign this?" is. Would it stop a muted X scroller and hold through the full video?
@@ -98,8 +104,8 @@ scripts/ship-gate.sh <CompId> <slug> \
   [-- --holds=S:E,... --climax=F --rehook=N]
 ```
 
-This runs `hook.sh`, `retention.sh`, `contrast.sh`, `motion.sh`, and
-`legibility.sh` in sequence, writes `out/review/<CompId>/ship/report.json`
+This runs `hook.sh`, `retention.sh`, `contrast.sh`, `motion.sh`, `legibility.sh`,
+and `code-craft.sh` in sequence, writes `out/review/<CompId>/ship/report.json`
 (machine source of truth) and `report.txt` (human-readable table), and prints `SHIP: READY` or
 `SHIP: BLOCKED`. A missing gate metrics.json is a hard blocker. See `ship.md`
 for the full report shape, re-run command, and recorded snapshots.
@@ -126,6 +132,14 @@ for the full report shape, re-run command, and recorded snapshots.
   where the algorithm classifies motion pauses as held-text intervals. Legibility gate
   runs automatically via `legibility.sh` (default step=3; no extra flags needed for
   standard productions).
+- **Code-craft gates C1–C3** are all ADVISORY — `hardGatesPass` is always `true`
+  when source files are found. Advisory failures (emoji in copy, system font as primary,
+  raw hex in scenes, linear/absent easing) must be reviewed; each must either be fixed
+  or receive a named, written justification before ship. Common justified fails: relay's
+  social-proof emoji UGC mock (C1-emoji), NorraSite system-font browser simulation
+  (C1-font), terminal traffic lights and browser chrome raw hex (C2-hex), CLAMP-only
+  options in micro-transition `interpolate()` calls (C3-easing). Code-craft gate runs
+  automatically via `code-craft.sh` (no render required; runs before pixel gates).
 
 **Named-justification rule:** advisory failures are acceptable only with a
 named, written justification recorded in the review (mirrors the "Named

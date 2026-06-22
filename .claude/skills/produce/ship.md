@@ -1,7 +1,7 @@
 # Ship gate — unified verdict
 
 Run `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]`
-to run all five gates (hook, retention, contrast, motion, legibility) in sequence and produce:
+to run all six gates (hook, retention, contrast, motion, legibility, code-craft) in sequence and produce:
 - `out/review/<CompId>/ship/report.json` — machine source of truth (single verdict)
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
@@ -25,6 +25,7 @@ scripts/ship-gate.sh <CompId> <slug> \
   and forwarded to `retention.sh`.
 - Motion gate runs automatically (`scripts/motion.sh <CompId>`, default step=3).
 - Legibility gate runs automatically (`scripts/legibility.sh <CompId>`, default step=3).
+- Code-craft gate runs automatically (`scripts/code-craft.sh <CompId> <slug>`, no render required).
 
 Inspect the outputs:
 
@@ -45,7 +46,8 @@ cat out/review/<CompId>/ship/report.txt    # human-readable table
     "retention":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Energy build-to-climax"], "justified": false },
     "contrast":   { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
     "motion":     { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
-    "legibility": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Reading-budget share"], "justified": false }
+    "legibility": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Reading-budget share"], "justified": false },
+    "codeCraft":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["C1-emoji", "C1-font", "C2-hex", "C3-easing"], "justified": false }
   },
   "blockers": []
 }
@@ -63,7 +65,7 @@ A missing or unreadable gate `metrics.json` is reported as `ran: false`,
 
 ## Per-gate semantics
 
-See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, and `legibility.md` for the full gate specs. In brief:
+See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, and `code-craft.md` for the full gate specs. In brief:
 
 | Gate | Hard | Advisory |
 |---|---|---|
@@ -80,6 +82,10 @@ See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, and `legibility.md` f
 | Legibility L1 (text-flash floor) | BLOCKING | — |
 | Legibility L2 (reading-budget share) | — | named justification required |
 | Legibility L3 (detail stability) | — | named justification required |
+| Code-craft C1-emoji (emoji in source) | — | named justification required |
+| Code-craft C1-font (system/default-stack primary font) | — | named justification required |
+| Code-craft C2-hex (raw hex in scenes) | — | named justification required |
+| Code-craft C3-easing (linear/absent easing) | — | named justification required |
 
 Advisory failures appear in `advisoryFailures` and are never hard blockers, but each
 one must have a named, written justification recorded in the review before continuing.
