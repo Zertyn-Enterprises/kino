@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the full ship gate: hook.sh + retention.sh + contrast.sh, aggregates results.
+# Runs the full ship gate: hook.sh + retention.sh + contrast.sh + motion.sh, aggregates results.
 #   out/review/<CompId>/ship/report.json  — machine source of truth
 #   out/review/<CompId>/ship/report.txt   — human-readable table
 # Prints SHIP: READY|BLOCKED and exits non-zero when not ship-ready.
@@ -42,6 +42,7 @@ mkdir -p "$SHIP_OUT"
 HOOK_JSON="out/review/$COMP/hook/metrics.json"
 RETENTION_JSON="out/review/$COMP/retention/metrics.json"
 CONTRAST_JSON="out/review/$SLUG/contrast/metrics.json"
+MOTION_JSON="out/review/$COMP/motion/metrics.json"
 
 # --- 1. Run each gate, capturing exit codes without aborting ---
 
@@ -69,13 +70,18 @@ else
 fi
 
 echo ""
+echo "==> Running motion gate..."
+MOTION_EXIT=0
+scripts/motion.sh "$COMP" || MOTION_EXIT=$?
+
+echo ""
 
 # --- 2. Aggregate via ship-metrics.mjs ---
 
 SHIP_EXIT=0
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" --json \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" --json \
   > "$SHIP_OUT/report.json" || SHIP_EXIT=$?
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" \
   | tee "$SHIP_OUT/report.txt" || true
 
 echo "Ship review — $SHIP_OUT/"

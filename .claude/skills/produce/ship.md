@@ -1,7 +1,7 @@
 # Ship gate — unified verdict
 
 Run `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]`
-to run all three gates (hook, retention, contrast) in sequence and produce:
+to run all four gates (hook, retention, contrast, motion) in sequence and produce:
 - `out/review/<CompId>/ship/report.json` — machine source of truth (single verdict)
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
@@ -23,6 +23,7 @@ scripts/ship-gate.sh <CompId> <slug> \
   `--accentAlt=`) are forwarded to `contrast.sh`.
 - Retention flags (`--holds=`, `--climax=`, `--rehook=`) are passed after `--`
   and forwarded to `retention.sh`.
+- Motion gate runs automatically (`scripts/motion.sh <CompId>`, default step=3).
 
 Inspect the outputs:
 
@@ -40,8 +41,9 @@ cat out/review/<CompId>/ship/report.txt    # human-readable table
   "shipReady": true,
   "gates": {
     "hook":      { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
-    "retention": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["energy build-to-climax"], "justified": false },
-    "contrast":  { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true }
+    "retention": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Energy build-to-climax"], "justified": false },
+    "contrast":  { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
+    "motion":    { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true }
   },
   "blockers": []
 }
@@ -59,7 +61,7 @@ A missing or unreadable gate `metrics.json` is reported as `ran: false`,
 
 ## Per-gate semantics
 
-See `hook.md`, `retention.md`, and `contrast.md` for the full gate specs. In brief:
+See `hook.md`, `retention.md`, `contrast.md`, and `motion.md` for the full gate specs. In brief:
 
 | Gate | Hard | Advisory |
 |---|---|---|
@@ -70,6 +72,9 @@ See `hook.md`, `retention.md`, and `contrast.md` for the full gate specs. In bri
 | Contrast text on bg/surface | BLOCKING (≥7:1) | — |
 | Contrast textDim on bg/surface | BLOCKING (≥4.5:1) | — |
 | Contrast accent/accentAlt on bg | — | named justification required |
+| Motion M1 (stutter/jank) | BLOCKING | — |
+| Motion M2 (easing presence) | — | named justification required |
+| Motion M3 (sustained life) | — | named justification required |
 
 Advisory failures appear in `advisoryFailures` and are never hard blockers, but each
 one must have a named, written justification recorded in the review before continuing.
@@ -94,6 +99,9 @@ scripts/ship-gate.sh RelayLaunch relay \
 | hook 🤖 | PASS | Background activity, Frame-0 liveness |
 | retention 🤖 | PASS | Energy build-to-climax |
 | contrast 🤖 | PASS | — |
+| motion 🤖 | PASS | — |
+
+Motion measured: M1 stutterDetected=false (windows=8, cuts=7) · M2 ratio=17.674 · M3 minWindowMean=0.0627
 
 **Named advisory fails:**
 1. **hook / Background activity** — no `AmbientField`; single terminal region (active=1/16, not separated). Intentional airy identity for Relay. Add `AmbientField` to pass on future productions.
@@ -115,6 +123,9 @@ scripts/ship-gate.sh GranipaLaunch granipa \
 | hook 🤖 | PASS | Frame-0 liveness |
 | retention 🤖 | PASS | Energy build-to-climax |
 | contrast 🤖 | PASS | — |
+| motion 🤖 | PASS | — |
+
+Motion measured: M1 stutterDetected=false (windows=2, cuts=1) · M2 ratio=19.201 · M3 minWindowMean=0.1538
 
 **Named advisory fails:**
 1. **hook / Frame-0 liveness** — text confined to single grid row (cells=3/16, rows=1). Named: serif question spans row 1 only; arc F intentionally withholds action until icon stamps at f38–f54. See `hook.md §2 GranipaLaunch`.
