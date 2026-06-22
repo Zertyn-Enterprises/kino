@@ -33,7 +33,8 @@ identity. The agent is the **director** — don't templatize. Read
 - `scripts/legibility.sh <CompId> [step=3] [--window=S:E]` — legibility-dwell gate (L1/L2/L3) → out/review/<CompId>/legibility/
 - `scripts/code-craft.sh <CompId> <slug>` — code-craft source gate (C1-C3, no render) → out/review/<CompId>/code-craft/
 - `scripts/musicsync.sh <CompId> <slug> [--climax=F]` — music-sync gate (MS1-MS4; SKIP when no analysis) → out/review/<CompId>/musicsync/
-- `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (hook + retention + contrast + motion + legibility + code-craft + musicsync) → out/review/<CompId>/ship/
+- `scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]` — payoff/CTA gate (P1/P2 HARD, P3 advisory) → out/review/<CompId>/payoff/
+- `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (hook + retention + contrast + motion + legibility + code-craft + musicsync + payoff) → out/review/<CompId>/ship/
 
 ## Hard rules
 
