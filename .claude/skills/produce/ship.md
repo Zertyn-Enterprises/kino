@@ -1,7 +1,7 @@
 # Ship gate — unified verdict
 
 Run `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]`
-to run all six gates (hook, retention, contrast, motion, legibility, code-craft) in sequence and produce:
+to run all seven gates (hook, retention, contrast, motion, legibility, code-craft, musicsync) in sequence and produce:
 - `out/review/<CompId>/ship/report.json` — machine source of truth (single verdict)
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
@@ -26,6 +26,7 @@ scripts/ship-gate.sh <CompId> <slug> \
 - Motion gate runs automatically (`scripts/motion.sh <CompId>`, default step=3).
 - Legibility gate runs automatically (`scripts/legibility.sh <CompId>`, default step=3).
 - Code-craft gate runs automatically (`scripts/code-craft.sh <CompId> <slug>`, no render required).
+- Music-sync gate runs automatically (`scripts/musicsync.sh <CompId> <slug>`); degrades to SKIP when no `public/<slug>/*.analysis.json` is present — SKIP never blocks ship.
 
 Inspect the outputs:
 
@@ -47,11 +48,14 @@ cat out/review/<CompId>/ship/report.txt    # human-readable table
     "contrast":   { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
     "motion":     { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
     "legibility": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Reading-budget share"], "justified": false },
-    "codeCraft":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["C1-emoji", "C1-font", "C2-hex", "C3-easing"], "justified": false }
+    "codeCraft":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["C1-emoji", "C1-font", "C2-hex", "C3-easing"], "justified": false },
+    "musicsync":  { "ran": false, "hardGatesPass": true, "advisoryFailures": [], "justified": true }
   },
   "blockers": []
 }
 ```
+
+`musicsync.ran=false, hardGatesPass=true` is the expected shape when no audio analysis is present (graceful SKIP — never blocks ship). When analysis is present and MS1/MS2 hard gates pass, `ran=true, hardGatesPass=true`. A real hard-gate failure sets `hardGatesPass=false` and adds `"musicsync hard gates failed"` to `blockers`.
 
 - `shipReady` — `true` iff every gate ran AND every gate's `hardGatesPass` is `true`.
 - `gates.<name>.ran` — `false` if the gate's `metrics.json` was absent.
@@ -65,7 +69,7 @@ A missing or unreadable gate `metrics.json` is reported as `ran: false`,
 
 ## Per-gate semantics
 
-See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, and `code-craft.md` for the full gate specs. In brief:
+See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, `code-craft.md`, and `musicsync.md` for the full gate specs. In brief:
 
 | Gate | Hard | Advisory |
 |---|---|---|
@@ -86,6 +90,10 @@ See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, and 
 | Code-craft C1-font (system/default-stack primary font) | — | named justification required |
 | Code-craft C2-hex (raw hex in scenes) | — | named justification required |
 | Code-craft C3-easing (linear/absent easing) | — | named justification required |
+| Music-sync MS1 (tempo lock) | BLOCKING when analysis present; SKIP otherwise | — |
+| Music-sync MS2 (downbeat lock) | BLOCKING when analysis present; SKIP otherwise | — |
+| Music-sync MS3 (climax on drop) | — | named justification required (skips when no drops/climax) |
+| Music-sync MS4 (cut-on-beat coverage) | — | named justification required (skips when no analysis) |
 
 Advisory failures appear in `advisoryFailures` and are never hard blockers, but each
 one must have a named, written justification recorded in the review before continuing.
