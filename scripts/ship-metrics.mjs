@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// Aggregates hook, retention, contrast, motion, legibility, code-craft, and musicsync gate verdicts into a single ship verdict.
+// Aggregates hook, retention, contrast, motion, legibility, code-craft, musicsync, and payoff gate verdicts into a single ship verdict.
 //
 // Usage:
-//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [--json]
+//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [<payoff-metrics.json>] [--json]
 //   --json  emit structured JSON verdict instead of human-readable table
 //
 // shipReady is true iff every gate ran AND every gate's hardGatesPass is true.
-// A missing/null gate is a hard blocker — except musicsync, which degrades gracefully to SKIP
-// (no analysis.json present) and must never block ship when null or all-SKIP.
+// A missing/null gate is a hard blocker — except musicsync and payoff, which degrade gracefully
+// to SKIP (musicsync: no analysis.json; payoff: absent metrics) and never block ship when null.
 //
 // Exit code: 0 when shipReady; non-zero otherwise.
 
@@ -36,11 +36,11 @@ function extractAdvisoryFailures(metrics) {
 }
 
 /**
- * Pure computation: evaluate the overall ship verdict from the seven gate metrics.
+ * Pure computation: evaluate the overall ship verdict from the eight gate metrics.
  *
- * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null, legibility: object|null, codeCraft: object|null, musicsync: object|null }} opts
+ * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null, legibility: object|null, codeCraft: object|null, musicsync: object|null, payoff: object|null }} opts
  *   Each field is the parsed metrics.json for that gate, or null if the gate was not run.
- *   musicsync=null is treated as graceful SKIP (not a hard blocker); all other null gates block.
+ *   musicsync=null and payoff=null are treated as graceful SKIP (not hard blockers); all other null gates block.
  * @returns {{
  *   shipReady: boolean,
  *   gates: {
@@ -51,11 +51,12 @@ function extractAdvisoryFailures(metrics) {
  *     legibility: { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     codeCraft:  { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     musicsync:  { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
+ *     payoff:     { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *   },
  *   blockers: string[],
  * }}
  */
-export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null, musicsync = null }) {
+export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null, musicsync = null, payoff = null }) {
   const blockers = [];
 
   function summarize(name, metrics) {
@@ -87,6 +88,11 @@ export function computeShipVerdict({ hook, retention, contrast, motion = null, l
     musicsync:  musicsync == null
       ? { ran: false, hardGatesPass: true, advisoryFailures: [], justified: true }
       : summarize('musicsync', musicsync),
+    // payoff=null is graceful SKIP (absent metrics), not a hard blocker.
+    // Only a real hardGatesPass:false verdict blocks ship.
+    payoff:     payoff == null
+      ? { ran: false, hardGatesPass: true, advisoryFailures: [], justified: true }
+      : summarize('payoff', payoff),
   };
 
   const shipReady = blockers.length === 0;
@@ -126,11 +132,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args      = process.argv.slice(2);
   const jsonMode  = args.includes('--json');
   const positional = args.filter(a => !a.startsWith('--'));
-  const [hookPath, retentionPath, contrastPath, motionPath, legibilityPath, codeCraftPath, musicSyncPath] = positional;
+  const [hookPath, retentionPath, contrastPath, motionPath, legibilityPath, codeCraftPath, musicSyncPath, payoffPath] = positional;
 
   if (!hookPath || !retentionPath || !contrastPath || !motionPath || !legibilityPath || !codeCraftPath) {
     process.stderr.write(
-      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [--json]\n',
+      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [<payoff-metrics.json>] [--json]\n',
     );
     process.exit(1);
   }
@@ -142,8 +148,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const legibility = loadMetrics(legibilityPath);
   const codeCraft  = loadMetrics(codeCraftPath);
   const musicsync  = loadMetrics(musicSyncPath);
+  const payoff     = loadMetrics(payoffPath);
 
-  const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft, musicsync });
+  const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft, musicsync, payoff });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
