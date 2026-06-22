@@ -9,7 +9,7 @@
           "advisory": false,
           "pass": true,
           "skip": false,
-          "measured": 0.28608764796069375,
+          "measured": 4.685998738684496,
           "threshold": 0.1
         },
         {
@@ -19,7 +19,7 @@
           "advisory": false,
           "pass": true,
           "skip": false,
-          "measured": 7.449658918631183,
+          "measured": 26.272727431637062,
           "threshold": 5
         },
         {
@@ -29,7 +29,7 @@
           "advisory": false,
           "pass": true,
           "skip": false,
-          "measured": 6.557888736238266,
+          "measured": 8.760690705401846,
           "threshold": 60
         },
         {
@@ -40,7 +40,7 @@
           "pass": false,
           "skip": false,
           "measured": {
-            "active": 1,
+            "active": 4,
             "total": 16,
             "separated": false
           },
@@ -55,12 +55,12 @@
           "name": "Frame-0 liveness",
           "hard": false,
           "advisory": true,
-          "pass": false,
+          "pass": true,
           "skip": false,
           "measured": {
-            "cells": 2,
+            "cells": 5,
             "total": 16,
-            "rows": 1
+            "rows": 3
           },
           "threshold": {
             "minCells": 2,
@@ -70,14 +70,14 @@
         }
       ],
       "summary": {
-        "passed": 3,
-        "failed": 2,
+        "passed": 4,
+        "failed": 1,
         "skipped": 0
       },
       "hardGatesPass": true,
-      "label": "A",
+      "label": "B",
       "hardPassCount": 3,
-      "compositeScore": 0.076289
+      "compositeScore": 0.543774
     },
     {
       "gates": [
@@ -154,7 +154,7 @@
         "skipped": 0
       },
       "hardGatesPass": true,
-      "label": "B",
+      "label": "A",
       "hardPassCount": 3,
       "compositeScore": 0.076289
     }
@@ -168,7 +168,7 @@
         "advisory": false,
         "pass": true,
         "skip": false,
-        "measured": 0.28608764796069375,
+        "measured": 4.685998738684496,
         "threshold": 0.1
       },
       {
@@ -178,7 +178,7 @@
         "advisory": false,
         "pass": true,
         "skip": false,
-        "measured": 7.449658918631183,
+        "measured": 26.272727431637062,
         "threshold": 5
       },
       {
@@ -188,7 +188,7 @@
         "advisory": false,
         "pass": true,
         "skip": false,
-        "measured": 6.557888736238266,
+        "measured": 8.760690705401846,
         "threshold": 60
       },
       {
@@ -199,7 +199,7 @@
         "pass": false,
         "skip": false,
         "measured": {
-          "active": 1,
+          "active": 4,
           "total": 16,
           "separated": false
         },
@@ -214,12 +214,12 @@
         "name": "Frame-0 liveness",
         "hard": false,
         "advisory": true,
-        "pass": false,
+        "pass": true,
         "skip": false,
         "measured": {
-          "cells": 2,
+          "cells": 5,
           "total": 16,
-          "rows": 1
+          "rows": 3
         },
         "threshold": {
           "minCells": 2,
@@ -229,13 +229,13 @@
       }
     ],
     "summary": {
-      "passed": 3,
-      "failed": 2,
+      "passed": 4,
+      "failed": 1,
       "skipped": 0
     },
     "hardGatesPass": true,
-    "label": "A",
+    "label": "B",
     "hardPassCount": 3,
-    "compositeScore": 0.076289
+    "compositeScore": 0.543774
   }
 }

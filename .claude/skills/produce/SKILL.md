@@ -174,7 +174,7 @@ For each scene, in storyboard order:
    **Hook scene only:** build ≥2 archetype variants from `hooks.md` (expose a
    `hookVariant` prop; branch the hook scene on it), then run:
    `scripts/hook-tournament.sh <Comp> 3 -- '<propsA>' '<propsB>'`
-   Adopt the winner (see `hook.md §3` for ranking key + RelayLaunch snapshot).
+   Adopt the winner (see `hook.md §3` for ranking key + RelayLaunch A/B worked example — real discriminating run, B wins by composite delta 0.4675).
    Then run `scripts/hook.sh <Comp>` on the winning variant and assert every
    gate in `hook.md` (see `review.md §6`). Speed tradeoff: authoring the hook
    twice costs ~15% of total production time; the hook determines whether anyone

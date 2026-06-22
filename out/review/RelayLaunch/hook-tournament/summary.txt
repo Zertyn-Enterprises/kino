@@ -1,0 +1,7 @@
+Hook Tournament — RelayLaunch  (2 variants)
+Winner: B  (hard=3/3  composite=0.5438)
+
+Rank  Label          Hard  Composite
+────  ─────────────  ────  ─────────
+1     B                 3     0.5438
+2     A                 3     0.0763

@@ -97,9 +97,10 @@ const SFX_CUES: { src: string; at: number; volume: number; rate?: number }[] = [
   { src: sfx.ding, at: sc.cta.from + 12, volume: 0.18 },
 ];
 
-export const RelayLaunch: React.FC<{ debug?: boolean }> = ({
-  debug = false,
-}) => {
+export const RelayLaunch: React.FC<{
+  debug?: boolean;
+  hookVariant?: "A" | "B";
+}> = ({ debug = false, hookVariant = "A" }) => {
   return (
     <ThemeProvider value={relayTheme}>
       <AbsoluteFill style={{ background: relayTheme.palette.bg }}>
@@ -107,7 +108,7 @@ export const RelayLaunch: React.FC<{ debug?: boolean }> = ({
           <TransitionSeries.Sequence
             durationInFrames={sc.hook.durationInFrames}
           >
-            <Hook />
+            <Hook hookVariant={hookVariant} />
           </TransitionSeries.Sequence>
           <TransitionSeries.Sequence
             durationInFrames={sc.turn.durationInFrames}
