@@ -198,6 +198,22 @@ requires the viewer to have lived the specific screen — don't use for new prod
 categories with no established pain, or when the target audience is non-technical
 and wouldn't read a CI spinner as a known frustration.
 
+**Worked example — RelayLaunch (2026-06-22)**
+
+`git push` typed mid-action → runner enqueued → red elapsed timer counting up.
+Pain state (CI wait) live from frame 0; tension number (`0:00 elapsed`) appears at
+f75, satisfying the arc-B "promise by 2.5s" gate as a wait-cost counter.
+
+| Gate | Measured | Pass? |
+|---|---|---|
+| 1 Motion by frame 10 🤖 | delta=0.29 (typing animation) | ✓ |
+| 2 Frame-0 contrast 🤖 | stddev=7.45 | ✓ |
+| 3 Loop seam 🤖 | delta=6.56 | ✓ |
+| 4 Background activity 🤖 | active=1/16, separated=false | ✗ (advisory — no `AmbientField`; intentional airy identity for Relay) |
+| 5 Frame-0 liveness 🤖 | cells=2/16, rows=1 | ✗ (advisory — narrow terminal in single grid row) |
+
+`hardGatesPass: true` — both advisory fails carry named justifications (see `hook.md §2 RelayLaunch`). Ship verdict: READY.
+
 ---
 
 ## Archetype 4: Pattern interrupt
@@ -429,6 +445,22 @@ within the video. Also avoid for arc A/E (feature-positive) products where an
 ominous opening sets wrong expectations and creates cognitive dissonance when the
 tone shifts. The question must have a satisfying answer the product delivers.
 
+**Worked example — GranipaLaunch (2026-06-22)**
+
+"what your mac tools see in a day:" — ominous open colon sustained through f73;
+secondary icon stamps at f38/f46/f54 add the evidence layer. Arc F defers the
+positive number ("$0") to the kicker scene; no promise in the hook is intentional.
+
+| Gate | Measured | Pass? |
+|---|---|---|
+| 1 Motion by frame 10 🤖 | delta=1.40 (micro-settle f0–f8, opacity 0.85→1.0 + 3px translateY) | ✓ |
+| 2 Frame-0 contrast 🤖 | stddev=20.64 | ✓ |
+| 3 Loop seam 🤖 | delta=9.46 | ✓ |
+| 4 Background activity 🤖 | active=3/16, separated=true (settle residual spans cols 0–2 in row 1) | ✓ |
+| 5 Frame-0 liveness 🤖 | cells=3/16, rows=1 | ✗ (advisory — serif text confined to row 1; icon stamps at f38–f54 not in frame 0) |
+
+`hardGatesPass: true` — gate 5 advisory fail carries named justification (see `hook.md §2 GranipaLaunch`). Ship verdict: READY.
+
 ---
 
 ## Archetype 8: Multi-layer live demo
@@ -509,6 +541,4 @@ different one to avoid repeating the same hook shape.
 
 ---
 
-*(Worked examples for RelayLaunch and GranipaLaunch — measured gate values,
-actual metrics.json data — are appended here in Task 2 of plan-72iu07 after
-running `scripts/hook.sh` against both reference videos.)*
+*(Worked examples appear inline under their matching archetypes: RelayLaunch → Archetype 3 Dramatized pain; GranipaLaunch → Archetype 7 Open question / indictment. All gate values are from `scripts/hook.sh` runs on 2026-06-22.)*

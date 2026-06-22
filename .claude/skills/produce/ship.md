@@ -76,7 +76,7 @@ one must have a named, written justification recorded in the review before conti
 
 ---
 
-**Recorded snapshots — do not hand-edit; re-run the command shown under each
+**Recorded snapshots — 2026-06-22. Do not hand-edit; re-run the command shown under each
 video to update.**
 
 ### RelayLaunch
@@ -87,7 +87,18 @@ scripts/ship-gate.sh RelayLaunch relay \
   --textDim='#8FA098' --accent='#B6F22E' --accentAlt='#E5484D'
 ```
 
-_Snapshot pending — run the command above to record the first verified verdict._
+**Recorded snapshot — 2026-06-22. `shipReady: true` · `blockers: []`**
+
+| Gate | Hard gates | Advisory failures |
+|---|---|---|
+| hook 🤖 | PASS | Background activity, Frame-0 liveness |
+| retention 🤖 | PASS | Energy build-to-climax |
+| contrast 🤖 | PASS | — |
+
+**Named advisory fails:**
+1. **hook / Background activity** — no `AmbientField`; single terminal region (active=1/16, not separated). Intentional airy identity for Relay. Add `AmbientField` to pass on future productions.
+2. **hook / Frame-0 liveness** — terminal in single grid row (cells=2/16, rows=1). Named: narrow terminal at 4×4 resolution; human review confirms mid-action. See `hook.md §2 RelayLaunch`.
+3. **retention / Energy build-to-climax** — pixel-energy peak at f265, before first-third boundary (f318). Named: large scene transition coincides with pixel peak, not narrative climax. Supply `--climax=F` to gate the actual climax on future productions.
 
 ### GranipaLaunch
 
@@ -97,4 +108,14 @@ scripts/ship-gate.sh GranipaLaunch granipa \
   --textDim='#8E93A3' --accent='#3D8BFF' --accentAlt='#F4604C'
 ```
 
-_Snapshot pending — run the command above to record the first verified verdict._
+**Recorded snapshot — 2026-06-22. `shipReady: true` · `blockers: []`**
+
+| Gate | Hard gates | Advisory failures |
+|---|---|---|
+| hook 🤖 | PASS | Frame-0 liveness |
+| retention 🤖 | PASS | Energy build-to-climax |
+| contrast 🤖 | PASS | — |
+
+**Named advisory fails:**
+1. **hook / Frame-0 liveness** — text confined to single grid row (cells=3/16, rows=1). Named: serif question spans row 1 only; arc F intentionally withholds action until icon stamps at f38–f54. See `hook.md §2 GranipaLaunch`.
+2. **retention / Energy build-to-climax** — pixel-energy peak at f290, before first-third boundary (f373). Named: scene transition (largest visual delta) precedes narrative climax. Supply `--climax=F` to gate the actual climax on future productions.
