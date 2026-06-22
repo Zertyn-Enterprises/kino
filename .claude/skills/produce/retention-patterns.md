@@ -21,8 +21,11 @@ Machine-asserted gates (🤖) from `retention.md §1`:
 | 3 | Re-hook cadence 🤖 | advisory | `longestFlatSec ≤ 8s` (no body stretch without an energy spike above 2.0) | `--rehook=N` overrides the 8s default |
 
 **Critical flag usage:** without `--climax=F`, gate 2 uses a first-third-boundary
-heuristic that **always fails a correctly back-loaded edit** (see pattern 1 worked
-example). Supply `--climax` whenever your narrative climax is in the back half.
+heuristic. It **fails any edit whose smoothed energy peak lands before that boundary**
+— including edits with a back-half narrative climax whose front-loaded transitions
+still dominate the pixel delta (see pattern 1 worked example: RelayLaunch,
+GranipaLaunch). Supply `--climax=<climaxFrame>` to replace the heuristic with an
+explicit assertion of your narrative climax frame.
 
 Pattern-to-gate mapping:
 
