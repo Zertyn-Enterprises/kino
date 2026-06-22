@@ -1,5 +1,8 @@
 # Retention gate — full cut, whole-timeline
 
+> This file gates retention (measurement). To BUILD retention — craft patterns,
+> structural specs, theme-token-driven build recipes — see `retention-patterns.md`.
+
 Run `scripts/retention.sh <CompId>` to produce the evidence this gate needs:
 - `out/review/<CompId>/retention/strip/` — contact-sheet filmstrip, full cut (every STEP frames)
 - `out/review/<CompId>/retention/metrics.json` — machine-readable gate verdict (source of truth)

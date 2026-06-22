@@ -130,6 +130,12 @@ them per act in the treatment.
 CTA act, all arcs: calm down, music resolves, logo + product name + one line
 + URL. Hold ≥3s. End ON the beat, ON the last frame — never trail.
 
+**Retention patterns:** after choosing an arc shape here, pair it with a
+structural retention pattern from `retention-patterns.md`. Each pattern specifies
+how visual energy distributes across the acts of the chosen arc (back-loaded
+climax, open loop + late payoff, payoff seeding, etc.) and which
+`--climax`/`--rehook`/`--holds` flags to use when asserting the gate.
+
 ## 4.5 Copy-first production (when launch copy exists)
 
 If the founder wrote launch copy, the copy IS the script. Do not invent a
