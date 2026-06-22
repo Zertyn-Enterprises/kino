@@ -22,6 +22,9 @@ Read these before any creative decision (all in this folder):
 - `contrast.md` — WCAG contrast gate: hard/advisory floors, run instructions,
   assert protocol, and recorded relay+granipa snapshots. Run at design-system
   lock (stage B) before any scene code.
+- `hook.md` — hook gate rubric + `scripts/hook.sh` usage; recorded snapshots for
+  RelayLaunch, GranipaLaunch, and AmbientCheck (the first PASS for gates 4+5).
+  Use `AmbientField` from `src/lib/fx.tsx` to satisfy the background-activity gate.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
