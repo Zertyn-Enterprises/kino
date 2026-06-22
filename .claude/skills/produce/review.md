@@ -143,6 +143,28 @@ continuing. Unjustified advisory failures are not acceptable.
 of record — inspect `hardGatesPass` and the per-gate `pass`/`hard` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 9. Legibility gate (run on EVERY video at full-cut, both build paths)
+
+Run `scripts/legibility.sh <CompId>` after the full cut is assembled and judge
+against `legibility.md`.
+
+### Blocking vs advisory enforcement
+
+**Gate L1 — Text-flash floor (HARD):** A video where a clearly presented text
+block (appear + settle) is cut away in fewer than 12 frames (0.4 s) cannot
+proceed to rough-cut checkpoint 2 until fixed. Do not proceed with a non-zero
+`legibility.sh` exit code.
+
+**Gates L2–L3 — Reading-budget share / Detail stability (ADVISORY):**
+Failing either requires a named, written justification in the review before
+continuing. Common justified L2 fail: typing-animation or icon-animation
+content where the algorithm classifies motion pauses as held text. Unjustified
+advisory failures are not acceptable.
+
+**Machine signal**: `out/review/<CompId>/legibility/metrics.json` is the artifact
+of record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.

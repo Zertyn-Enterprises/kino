@@ -28,6 +28,9 @@ Read these before any creative decision (all in this folder):
 - `hooks.md` — eight gate-aligned hook archetype catalog; pick one here before writing the treatment.
 - `ship.md` — unified ship gate: `scripts/ship-gate.sh` usage, `report.json`
   shape, and re-run command. The single entrypoint for the final ship verdict.
+- `legibility.md` — legibility-dwell gate: L1 text-flash floor (HARD), L2 reading-budget
+  share (advisory), L3 detail stability (advisory). `scripts/legibility.sh` usage,
+  threshold reference, and recorded RelayLaunch + GranipaLaunch snapshots.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -174,15 +177,18 @@ Commit after each scene passes (small commits = resumable production).
 
 - `scripts/filmstrip.sh <Comp> 15` — judge the WHOLE video per `review.md` §3:
   rhythm, dead air, attention flow, transition placement.
-- `scripts/motion.sh <Comp>` — assert the motion-craft gate per `review.md §8`.
+- `scripts/motion.sh <Comp>` — assert the motion-craft gate per `review.md` §8.
   Hard gate M1 (stutter/jank) must pass; record advisory M2/M3 verdicts with
   named justification if failing.
 - `scripts/retention.sh <Comp>` — assert the retention gate per `retention.md` (`review.md` §7).
   Hard gate (dead-air) must pass; record advisory verdicts with named justification if failing.
+- `scripts/legibility.sh <Comp>` — assert the legibility-dwell gate per `legibility.md` (`review.md` §9).
+  Hard gate L1 (text-flash floor) must pass; record advisory L2/L3 verdicts with
+  named justification if failing.
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
 - `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]` — run
-  the unified ship gate (composes hook + retention + contrast + motion); inspect
+  the unified ship gate (composes hook + retention + contrast + motion + legibility); inspect
   `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).
