@@ -165,6 +165,35 @@ advisory failures are not acceptable.
 of record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 10. Code-craft gate (run on EVERY video at full-cut, no render required)
+
+Run `scripts/code-craft.sh <CompId> <slug>` after the full cut is assembled and
+judge against `code-craft.md`. The gate is render-free (pure source analysis) and
+can also be run at any point during scene work.
+
+### Blocking vs advisory enforcement
+
+**All gates C1–C3 are ADVISORY.** `hardGatesPass` is always `true` when source
+files are found, so the gate never blocks by exit code. However:
+
+**C1-emoji and C1-font advisory fails with no justification are production AI-tells** —
+treat them as 🔴 blockers in peer review. An emoji in on-screen copy (not in a mock
+social-proof string or documented UGC simulation) must be replaced with a vendored
+vector icon. A system/Inter font as the primary brand face must be replaced with a
+professional foundry face from the design system.
+
+**C2-hex advisory fails:** raw hex in `scenes/**` must be either (a) mock-UI
+product-accurate colors (terminal traffic lights, browser chrome, product brand
+surfaces) documented with a written justification, or (b) replaced with theme tokens.
+
+**C3-easing advisory fails:** `interpolate()` calls without `easing:` must be
+either (a) documented as intentional micro-transitions where neutral easing is
+appropriate, or (b) updated to use an explicit easing curve.
+
+**Machine signal**: `out/review/<CompId>/code-craft/metrics.json` is the artifact
+of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.
