@@ -73,12 +73,14 @@ After the tournament, adopt the winner's `hookVariant` value as the production h
 
 Run: `scripts/hook-tournament.sh RelayLaunch 3 -- '{"hookVariant":"A"}' '{"hookVariant":"B"}'`
 
-Both variants render identically (RelayLaunch does not currently branch on `hookVariant`); metrics match; variant 'A' wins on label tie-break.
+Variant A = Archetype 3 Dramatized-pain (shipped hook, unchanged). Variant B = Archetype 2 Bold/contrast claim — "Your CI is lying." — KineticLine word-slam (`at={-3}`, slamFrames=6) + AmbientField (density=40, energy=0.8). Both pass all 3 hard gates. **B wins by composite score; delta = 0.4675 — not a tie-break.**
 
 | Rank | Variant | Hard gates (1–3) | Composite |
 |------|---------|-----------------|-----------|
-| **1 (winner)** | A | 3/3 | 0.0763 |
-| 2 | B | 3/3 | 0.0763 |
+| **1 (winner)** | B | 3/3 | 0.5438 |
+| 2 | A | 3/3 | 0.0763 |
+
+Winner B key measures: motion delta=4.69 (vs A=0.29), frame-0 contrast stddev=26.27 (vs A=7.45), frame-0 liveness rows=3 cells=5 (vs A rows=1 cells=2). B's KineticLine slam and AmbientField distribute energy across rows 0–2 from frame 0, lifting both liveness and motion far above A's single-row terminal.
 
 `out/review/RelayLaunch/hook-tournament/ranking.json` committed.
 

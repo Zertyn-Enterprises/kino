@@ -1,4 +1,5 @@
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
+import { AmbientField, KineticLine } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 import {
   burstSchedule,
@@ -16,8 +17,8 @@ const ENTER_AT = 38;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** The world before Relay: push, queue, wait. Slow, grey, red. */
-export const Hook: React.FC = () => {
+/** Archetype 3: Dramatized pain — the world before Relay (variant A, unchanged). */
+const HookA: React.FC = () => {
   const t = useTheme();
   const frame = useCurrentFrame();
 
@@ -114,4 +115,79 @@ export const Hook: React.FC = () => {
       </div>
     </AbsoluteFill>
   );
+};
+
+/** Archetype 2: Bold/contrast claim — "Your CI is lying." (variant B). */
+const HookB: React.FC = () => {
+  const t = useTheme();
+  const frame = useCurrentFrame();
+
+  const subP = interpolate(frame, [38, 52], [0, 1], {
+    easing: Easing.bezier(0.16, 1, 0.3, 1),
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  return (
+    <AbsoluteFill
+      style={{
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+      }}
+    >
+      <AmbientField
+        color={t.palette.accent}
+        colorDim={t.palette.textDim}
+        density={40}
+        energy={0.8}
+      />
+      <div style={{ textAlign: "center" }}>
+        {/* Negative at: "Your" mid-slam at f0 so thumbnail shows live type entry */}
+        <KineticLine
+          text="Your CI"
+          at={-3}
+          perWord={5}
+          slamFrames={6}
+          fontSize={240}
+          fontFamily={t.fonts.display.family}
+          fontWeight={t.fonts.display.weight}
+          color={t.palette.text}
+        />
+        <KineticLine
+          text="is lying."
+          at={7}
+          perWord={5}
+          slamFrames={6}
+          fontSize={240}
+          fontFamily={t.fonts.display.family}
+          fontWeight={t.fonts.display.weight}
+          color={t.palette.accentAlt}
+          style={{ marginTop: "0.04em" }}
+        />
+      </div>
+      <div
+        style={{
+          marginTop: 52,
+          fontFamily: t.fonts.body.family,
+          fontWeight: t.fonts.body.weight,
+          fontSize: 34,
+          color: t.palette.textDim,
+          opacity: subP,
+          transform: `translateY(${(1 - subP) * 18}px)`,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+        }}
+      >
+        14:32 lost — every push.
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+export const Hook: React.FC<{ hookVariant?: "A" | "B" }> = ({
+  hookVariant = "A",
+}) => {
+  if (hookVariant === "B") return <HookB />;
+  return <HookA />;
 };
