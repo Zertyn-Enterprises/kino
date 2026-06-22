@@ -50,6 +50,38 @@ cat out/review/<CompId>/hook/metrics.txt    # human-readable table
 
 The closing line of `hook.sh` prints `HARD GATES: PASS` or `HARD GATES: FAIL` and the script exits non-zero on hard-gate failure — consumable by automated loops.
 
+## 3. Hook tournament
+
+Building ≥2 archetype variants and running the tournament is the required hook authoring flow (see `SKILL.md §4`). The tournament ranks variants by gate-strongest metrics and auto-adopts the winner, so every video opens with its best-tested hook.
+
+```bash
+scripts/hook-tournament.sh <CompId> [step] -- '<propsA>' '<propsB>' [..]
+```
+
+Convention: expose a `hookVariant` prop on the composition; the hook scene branches on it to render different cold-open treatments.
+
+**Output:**
+- `out/review/<CompId>/hook-tournament/variant-N/` — frame0, early, mid, final, metrics.json, props.txt per variant
+- `out/review/<CompId>/hook-tournament/ranking.json` — machine result `{ ranking, winner }`
+- `out/review/<CompId>/hook-tournament/summary.txt` — human-readable ranking table
+
+**Ranking key:** PRIMARY = hard gates passed (1–3) descending; SECONDARY = normalized weighted composite of viral-relevant raw measures (background-activity active-cell count & separation, frame-0 liveness cells×rows, motion magnitude, frame-0 contrast); deterministic tie-break by label. See `scripts/hook-tournament-metrics.mjs` header for calibration rationale.
+
+After the tournament, adopt the winner's `hookVariant` value as the production hook scene, then run `scripts/hook.sh` one final time to generate the canonical `hook/metrics.json` artifact of record.
+
+**Recorded snapshot — RelayLaunch (2026-06-22)**
+
+Run: `scripts/hook-tournament.sh RelayLaunch 3 -- '{"hookVariant":"A"}' '{"hookVariant":"B"}'`
+
+Both variants render identically (RelayLaunch does not currently branch on `hookVariant`); metrics match; variant 'A' wins on label tie-break.
+
+| Rank | Variant | Hard gates (1–3) | Composite |
+|------|---------|-----------------|-----------|
+| **1 (winner)** | A | 3/3 | 0.0763 |
+| 2 | B | 3/3 | 0.0763 |
+
+`out/review/RelayLaunch/hook-tournament/ranking.json` committed.
+
 ---
 
 **Recorded snapshot — 2026-06-20. Do not hand-edit; re-run `scripts/hook.sh <CompId>` to update.**

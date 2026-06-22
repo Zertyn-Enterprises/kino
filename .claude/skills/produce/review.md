@@ -76,6 +76,11 @@ Then read the whole filmstrip start to finish and answer in writing:
 
 ## 6. Hook gate (run on EVERY video, both build paths)
 
+**Tournament (build phase):** Before finalizing the hook scene, build ≥2 archetype
+variants and rank them: `scripts/hook-tournament.sh <CompId> [step] -- '<propsA>' '<propsB>'`.
+See `hook.md §3` for the ranking key, usage, and RelayLaunch snapshot. Adopt the
+winner before running `hook.sh`.
+
 Run `scripts/hook.sh <CompId>` and judge against `hook.md`. This gate is
 mandatory on the solo/portable path — not multi-agent-only.
 

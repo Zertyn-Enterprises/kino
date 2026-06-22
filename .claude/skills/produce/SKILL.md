@@ -171,8 +171,14 @@ For each scene, in storyboard order:
 3. Read the stills. Critique against `review.md` gates. Fix. Re-render.
 4. `scripts/filmstrip.sh <Comp> 8` for the scene's frame range when motion
    needs judging (step 8 ≈ 4 sheets/min — fine for one scene).
-   **Hook scene only**: also run `scripts/hook.sh <Comp>` and assert every
-   gate in `hook.md` (see `review.md` §6) before continuing.
+   **Hook scene only:** build ≥2 archetype variants from `hooks.md` (expose a
+   `hookVariant` prop; branch the hook scene on it), then run:
+   `scripts/hook-tournament.sh <Comp> 3 -- '<propsA>' '<propsB>'`
+   Adopt the winner (see `hook.md §3` for ranking key + RelayLaunch snapshot).
+   Then run `scripts/hook.sh <Comp>` on the winning variant and assert every
+   gate in `hook.md` (see `review.md §6`). Speed tradeoff: authoring the hook
+   twice costs ~15% of total production time; the hook determines whether anyone
+   watches the other 85% — this investment is always justified.
 5. After the last scene is built: `scripts/code-craft.sh <Comp> <slug>` —
    assert `hardGatesPass: true` in `out/review/<Comp>/code-craft/metrics.json`
    and document any advisory fails per `code-craft.md` (see `review.md §10`).
