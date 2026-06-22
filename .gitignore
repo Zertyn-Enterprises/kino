@@ -19,6 +19,8 @@ out
 !out/review/*/hook-tournament/summary.txt
 !out/review/*/musicsync/
 !out/review/*/musicsync/metrics.json
+!out/review/*/payoff/
+!out/review/*/payoff/metrics.json
 
 # Generated smoke-test media
 public/smoke
