@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Aggregates hook, retention, and contrast gate verdicts into a single ship verdict.
+// Aggregates hook, retention, contrast, and motion gate verdicts into a single ship verdict.
 //
 // Usage:
-//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> [--json]
+//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> [--json]
 //   --json  emit structured JSON verdict instead of human-readable table
 //
 // shipReady is true iff every gate ran AND every gate's hardGatesPass is true.
@@ -35,9 +35,9 @@ function extractAdvisoryFailures(metrics) {
 }
 
 /**
- * Pure computation: evaluate the overall ship verdict from the three gate metrics.
+ * Pure computation: evaluate the overall ship verdict from the four gate metrics.
  *
- * @param {{ hook: object|null, retention: object|null, contrast: object|null }} opts
+ * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null }} opts
  *   Each field is the parsed metrics.json for that gate, or null if the gate was not run.
  * @returns {{
  *   shipReady: boolean,
@@ -45,15 +45,16 @@ function extractAdvisoryFailures(metrics) {
  *     hook:      { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     retention: { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     contrast:  { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
+ *     motion:    { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *   },
  *   blockers: string[],
  * }}
  */
-export function computeShipVerdict({ hook, retention, contrast }) {
+export function computeShipVerdict({ hook, retention, contrast, motion = null }) {
   const blockers = [];
 
   function summarize(name, metrics) {
-    if (metrics === null) {
+    if (metrics == null) {
       blockers.push(`${name} gate not run`);
       return { ran: false, hardGatesPass: false, advisoryFailures: [], justified: false };
     }
@@ -73,6 +74,7 @@ export function computeShipVerdict({ hook, retention, contrast }) {
     hook:      summarize('hook', hook),
     retention: summarize('retention', retention),
     contrast:  summarize('contrast', contrast),
+    motion:    summarize('motion', motion),
   };
 
   const shipReady = blockers.length === 0;
@@ -112,11 +114,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args      = process.argv.slice(2);
   const jsonMode  = args.includes('--json');
   const positional = args.filter(a => !a.startsWith('--'));
-  const [hookPath, retentionPath, contrastPath] = positional;
+  const [hookPath, retentionPath, contrastPath, motionPath] = positional;
 
-  if (!hookPath || !retentionPath || !contrastPath) {
+  if (!hookPath || !retentionPath || !contrastPath || !motionPath) {
     process.stderr.write(
-      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> [--json]\n',
+      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> [--json]\n',
     );
     process.exit(1);
   }
@@ -124,8 +126,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const hook      = loadMetrics(hookPath);
   const retention = loadMetrics(retentionPath);
   const contrast  = loadMetrics(contrastPath);
+  const motion    = loadMetrics(motionPath);
 
-  const verdict = computeShipVerdict({ hook, retention, contrast });
+  const verdict = computeShipVerdict({ hook, retention, contrast, motion });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
