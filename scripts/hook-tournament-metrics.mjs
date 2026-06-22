@@ -3,8 +3,8 @@
 // No render, no filesystem access — takes pre-computed hook-metrics --json objects.
 //
 // Usage (module):
-//   import { rankHookVariants } from './hook-tournament-metrics.mjs';
-//   const { ranking, winner } = rankHookVariants(variants);
+//   import { rankHookVariants, DECISIVE_MARGIN } from './hook-tournament-metrics.mjs';
+//   const { ranking, winner, verdict, margin } = rankHookVariants(variants);
 //   // Each variant = computeHookMetrics() output + { label: string }
 //
 // Ranking key (three-level, fully deterministic):
@@ -48,6 +48,21 @@
 //   ACTIVE_CAP   = 16    (4×4 grid max)
 //   LIVENESS_CAP = 32    (practical rich-hook ceiling: 8 content cells × 4 rows)
 // Skipped or missing gates contribute 0 to that component of the composite.
+//
+// Decisive-margin threshold (DECISIVE_MARGIN = 0.05):
+//   A tournament result is "decisive" when the winner is clearly better than the
+//   runner-up — either by having more hard-gate passes (structural superiority) or
+//   by a composite gap large enough to be signal rather than noise.
+//   Below DECISIVE_MARGIN the composite — five pixel-busyness measures on a [0,1]
+//   scale — cannot reliably separate two hard-gate-equal variants; lighting
+//   conditions, render seed variation, and sub-pixel motion differences can easily
+//   produce gaps at this scale.  A gap of 0.05 corresponds to, e.g., a motion
+//   difference of ~0.17 lum-delta units (0.05 / 0.30 × 5.0) — smaller than the
+//   natural frame-to-frame luminance noise in AmbientField particles.
+//   The verified RelayLaunch reference (B 0.5438 vs A 0.0763, delta 0.4675) is
+//   9× above this floor, confirming the threshold doesn't suppress real wins.
+//   On a contested result the director must judge on substance (promise-by-2.5s,
+//   hook-pattern-committed, frame-0 thumbnail focal) instead of blind adoption.
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -55,6 +70,9 @@ const MOTION_CAP    = 5.0;
 const CONTRAST_CAP  = 50.0;
 const ACTIVE_CAP    = 16;
 const LIVENESS_CAP  = 32;
+
+/** Minimum composite gap for an auto-decisive tournament result. See header. */
+export const DECISIVE_MARGIN = 0.05;
 
 const W_MOTION    = 0.30;
 const W_CONTRAST  = 0.25;
@@ -100,13 +118,18 @@ function compositeScore(variant) {
  *
  * @param {Array<Object>} variants  — each item is a hook-metrics --json object
  *                                    augmented with a { label: string } field.
- * @returns {{ ranking: Array<Object>, winner: Object|null }}
+ * @returns {{ ranking: Array<Object>, winner: Object|null, verdict: string|null, margin: number|null }}
  *   ranking — variants sorted best-first, each annotated with
  *             { hardPassCount: number, compositeScore: number }.
  *   winner  — first element of ranking, or null for an empty input.
+ *   verdict — 'decisive' | 'contested'. Decisive iff winner.hardPassCount strictly
+ *             exceeds runner-up's OR margin >= DECISIVE_MARGIN. Single-variant
+ *             → 'decisive'. null for empty input (no variants to compare).
+ *   margin  — winner.compositeScore − runnerUp.compositeScore, rounded to 6 decimal
+ *             places. null for single-variant or empty input.
  */
 export function rankHookVariants(variants) {
-  if (variants.length === 0) return { ranking: [], winner: null };
+  if (variants.length === 0) return { ranking: [], winner: null, verdict: null, margin: null };
 
   const scored = variants.map(v => ({
     variant: v,
@@ -126,5 +149,19 @@ export function rankHookVariants(variants) {
     compositeScore: +cs.toFixed(6),
   }));
 
-  return { ranking, winner: ranking[0] };
+  const winner   = ranking[0];
+  const runnerUp = ranking[1];
+
+  let verdict, margin;
+  if (!runnerUp) {
+    verdict = 'decisive';
+    margin  = null;
+  } else {
+    margin  = +(winner.compositeScore - runnerUp.compositeScore).toFixed(6);
+    verdict = (winner.hardPassCount > runnerUp.hardPassCount || margin >= DECISIVE_MARGIN)
+      ? 'decisive'
+      : 'contested';
+  }
+
+  return { ranking, winner, verdict, margin };
 }
