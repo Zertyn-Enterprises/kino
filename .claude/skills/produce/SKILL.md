@@ -26,6 +26,7 @@ Read these before any creative decision (all in this folder):
   RelayLaunch, GranipaLaunch, and AmbientCheck (the first PASS for gates 4+5).
   Use `AmbientField` from `src/lib/fx.tsx` to satisfy the background-activity gate.
 - `hooks.md` — eight gate-aligned hook archetype catalog; pick one here before writing the treatment.
+- `retention-patterns.md` — seven buildable retention patterns; pick one structural shape per act before writing the storyboard. Build-side companion to `retention.md`.
 - `ship.md` — unified ship gate: `scripts/ship-gate.sh` usage, `report.json`
   shape, and re-run command. The single entrypoint for the final ship verdict.
 - `legibility.md` — legibility-dwell gate: L1 text-flash floor (HARD), L2 reading-budget
@@ -133,6 +134,12 @@ before approval.**
 
 ### 3 — Storyboard
 
+Before writing the storyboard, **pick a retention pattern per act** from
+`retention-patterns.md` (back-loaded climax, open loop, payoff seeding, etc.)
+and note the chosen pattern + the `--climax`/`--rehook`/`--holds` flags it
+requires in the storyboard header. This determines how visual energy distributes
+across the arc and what flags to pass in the full-cut review.
+
 `storyboard.md`: per scene — intent, copy (exact words on screen), visual
 description, camera/motion notes, beats, SFX cues (beat-anchored), and a
 status table:
@@ -195,6 +202,8 @@ Commit after each scene passes (small commits = resumable production).
   named justification if failing.
 - `scripts/retention.sh <Comp>` — assert the retention gate per `retention.md` (`review.md` §7).
   Hard gate (dead-air) must pass; record advisory verdicts with named justification if failing.
+  Build-side companion: `retention-patterns.md` — if advisory gates fail, consult the relevant
+  pattern's gate mapping for the structural fix, not just a named justification.
 - `scripts/legibility.sh <Comp>` — assert the legibility-dwell gate per `legibility.md` (`review.md` §9).
   Hard gate L1 (text-flash floor) must pass; record advisory L2/L3 verdicts with
   named justification if failing.
