@@ -22,6 +22,7 @@ scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --acc
 scripts/motion.sh <CompId> [step=3] [props] [--window=S:E]               # motion-craft gate → out/review/<CompId>/motion/
 scripts/legibility.sh <CompId> [step=3] [props] [--window=S:E]           # legibility-dwell gate → out/review/<CompId>/legibility/
 scripts/code-craft.sh <CompId> <slug>                                    # code-craft source gate (no render) → out/review/<CompId>/code-craft/
+scripts/musicsync.sh <CompId> <slug> [--climax=F]                        # music-sync gate (MS1-MS4; SKIP when no analysis) → out/review/<CompId>/musicsync/
 scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate → out/review/<CompId>/ship/
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
