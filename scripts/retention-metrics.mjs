@@ -16,14 +16,22 @@
 //                            mean-abs-luminance-delta below DEAD_AIR_FLOOR, excluding
 //                            declared holds. Reports longest static span (startFrame,
 //                            endFrame, durationSec).
-//   2. Energy build-to-climax (ADVISORY) — peak energy in/after climax window (not first
-//                            third); measurable resolve (energy drop) after it. If --climax
-//                            is omitted, asserts peak ≥ first-third boundary.
+//   2. Energy build-to-climax (ADVISORY) — peak of a WINDOWED SUSTAINED-ENERGY signal
+//                            (centered rolling mean over ~1s of samples) must fall in/after
+//                            the climax window (not first third). One-frame scene-cut spikes
+//                            average down; sustained climax regions dominate. Raw (unsmoothed)
+//                            peak is reported as rawPeakFrame for transparency. If --climax is
+//                            omitted, asserts smoothed peak ≥ first-third boundary.
 //   3. Re-hook cadence (ADVISORY) — no body stretch > REHOOK_MAX_SEC (8s, configurable)
 //                            without a local energy spike. Reports longest flat stretch.
 //
-// Exit code: 0 when all HARD gates pass; non-zero on HARD gate FAIL (same contract as
-// hook-metrics.mjs). Advisory gate failures never affect the exit code.
+// Smoothing rationale (gate 2 only): the raw per-pair luminance delta spikes hard on scene
+// cuts (whole-frame transition in one sample). Such cuts cluster early in typical edits,
+// causing peakFrame to land on a cut rather than the narrative climax. A centered rolling
+// mean with win = Math.max(1, Math.round(fps/step)) (~1s of samples) suppresses single-frame
+// transients without moving the peak of a genuinely sustained climax region. Gates 1 and 3
+// deliberately use instantaneous deltas (dead-air detection and punch detection require
+// per-pair resolution).
 //
 // Thresholds (calibrated so RelayLaunch + GranipaLaunch pass the HARD dead-air gate):
 //   DEAD_AIR_FLOOR     = 0.05 — mean abs lum delta per sampled pair; below = static.
@@ -36,20 +44,8 @@
 //   RESOLVE_RATIO      = 0.75 — post-climax mean energy must be < 75% of peak for gate 2
 //   Default REHOOK_MAX_SEC = 8.0 (overridden by --rehook=N)
 //
-// Measured values (dogfood at step=10, 2026-06-21):
-//   RelayLaunch  (96 samples, 950 frames = 31.67s):
-//     gate1: longestStaticSec=0.00s  PASS (all pairs ≥0.15 — subtle terminal typing)
-//     gate2: peakFrame=260, boundary=316 (first-third), peakAfterBoundary=false  advisory FAIL
-//            (peak pixel-energy at dramatic scene transition in first third, not narrative climax)
-//     gate3: longestFlatSec=5.00s @frame0  PASS
-//   GranipaLaunch (113 samples, 1120 frames = 37.33s):
-//     gate1: longestStaticSec=0.00s  PASS
-//     gate2: peakFrame=290, boundary=373 (first-third), peakAfterBoundary=false  advisory FAIL
-//            (same pattern — large transition spike in first third)
-//     gate3: longestFlatSec=4.67s @frame630  PASS
-// Gate-2 advisory fails on both videos: the pixel-energy peak correlates with dramatic visual
-// scene transitions (high frame-to-frame delta), not the narrative climax. Both videos are
-// retention-successful; the gate serves as a diagnostic signal for future productions.
+// Measured values updated after gate-2 smoothing fix (dogfood at step=5, 2026-06-22):
+//   See produce/retention.md for current snapshots.
 
 import { fileURLToPath } from 'node:url';
 import { meanAbsDelta, toLuminance, loadFrame } from './hook-metrics.mjs';
@@ -171,12 +167,32 @@ export function computeRetentionMetrics(frames, {
       skipReason: 'fewer than 2 frames provided',
     });
   } else {
-    let peakIdx = 0;
+    // Raw peak — reported as diagnostic (cut vs sustained); NOT used for gate decision.
+    let rawPeakIdx = 0;
     for (let i = 1; i < energy.length; i++) {
-      if (energy[i] > energy[peakIdx]) peakIdx = i;
+      if (energy[i] > energy[rawPeakIdx]) rawPeakIdx = i;
+    }
+    const rawPeakFrame = rawPeakIdx * step;
+
+    // Windowed sustained-energy signal: centered rolling mean over ~1s of samples.
+    // win derived from fps/step (no hardcoded frame counts).
+    const win = Math.max(1, Math.round(fps / step));
+    const half = Math.floor(win / 2);
+    const smoothed = energy.map((_, i) => {
+      const lo = Math.max(0, i - half);
+      const hi = Math.min(energy.length - 1, i + half);
+      let sum = 0;
+      for (let j = lo; j <= hi; j++) sum += energy[j];
+      return sum / (hi - lo + 1);
+    });
+
+    // Peak from smoothed signal.
+    let peakIdx = 0;
+    for (let i = 1; i < smoothed.length; i++) {
+      if (smoothed[i] > smoothed[peakIdx]) peakIdx = i;
     }
     const peakFrame  = peakIdx * step;
-    const peakEnergy = energy[peakIdx];
+    const peakEnergy = smoothed[peakIdx];
 
     // Determine the boundary that peak must not fall before.
     const firstThirdFrame = Math.floor(totalFrames / 3);
@@ -184,8 +200,8 @@ export function computeRetentionMetrics(frames, {
 
     const peakAfterBoundary = peakFrame >= boundaryFrame;
 
-    // Resolve: mean energy in the second half after the peak must be < RESOLVE_RATIO * peak.
-    const postPeak = energy.slice(peakIdx + 1);
+    // Resolve: post-peak smoothed mean must be < RESOLVE_RATIO * smoothed peak.
+    const postPeak = smoothed.slice(peakIdx + 1);
     let resolveRatio = null;
     let resolvePass  = true;
     if (postPeak.length > 0) {
@@ -204,6 +220,7 @@ export function computeRetentionMetrics(frames, {
         boundaryFrame,
         peakAfterBoundary,
         resolveRatio,
+        rawPeakFrame,
       },
       threshold: { resolveRatio: RESOLVE_RATIO },
     });

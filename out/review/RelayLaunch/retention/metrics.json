@@ -1,0 +1,66 @@
+{
+  "gates": [
+    {
+      "id": 1,
+      "name": "Dead-air",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "longestStaticSec": 0.167,
+        "startFrame": 480,
+        "endFrame": 485
+      },
+      "threshold": {
+        "maxSec": 1,
+        "floor": 0.05
+      }
+    },
+    {
+      "id": 2,
+      "name": "Energy build-to-climax",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": false,
+      "measured": {
+        "peakFrame": 280,
+        "peakEnergy": 23.798,
+        "boundaryFrame": 318,
+        "peakAfterBoundary": false,
+        "resolveRatio": 0.194,
+        "rawPeakFrame": 265
+      },
+      "threshold": {
+        "resolveRatio": 0.75
+      }
+    },
+    {
+      "id": 3,
+      "name": "Re-hook cadence",
+      "hard": false,
+      "advisory": true,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "longestFlatSec": 5,
+        "longestFlatStartFrame": 0
+      },
+      "threshold": {
+        "maxFlatSec": 8,
+        "spikeFl": 2
+      }
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 1,
+    "skipped": 0,
+    "totalFrames": 955,
+    "totalSec": 31.83,
+    "samples": 192,
+    "step": 5
+  },
+  "hardGatesPass": true
+}
