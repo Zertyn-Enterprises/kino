@@ -37,5 +37,8 @@ identity. The agent is the **director** — don't templatize. Read
 4. Two human checkpoints per video: treatment approval, rough-cut listen.
 5. `src/lib/` carries no taste — colors/curves/durations come from the video's
    theme. Don't add to lib until a pattern is written twice.
+6. To pass the background-activity and frame-0 liveness hook gates, compose
+   `AmbientField` from `src/lib/fx.tsx` as a living-background layer.
+   See `src/smoke/AmbientCheck.tsx` for the reference gate-PASS fixture.
 
 30 fps, 1920×1080, 16:9 only. No audio is bundled — see the README's "Audio".

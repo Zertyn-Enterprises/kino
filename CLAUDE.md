@@ -26,7 +26,7 @@ node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .a
 
 ```
 src/lib/        spine: timeline (beats→frames), theme, springs, text, audio,
-                Grain/Vignette, DeviceFrame, DebugGrid — mechanics, no taste
+                Grain/Vignette, DeviceFrame, DebugGrid, fx (AmbientField) — mechanics, no taste
 src/videos/     one folder per video (treatment.md, storyboard.md, theme.ts,
                 timeline.ts, Main.tsx, scenes/) + _registry.md identity ledger
 src/review/     ContactSheet comp (used by filmstrip.sh)

@@ -38,14 +38,19 @@ Hook patterns — pick ONE, commit hard:
 
 Hook rules: motion within the first 10 frames; one focal point; if there is
 text, ≤6 words; the hook's question must be ANSWERED by the reveal (open
-loops you close = satisfaction; open loops you forget = clickbait).
+loops you close = satisfaction; open loops you forget = clickbait). **To
+satisfy the background-activity and frame-0 liveness gates, compose
+`AmbientField` from `src/lib/fx.tsx` as a living-background layer** —
+it distributes deterministic streaming strips across the frame, filling the
+hook gate's ≥2-separated-active-cells and ≥2-rows requirements.
+Reference: `src/smoke/AmbientCheck.tsx` (gate-4 and gate-5 PASS fixture).
 
 ### Hook rules v2 (retention data + 2025-2026 X-viral research)
 
 From analysis of top viral X product launches (high-engagement demos and "best of" launch threads):
 
 - **Provocative contrast claim + instant visual "magic" payoff in first 1-3s** (core of unmissable hooks): Bold "world's first", contrarian ("AI is making X dumber/worse" vs "should make geniuses/faster"), or "AI now does Y better than human". Cut immediately to live mid-action demo of the product doing impressive things. Must work **muted** (big clear text + strong visuals tell the full story in 3s); audio rewards if on (distinctive tap/whoosh/impact in first 0.5s).
-- **Mid-action multi-layer demo with constant background elements**: Product already "on" and doing the magic (transcription streaming, names resolving, data flowing, agents/tools updating in parallel). Background layers always active (subtle parallax, micro-updates, side panels ticking, data streams) so the frame never feels static or slow — things happening everywhere to fight swipe on X feed. Frame 1 must be high-contrast, in-focus, mid-action (motion underway).
+- **Mid-action multi-layer demo with constant background elements**: Product already "on" and doing the magic (transcription streaming, names resolving, data flowing, agents/tools updating in parallel). Background layers always active (subtle parallax, micro-updates, side panels ticking, data streams) so the frame never feels static or slow — things happening everywhere to fight swipe on X feed. Frame 1 must be high-contrast, in-focus, mid-action (motion underway). Use `AmbientField` from `src/lib/fx.tsx` as the default background-activity layer (see `src/smoke/AmbientCheck.tsx` for the gate-PASS reference).
 - **Payoff flash-forward or pattern interrupt**: 0.3–0.5s flash of finished result at frame 0, hard cut back (strongest for retention). Or visual "wrong-on-purpose" that demands explanation.
 - **Promise by 2.5s, with a number or specific outcome**: One measurable "what this changes for ME" (e.g. "3 bullets → perfect notes", "no bot, live on your Mac, using the AI you already pay for").
 - **Re-hook every 5–8s + accelerating pace**: New layer, angle, punch-in, on-screen stat, or action card. Fast cuts, overlapping parallel processes. No drift — front-load hero workflow by second 6 or deliberately withhold for agitation.
@@ -56,7 +61,7 @@ From analysis of top viral X product launches (high-engagement demos and "best o
 ### Hook rules v3 (X virality + our system)
 
 - The hook is the #1 thing. It must be unmissable — cannot pass as background noise in a muted feed. Always research current top viral X launches before writing treatment; steal the contrast + instant live demo + parallel background motion pattern.
-- Motion from frame 1; one dominant focal point but rich supporting layers (background always has things happening).
+- Motion from frame 1; one dominant focal point but rich supporting layers (background always has things happening) — use `AmbientField` from `src/lib/fx.tsx` as the default background layer.
 - ≤6 words text in hook; the hook's question must be answered by the reveal.
 
 ## 3. Identity derivation (do this BEFORE the treatment)

@@ -33,7 +33,7 @@ the code's intent cannot excuse the pixels' reality.
 | Text density | If text present in the hook: ≤6 words per on-screen moment |
 | Motion by frame 10 | Visible change between tiles 0 and 3 in the contact sheet (frames 0 and 9 at step 3); not a freeze |
 | Focal + alive | Exactly one dominant focal point in each key tile AND ≥1 active background/parallel layer (data stream, side panel, micro-update) — no tile fully static |
-| Background activity 🤖 | 4×4 grid cells show mean-abs-luminance-delta (frame0 vs mid-hook frame) >5; ≥2 active cells must be spatially separated (Chebyshev distance ≥2, i.e. not a single contiguous focal blob) |
+| Background activity 🤖 | 4×4 grid cells show mean-abs-luminance-delta (frame0 vs mid-hook frame) >5; ≥2 active cells must be spatially separated (Chebyshev distance ≥2, i.e. not a single contiguous focal blob). **Use `AmbientField` from `src/lib/fx.tsx` as the default living-background layer; see AmbientCheck fixture for a reference PASS.** |
 | Hook pattern committed | Treatment declares ONE pattern (mid-action demo / bold claim / dramatized pain / pattern interrupt / number); first 90 frames commit to it without mixing patterns |
 | Promise by 2.5s | A specific outcome or number ("what this changes for ME") is legible on screen at or before frame 75 (tile ~25 at step 3). **Pain-first arcs (B, F):** a tension number — the problem's cost or scale (e.g. a wait-time counter, a monthly cost) — satisfies this gate; record what the number represents. **Short hooks:** if your hook scene ends before frame 75, assess at hook-end and record the actual end frame. |
 | Open loop closed | The question the hook poses is answered by the reveal — not forgotten (satisfied = delight; dangling = clickbait) |
@@ -103,3 +103,27 @@ Hook scene: f0–f73 (5 beats @ 122 bpm = 2.46s). Hook window auto-derived: 73 f
 1. **Text density** — 8 words fails ≤6 gate. The full question is copy-essential for arc F indictment; shortening it breaks the setup. This is a known tension between the gate and copy-first hooks where the question IS the action. No fix without creative change.
 2. **Frame-0 mid-action / title-card** — icons don't stamp until f38; f0 reads as a composed text-only card. The micro-settle (3px, opacity) is insufficient to satisfy "motion already underway" strictly. Gate 5 (Frame-0 liveness 🤖) now machine-asserts this as FAIL: cells=3/16 rows=1 — the 3 high-stddev text cells are all in row 1, confirming the single-band title-card pattern. Mitigation: the open colon is rhetorical motion; the gate's spirit (not a logo or empty state) is met.
 3. **Background activity PASS note** — Gate 4 PASSES (active=3/16 separated=true), but the 3 active cells at mid=f43 reflect the settle-animation residual delta across the text width (opacity 0.85→1.0 completed by f8, but f43 vs f0 still shows the delta). The icons' secondary-layer activity at f38–f54 contributes to (2,0) at later frames. The PASS is honest: motion at f43 IS spatially distributed (text spans cols 0–2 in row 1), confirming multi-region activity vs RelayLaunch's single-cell terminal.
+
+---
+
+### AmbientCheck (gate-pass reference fixture)
+
+First recorded PASS for both gate 4 (Background activity 🤖) and gate 5 (Frame-0 liveness 🤖). This is a pure fixture — no product content. Compose `AmbientField` from `src/lib/fx.tsx` into any hook scene to achieve equivalent results.
+
+Hook window: 90 frames (fallback; composition has no timeline.ts). Recorded 2026-06-21.
+
+| Gate | Measured value | Pass? |
+|---|---|---|
+| Frame-0 thumbnail | Full-frame streaming strips on dark field; no single focal point (this is a mechanics fixture, not a product hook) | N/A |
+| Frame-0 liveness 🤖 | cells=11/16 rows=4; AmbientField distributes strips across all 4 grid rows from frame 0 | ✓ (threshold ≥2 rows,≥2 cells) |
+| Text density | No text | N/A |
+| Motion by frame 10 🤖 | delta=1.80 (frame0 vs frame9); strips scroll at deterministic speeds — strong motion from frame 0 | ✓ (threshold >0.1) |
+| Frame-0 contrast 🤖 | stddev=16.40; bright mint strips on near-black field (#060a12) | ✓ (threshold >5.0) |
+| Focal + alive | N/A (fixture) | — |
+| Background activity 🤖 | mid=frame54 (60% of hook); active=6/16 separated=true; strips cover 6 of 16 cells, spread across all grid rows and columns | ✓ (threshold ≥2 separated, cell>5) |
+| Hook pattern committed | N/A (fixture) | — |
+| Promise by 2.5s | N/A (fixture) | — |
+| Open loop closed | N/A (fixture) | — |
+| Loop seam 🤖 | delta=4.52 (frame0 vs final); strips wrap continuously — consistent visual density at both ends | ✓ (threshold <60) |
+
+HARD GATES: PASS
