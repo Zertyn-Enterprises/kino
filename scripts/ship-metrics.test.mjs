@@ -675,3 +675,137 @@ describe('computeShipVerdict — codeCraft advisory-only (C2/C3 advisory fail, a
     expect(codeCraftAdvisoryOnlyVerdict.gates.legibility.advisoryFailures).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fixture 12: musicsync skip-mode — all four gates SKIP (no audio analysis),
+//             hardGatesPass=true → shipReady=true
+//
+// All six base gates: hardGatesPass=true
+// musicsync: hardGatesPass=true, all gates skip:true (no analysis.json)
+//
+// Expected: shipReady=true, blockers=[], musicsync.ran=true, musicsync.hardGatesPass=true
+// ---------------------------------------------------------------------------
+
+const musicSyncSkipVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync: {
+    hardGatesPass: true,
+    gates: [
+      { id: 1, name: 'Tempo lock',            hard: true,  advisory: false, pass: false, skip: true },
+      { id: 2, name: 'Downbeat lock',         hard: true,  advisory: false, pass: false, skip: true },
+      { id: 3, name: 'Climax on drop',        hard: false, advisory: true,  pass: false, skip: true },
+      { id: 4, name: 'Cut-on-beat coverage',  hard: false, advisory: true,  pass: false, skip: true },
+    ],
+  },
+});
+
+describe('computeShipVerdict — musicsync skip-mode (all four gates SKIP, no audio analysis)', () => {
+  it('shipReady is true — skipped audio gates never block', () => {
+    expect(musicSyncSkipVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(musicSyncSkipVerdict.blockers).toHaveLength(0);
+  });
+
+  it('musicsync gate ran and hardGatesPass true', () => {
+    expect(musicSyncSkipVerdict.gates.musicsync.ran).toBe(true);
+    expect(musicSyncSkipVerdict.gates.musicsync.hardGatesPass).toBe(true);
+  });
+
+  it('musicsync advisory failures is empty — skipped gates are not advisory failures', () => {
+    expect(musicSyncSkipVerdict.gates.musicsync.advisoryFailures).toHaveLength(0);
+    expect(musicSyncSkipVerdict.gates.musicsync.justified).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 13: musicsync hard fail — MS1 tempo mismatch → blocked
+//
+// All six base gates: hardGatesPass=true
+// musicsync: hardGatesPass=false (MS1 tempo lock failed)
+//
+// Expected: shipReady=false, blockers=['musicsync hard gates failed']
+// ---------------------------------------------------------------------------
+
+const musicSyncHardFailVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  hookMetrics({ hardGatesPass: false }),
+});
+
+describe('computeShipVerdict — musicsync hard fail (MS1 tempo mismatch)', () => {
+  it('shipReady is false', () => {
+    expect(musicSyncHardFailVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "musicsync hard gates failed"', () => {
+    expect(musicSyncHardFailVerdict.blockers).toContain('musicsync hard gates failed');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(musicSyncHardFailVerdict.blockers).toHaveLength(1);
+  });
+
+  it('musicsync gate ran but hardGatesPass false', () => {
+    expect(musicSyncHardFailVerdict.gates.musicsync.ran).toBe(true);
+    expect(musicSyncHardFailVerdict.gates.musicsync.hardGatesPass).toBe(false);
+  });
+
+  it('all six base gates are not blockers', () => {
+    expect(musicSyncHardFailVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(musicSyncHardFailVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(musicSyncHardFailVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(musicSyncHardFailVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(musicSyncHardFailVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(musicSyncHardFailVerdict.gates.codeCraft.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 14: musicsync null — gate not run → does NOT block
+//             (unlike other gates; null musicsync degrades gracefully to SKIP)
+//
+// All six base gates: hardGatesPass=true
+// musicsync: null (no metrics.json — audio absent, no analysis run)
+//
+// Expected: shipReady=true, blockers=[], musicsync.ran=false, musicsync.hardGatesPass=true
+// ---------------------------------------------------------------------------
+
+const musicSyncNullVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+});
+
+describe('computeShipVerdict — musicsync null (gate not run — graceful SKIP, not a hard blocker)', () => {
+  it('shipReady is true — null musicsync does not block', () => {
+    expect(musicSyncNullVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(musicSyncNullVerdict.blockers).toHaveLength(0);
+  });
+
+  it('musicsync gate ran=false but hardGatesPass=true (graceful SKIP)', () => {
+    expect(musicSyncNullVerdict.gates.musicsync.ran).toBe(false);
+    expect(musicSyncNullVerdict.gates.musicsync.hardGatesPass).toBe(true);
+  });
+
+  it('musicsync advisory failures is empty', () => {
+    expect(musicSyncNullVerdict.gates.musicsync.advisoryFailures).toHaveLength(0);
+  });
+});
