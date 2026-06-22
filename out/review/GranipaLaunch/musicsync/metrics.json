@@ -1,0 +1,66 @@
+{
+  "gates": [
+    {
+      "id": 1,
+      "name": "Tempo lock",
+      "hard": true,
+      "advisory": false,
+      "pass": false,
+      "skip": true,
+      "measured": null,
+      "threshold": {
+        "bpmTolerance": 0.02
+      },
+      "skipReason": "no audio analysis provided"
+    },
+    {
+      "id": 2,
+      "name": "Downbeat lock",
+      "hard": true,
+      "advisory": false,
+      "pass": false,
+      "skip": true,
+      "measured": null,
+      "threshold": {
+        "downbeatFrameTol": 1
+      },
+      "skipReason": "no audio analysis provided"
+    },
+    {
+      "id": 3,
+      "name": "Climax on drop",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": true,
+      "measured": null,
+      "threshold": {
+        "climaxTolFrames": 3
+      },
+      "skipReason": "no audio analysis provided"
+    },
+    {
+      "id": 4,
+      "name": "Cut-on-beat coverage",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": true,
+      "measured": null,
+      "threshold": {
+        "cutBeatTolFrames": 1,
+        "beatCoverageFloor": 0.9
+      },
+      "skipReason": "no audio analysis provided"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 4,
+    "declaredBpm": 122,
+    "fps": 30,
+    "totalCuts": 9
+  },
+  "hardGatesPass": true
+}
