@@ -23,7 +23,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { rankHookVariants } from './hook-tournament-metrics.mjs';
+import { rankHookVariants, DECISIVE_MARGIN } from './hook-tournament-metrics.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -221,15 +221,23 @@ describe('rankHookVariants — (d) single-variant degenerate case', () => {
     const { ranking, winner } = rankHookVariants([allPassLow]);
     expect(winner).toBe(ranking[0]);
   });
+
+  it('single-variant → verdict=decisive, margin=null', () => {
+    const { verdict, margin } = rankHookVariants([allPassHigh]);
+    expect(verdict).toBe('decisive');
+    expect(margin).toBeNull();
+  });
 });
 
 // ── Edge cases ────────────────────────────────────────────────────────────────
 
 describe('rankHookVariants — edge cases', () => {
-  it('empty input returns { ranking: [], winner: null }', () => {
-    const { ranking, winner } = rankHookVariants([]);
+  it('empty input returns { ranking: [], winner: null, verdict: null, margin: null }', () => {
+    const { ranking, winner, verdict, margin } = rankHookVariants([]);
     expect(ranking).toHaveLength(0);
     expect(winner).toBeNull();
+    expect(verdict).toBeNull();
+    expect(margin).toBeNull();
   });
 
   it('all-skipped variant has hardPassCount=0 and compositeScore=0', () => {
@@ -259,6 +267,121 @@ describe('rankHookVariants — edge cases', () => {
     expect(Array.isArray(ranking[0].gates)).toBe(true);
     expect(ranking[0].gates).toHaveLength(5);
     expect(typeof ranking[0].hardGatesPass).toBe('boolean');
+  });
+});
+
+// ── Decisive verdict — real RelayLaunch A/B pair ─────────────────────────────
+//
+// Calibration fixture: the committed hook-tournament ranking.json from RelayLaunch
+// (PR #68) has B(0.5438) − A(0.0763) = 0.4675, well above DECISIVE_MARGIN=0.05.
+// Both variants pass all 3 hard gates (hardPassCount=3 each), so decisiveness here
+// comes from the composite margin, not hard-gate dominance.
+// ---------------------------------------------------------------------------
+
+const RELAY_RANKING_PATH = join(PROJECT_ROOT, 'out', 'review', 'RelayLaunch', 'hook-tournament', 'ranking.json');
+
+describe('rankHookVariants — decisive verdict (RelayLaunch A/B, margin ≈ 0.4675)', () => {
+  const fileExists = existsSync(RELAY_RANKING_PATH);
+
+  it('RelayLaunch hook-tournament ranking.json exists (committed reference)', () => {
+    expect(fileExists).toBe(true);
+  });
+
+  if (!fileExists) return;
+
+  const stored = JSON.parse(readFileSync(RELAY_RANKING_PATH, 'utf8'));
+  // Strip annotated fields so we test the raw ranking pipeline end-to-end
+  const raw = stored.ranking.map(({ hardPassCount: _, compositeScore: __, ...v }) => v);
+  const result = rankHookVariants(raw);
+
+  it('verdict is decisive (margin >> DECISIVE_MARGIN)', () => {
+    expect(result.verdict).toBe('decisive');
+  });
+
+  it('margin ≈ 0.4675 (B 0.5438 − A 0.0763)', () => {
+    expect(result.margin).toBeCloseTo(0.4675, 3);
+  });
+
+  it('winner is variant B (highest composite)', () => {
+    expect(result.winner.label).toBe('B');
+  });
+
+  it('margin >= DECISIVE_MARGIN', () => {
+    expect(result.margin).toBeGreaterThanOrEqual(DECISIVE_MARGIN);
+  });
+});
+
+// ── Contested verdict — hard-gate-equal variants within DECISIVE_MARGIN ───────
+//
+// tieA and tieB are identical synthetic fixtures (same hardPassCount, same
+// composite) → margin=0 < DECISIVE_MARGIN → contested.
+// ---------------------------------------------------------------------------
+
+describe('rankHookVariants — contested verdict (hard-gate-equal, margin 0 < DECISIVE_MARGIN)', () => {
+  const result = rankHookVariants([tieA, tieB]);
+
+  it('verdict is contested', () => {
+    expect(result.verdict).toBe('contested');
+  });
+
+  it('margin is 0 (identical composite scores)', () => {
+    expect(result.margin).toBe(0);
+  });
+
+  it('margin < DECISIVE_MARGIN', () => {
+    expect(result.margin).toBeLessThan(DECISIVE_MARGIN);
+  });
+
+  it('winner is still ranking[0] (label-sorted aardvark)', () => {
+    expect(result.winner.label).toBe('aardvark');
+  });
+});
+
+// ── Boundary case — margin = exactly DECISIVE_MARGIN → decisive ───────────────
+//
+// Two hard-gate-equal variants where compositeHigh − compositeLow = exactly
+// DECISIVE_MARGIN (0.05). The rule is margin >= DECISIVE_MARGIN → decisive,
+// so the boundary is inclusive: 0.05 >= 0.05 → decisive.
+//
+// Design: shared motion=1.0, contrast=10.0, active=4, separated=false;
+//   boundaryHigh liveness = cells(4)×rows(2) = 8  → W_LIVENESS×8/32 = 0.05 extra
+//   boundaryLow  liveness = cells(0)×rows(0) = 0  → no liveness contribution
+// hardPassCount = 3 for both (gates 1/2/3 all pass); equal hpc so verdict is
+// determined solely by composite margin.
+// ---------------------------------------------------------------------------
+
+describe('rankHookVariants — boundary: margin = DECISIVE_MARGIN → decisive (inclusive)', () => {
+  const boundaryHigh = makeVariant('boundary-high', [
+    makeGate1(true, 1.0),    // motion=1.0 (shared)
+    makeGate2(true, 10.0),   // contrast=10.0 (shared)
+    makeGate3(true, 5.0),    // loop seam (shared)
+    makeGate4(4, false),     // active=4, separated=false (shared)
+    makeGate5(4, 2),         // liveness = 4×2 = 8 → W_LIVENESS×8/32 = +0.05 composite
+  ]);
+  const boundaryLow = makeVariant('boundary-low', [
+    makeGate1(true, 1.0),
+    makeGate2(true, 10.0),
+    makeGate3(true, 5.0),
+    makeGate4(4, false),
+    makeGate5(0, 0),         // liveness = 0×0 = 0 → no liveness contribution
+  ]);
+  const result = rankHookVariants([boundaryHigh, boundaryLow]);
+
+  it('both variants have hardPassCount=3 (equal hpc — verdict determined by margin)', () => {
+    expect(result.ranking[0].hardPassCount).toBe(3);
+    expect(result.ranking[1].hardPassCount).toBe(3);
+  });
+
+  it('margin equals DECISIVE_MARGIN exactly (0.05 — clean by construction)', () => {
+    expect(result.margin).toBe(DECISIVE_MARGIN);
+  });
+
+  it('verdict is decisive (boundary inclusive: margin >= DECISIVE_MARGIN)', () => {
+    expect(result.verdict).toBe('decisive');
+  });
+
+  it('winner is boundary-high (higher liveness composite)', () => {
+    expect(result.winner.label).toBe('boundary-high');
   });
 });
 

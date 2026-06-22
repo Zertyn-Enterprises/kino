@@ -52,7 +52,7 @@ The closing line of `hook.sh` prints `HARD GATES: PASS` or `HARD GATES: FAIL` an
 
 ## 3. Hook tournament
 
-Building ≥2 archetype variants and running the tournament is the required hook authoring flow (see `SKILL.md §4`). The tournament ranks variants by gate-strongest metrics and auto-adopts the winner, so every video opens with its best-tested hook.
+Building ≥2 archetype variants and running the tournament is the required hook authoring flow (see `SKILL.md §4`). The tournament ranks variants by gate-strongest metrics. Adopt a **decisive** winner; on a **contested** near-tie the director decides between the tied variants on the human-judged substance gates (promise-by-2.5s, hook-pattern-committed, frame-0 thumbnail focal) and records the chosen variant + one-line rationale.
 
 ```bash
 scripts/hook-tournament.sh <CompId> [step] -- '<propsA>' '<propsB>' [..]
