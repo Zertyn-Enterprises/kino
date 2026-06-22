@@ -73,6 +73,11 @@ craft.md §1.5–1.7 + §2 apply unchanged. Motion serves the styleframe.
   gradient/glow overuse · invented data or placeholder copy · two claims
   on screen at once · colliding/clipped elements · captions glued to
   corners · cursor/caret artifacts.
+- **Motion AI-tells 🤖 (M1–M3):** stutter/jank · robotic/linear easing ·
+  dead background — now machine-checked. Run `scripts/motion.sh <CompId>`
+  and assert `hardGatesPass: true` in `out/review/<CompId>/motion/metrics.json`.
+  M1 (stutter/jank) is HARD; M2 (easing presence) and M3 (sustained life)
+  are advisory. See `review.md §8`.
 - **X-virality production audit** (from 2025-2026 top launches): Hook unmissable in first 1-3s (contrarian claim + live parallel demo with constant background activity)? Frame feels alive with things happening / micro-updates in every shot (no static/slow)? Fast pacing + re-hooks every 5-8s? Professional native chrome + dynamic layered motion? Muted-first (strong visuals + big text)? If any fail, fix before motion pass.
 - Minimum two polish rounds per scene. "Compiles and renders" is not a
   bar; "would a motion designer sign this?" is. Would it stop a muted X scroller and hold through the full video?
@@ -87,9 +92,9 @@ scripts/ship-gate.sh <CompId> <slug> \
   [-- --holds=S:E,... --climax=F --rehook=N]
 ```
 
-This runs `hook.sh`, `retention.sh`, and `contrast.sh` in sequence, writes
-`out/review/<CompId>/ship/report.json` (machine source of truth) and
-`report.txt` (human-readable table), and prints `SHIP: READY` or
+This runs `hook.sh`, `retention.sh`, `contrast.sh`, and `motion.sh` in
+sequence, writes `out/review/<CompId>/ship/report.json` (machine source of
+truth) and `report.txt` (human-readable table), and prints `SHIP: READY` or
 `SHIP: BLOCKED`. A missing gate metrics.json is a hard blocker. See `ship.md`
 for the full report shape, re-run command, and recorded snapshots.
 
@@ -105,6 +110,10 @@ for the full report shape, re-run command, and recorded snapshots.
   bg+surface) are BLOCKING. Confirm the palette was not changed since the
   design-system lock run at stage B. Advisory pairs failing require a named
   justification.
+- **Motion gate M1 — Stutter/jank** is HARD BLOCKING. Advisory gates M2
+  (Easing presence) and M3 (Sustained life) failing require a named, written
+  justification. Motion gate runs automatically via `motion.sh` (default step=3;
+  no extra flags needed for standard productions).
 
 **Named-justification rule:** advisory failures are acceptable only with a
 named, written justification recorded in the review (mirrors the "Named

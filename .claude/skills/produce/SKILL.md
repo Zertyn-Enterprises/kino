@@ -174,12 +174,15 @@ Commit after each scene passes (small commits = resumable production).
 
 - `scripts/filmstrip.sh <Comp> 15` — judge the WHOLE video per `review.md` §3:
   rhythm, dead air, attention flow, transition placement.
+- `scripts/motion.sh <Comp>` — assert the motion-craft gate per `review.md §8`.
+  Hard gate M1 (stutter/jank) must pass; record advisory M2/M3 verdicts with
+  named justification if failing.
 - `scripts/retention.sh <Comp>` — assert the retention gate per `retention.md` (`review.md` §7).
   Hard gate (dead-air) must pass; record advisory verdicts with named justification if failing.
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
 - `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]` — run
-  the unified ship gate (composes hook + retention + contrast); inspect
+  the unified ship gate (composes hook + retention + contrast + motion); inspect
   `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).

@@ -45,8 +45,8 @@ Same-session review drifts toward approval. Counteract mechanically:
 
 ## 3. Full-cut judgment (after all scenes pass)
 
-Run `scripts/retention.sh <Comp>` first and record the verdict before
-reading the filmstrip:
+Run `scripts/motion.sh <Comp>` and `scripts/retention.sh <Comp>` and record
+the verdicts before reading the filmstrip:
 
 - **Dead-air (HARD):** confirm `hardGatesPass: true` in
   `out/review/<Comp>/retention/metrics.json`. Non-zero exit = dead air detected;
@@ -118,6 +118,28 @@ Failing either requires a named, written justification in the review before
 continuing. Unjustified advisory failures are not acceptable.
 
 **Machine signal**: `out/review/<CompId>/retention/metrics.json` is the artifact
+of record — inspect `hardGatesPass` and the per-gate `pass`/`hard` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
+## 8. Motion gate (run on EVERY video at full-cut, both build paths)
+
+Run `scripts/motion.sh <CompId>` after the full cut is assembled and judge
+against `motion.md`. Optional flags:
+  `--window=S:E`  restrict analysis to a frame range
+  `--cuts=F,...`  declare cut frame numbers (auto-detected by default)
+
+### Blocking vs advisory enforcement
+
+**Gate M1 — Stutter/jank (HARD):** Within an active motion run, no pair drops
+to near-zero then resumes — catches choppy/dropped-frame animation. A video
+where M1 fails cannot proceed to rough-cut checkpoint 2 until fixed. Do not
+proceed with a non-zero `motion.sh` exit code.
+
+**Gates M2–M3 — Easing presence / Sustained life (ADVISORY):**
+Failing either requires a named, written justification in the review before
+continuing. Unjustified advisory failures are not acceptable.
+
+**Machine signal**: `out/review/<CompId>/motion/metrics.json` is the artifact
 of record — inspect `hardGatesPass` and the per-gate `pass`/`hard` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
