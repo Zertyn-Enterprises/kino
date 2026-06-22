@@ -14,10 +14,19 @@
  *       that fails a hard gate ranks BELOW a hard-passing variant
  *   (c) deterministic tie-break by label
  *   (d) single-variant degenerate case returns that variant as winner
+ *
+ * Golden calibration:
+ *   real AmbientCheck hook-metrics → hardGatesPass=true, hardPassCount=3
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { rankHookVariants } from './hook-tournament-metrics.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = join(__dirname, '..');
 
 // ── Fixture helpers ──────────────────────────────────────────────────────────
 
@@ -250,5 +259,61 @@ describe('rankHookVariants — edge cases', () => {
     expect(Array.isArray(ranking[0].gates)).toBe(true);
     expect(ranking[0].gates).toHaveLength(5);
     expect(typeof ranking[0].hardGatesPass).toBe('boolean');
+  });
+});
+
+// ── Golden calibration — real hook-metrics JSON yields sensible ranking ───────
+//
+// Reads the committed AmbientCheck hook-metrics artifact and verifies the ranking
+// module produces the expected structural result. This is a calibration guard: if
+// the ranking formula changes in a way that breaks the real-data path (e.g. a
+// weight change that pushes compositeScore out of [0,1]), this test breaks.
+//
+// The AmbientCheck metrics JSON is the only committed hook-metrics artifact; it
+// passes all 3 HARD gates and all 2 advisory gates.
+// ---------------------------------------------------------------------------
+
+const AMBIENT_METRICS_PATH = join(PROJECT_ROOT, 'out', 'review', 'AmbientCheck', 'hook', 'metrics.json');
+
+describe('rankHookVariants — golden calibration (AmbientCheck real hook-metrics)', () => {
+  const metricsFileExists = existsSync(AMBIENT_METRICS_PATH);
+
+  it('AmbientCheck metrics artifact exists', () => {
+    expect(metricsFileExists).toBe(true);
+  });
+
+  if (!metricsFileExists) return;
+
+  const rawMetrics = JSON.parse(readFileSync(AMBIENT_METRICS_PATH, 'utf8'));
+  const variant = { ...rawMetrics, label: 'ambient-check' };
+  const { ranking, winner } = rankHookVariants([variant]);
+
+  it('ranking contains 1 item', () => {
+    expect(ranking).toHaveLength(1);
+  });
+
+  it('AmbientCheck is the winner (only variant)', () => {
+    expect(winner.label).toBe('ambient-check');
+  });
+
+  it('AmbientCheck: hardGatesPass=true (calibration guard)', () => {
+    expect(rawMetrics.hardGatesPass).toBe(true);
+  });
+
+  it('AmbientCheck: hardPassCount=3 (all 3 hard gates pass)', () => {
+    expect(ranking[0].hardPassCount).toBe(3);
+  });
+
+  it('AmbientCheck: compositeScore is in [0, 1]', () => {
+    expect(ranking[0].compositeScore).toBeGreaterThanOrEqual(0);
+    expect(ranking[0].compositeScore).toBeLessThanOrEqual(1);
+  });
+
+  it('AmbientCheck: compositeScore is non-trivial (> 0.3 — real measures, not all zeroes)', () => {
+    expect(ranking[0].compositeScore).toBeGreaterThan(0.3);
+  });
+
+  it('AmbientCheck: 5 gates in ranking output', () => {
+    expect(ranking[0].gates).toHaveLength(5);
   });
 });
