@@ -226,4 +226,60 @@ describe('computeMotionMetrics — cut masking (scene transition auto-detected)'
   it('cuts detected > 0', () => {
     expect(verdict.summary.cutsDetected).toBeGreaterThan(0);
   });
+
+  it('M3 skips — cut masking leaves only 3 unmasked pairs (< M3_WINDOW=5)', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.skip).toBe(true);
+    expect(g.advisory).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M3 independent skip — enough frames for M1+M2 but too few unmasked pairs for M3
+//
+// 4 frames; fills: [100, 110, 120, 130]
+// 3 pairs all unmasked (no cut; nothing >= CUT_FLOOR=15) → 3 < M3_WINDOW=5 → M3 SKIP
+// M1: constant motion (all pairs active), no dropout → PASS
+// M2: peak=10, mean=10, ratio=1.0 < 1.5 → FAIL (advisory)
+// M3: 3 pairs < M3_WINDOW=5 → SKIP
+// hardGatesPass = true (M1 hard PASS; M2 advisory FAIL and M3 skip do not block)
+// ---------------------------------------------------------------------------
+
+const m3SkipFrames = [100, 110, 120, 130].map(makeFrame);
+
+describe('computeMotionMetrics — M3 independent skip (too few unmasked pairs)', () => {
+  const verdict = computeMotionMetrics(m3SkipFrames, { step: 3, fps: 30 });
+
+  it('hardGatesPass is true — M3 skip and M2 advisory FAIL do not block', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('M1 (stutter, hard) passes — constant motion, no dropouts', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+    expect(g.measured.stutterDetected).toBe(false);
+  });
+
+  it('M2 (easing, advisory) fails — flat plateau, ratio=1.0 < 1.5', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(false);
+    expect(g.skip).toBe(false);
+    expect(g.measured.ratio).toBeCloseTo(1.0, 2);
+  });
+
+  it('M3 (sustained life, advisory) skips — 3 unmasked pairs is below M3_WINDOW=5', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.skip).toBe(true);
+    expect(g.pass).toBe(false);
+  });
+
+  it('summary: 1 passed, 1 failed, 1 skipped', () => {
+    expect(verdict.summary.passed).toBe(1);
+    expect(verdict.summary.failed).toBe(1);
+    expect(verdict.summary.skipped).toBe(1);
+  });
 });
