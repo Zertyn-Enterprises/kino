@@ -19,7 +19,7 @@
 #   props.txt                                   — raw props string for label extraction
 #
 # Tournament output: out/review/<CompId>/hook-tournament/
-#   ranking.json   — machine result ({ ranking, winner })
+#   ranking.json   — machine result ({ ranking, winner, verdict, margin })
 #   summary.txt    — human-readable ranking table
 #
 # e.g.
@@ -166,15 +166,19 @@ if (variants.length === 0) {
   process.exit(1);
 }
 
-const { ranking, winner } = rankHookVariants(variants);
+const { ranking, winner, verdict, margin } = rankHookVariants(variants);
 
-writeFileSync(`${tournamentOut}/ranking.json`, JSON.stringify({ ranking, winner }, null, 2) + '\n');
+writeFileSync(`${tournamentOut}/ranking.json`, JSON.stringify({ ranking, winner, verdict, margin }, null, 2) + '\n');
 
 // Human-readable summary table
 const width = Math.max(13, ...ranking.map(v => v.label.length));
+const verdictLine = margin != null
+  ? `Verdict: ${verdict} (margin ${margin.toFixed(4)})`
+  : `Verdict: ${verdict}`;
 const lines = [
   `Hook Tournament — ${comp}  (${ranking.length} variants)`,
   `Winner: ${winner.label}  (hard=${winner.hardPassCount}/3  composite=${winner.compositeScore.toFixed(4)})`,
+  verdictLine,
   '',
   `${'Rank'.padEnd(4)}  ${'Label'.padEnd(width)}  Hard  Composite`,
   `${'────'.padEnd(4)}  ${'─'.repeat(width)}  ────  ─────────`,

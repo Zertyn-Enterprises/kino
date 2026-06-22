@@ -237,5 +237,7 @@
     "label": "B",
     "hardPassCount": 3,
     "compositeScore": 0.543774
-  }
+  },
+  "verdict": "decisive",
+  "margin": 0.467485
 }
