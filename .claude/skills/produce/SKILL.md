@@ -26,6 +26,7 @@ Read these before any creative decision (all in this folder):
   RelayLaunch, GranipaLaunch, and AmbientCheck (the first PASS for gates 4+5).
   Use `AmbientField` from `src/lib/fx.tsx` to satisfy the background-activity gate.
 - `hooks.md` — eight gate-aligned hook archetype catalog; pick one here before writing the treatment.
+- `retention.md` — retention gate: dead-air (HARD) / energy-build-to-climax + re-hook cadence (advisory). Run `scripts/retention.sh`; see `review.md §7`.
 - `retention-patterns.md` — seven buildable retention patterns; pick one structural shape per act before writing the storyboard. Build-side companion to `retention.md`.
 - `ship.md` — unified ship gate: `scripts/ship-gate.sh` usage, `report.json`
   shape, and re-run command. The single entrypoint for the final ship verdict.
