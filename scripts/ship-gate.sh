@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the full ship gate: hook.sh + retention.sh + contrast.sh + motion.sh + legibility.sh + code-craft.sh + musicsync.sh, aggregates results.
+# Runs the full ship gate: hook.sh + retention.sh + contrast.sh + motion.sh + legibility.sh + code-craft.sh + musicsync.sh + payoff.sh, aggregates results.
 #   out/review/<CompId>/ship/report.json  — machine source of truth
 #   out/review/<CompId>/ship/report.txt   — human-readable table
 # Prints SHIP: READY|BLOCKED and exits non-zero when not ship-ready.
@@ -46,6 +46,7 @@ MOTION_JSON="out/review/$COMP/motion/metrics.json"
 LEGIBILITY_JSON="out/review/$COMP/legibility/metrics.json"
 CODE_CRAFT_JSON="out/review/$COMP/code-craft/metrics.json"
 MUSICSYNC_JSON="out/review/$COMP/musicsync/metrics.json"
+PAYOFF_JSON="out/review/$COMP/payoff/metrics.json"
 
 # --- 1. Run each gate, capturing exit codes without aborting ---
 
@@ -93,13 +94,18 @@ MUSICSYNC_EXIT=0
 scripts/musicsync.sh "$COMP" "$SLUG" || MUSICSYNC_EXIT=$?
 
 echo ""
+echo "==> Running payoff gate..."
+PAYOFF_EXIT=0
+scripts/payoff.sh "$COMP" || PAYOFF_EXIT=$?
+
+echo ""
 
 # --- 2. Aggregate via ship-metrics.mjs ---
 
 SHIP_EXIT=0
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" --json \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" --json \
   > "$SHIP_OUT/report.json" || SHIP_EXIT=$?
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" \
   | tee "$SHIP_OUT/report.txt" || true
 
 echo "Ship review — $SHIP_OUT/"

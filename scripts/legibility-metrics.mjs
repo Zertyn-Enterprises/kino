@@ -78,7 +78,7 @@
 import { fileURLToPath } from 'node:url';
 import { meanAbsDelta, toLuminance, loadFrame } from './hook-metrics.mjs';
 
-const EDGE_DENSITY_THRESHOLD = 0.30;
+export const EDGE_DENSITY_THRESHOLD = 0.30;
 const HOLD_DELTA_THRESHOLD   = 0.5;
 const CUT_THRESHOLD          = 5.0;
 const MIN_READ_FRAMES        = 12;

@@ -41,6 +41,10 @@ Read these before any creative decision (all in this folder):
   analysis present; SKIP otherwise) / MS3 climax-on-drop / MS4 cut-on-beat coverage
   (advisory). `scripts/musicsync.sh` usage, thresholds + calibration rationale,
   degraded/SKIP-mode note, and recorded RelayLaunch + GranipaLaunch snapshots.
+- `payoff.md` — payoff/CTA gate: P1 payoff-presence-&-dwell / P2 final-frame
+  end-card legibility (both HARD) / P3 closing-stability (advisory). `scripts/payoff.sh`
+  usage, threshold constants + calibration rationale, SKIP/graceful-degradation note,
+  and recorded RelayLaunch + GranipaLaunch PASS snapshots.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.

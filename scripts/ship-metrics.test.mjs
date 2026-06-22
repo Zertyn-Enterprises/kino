@@ -1,7 +1,7 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Eleven fixture sets:
+ * Fourteen fixture sets:
  *   - Ship-ready:                  all six gates hardGatesPass true, advisory fails present
  *                                  → shipReady true, blockers empty.
  *   - Blocked:                     one gate hardGatesPass false → shipReady false, gate named in blockers.
@@ -807,5 +807,134 @@ describe('computeShipVerdict — musicsync null (gate not run — graceful SKIP,
 
   it('musicsync advisory failures is empty', () => {
     expect(musicSyncNullVerdict.gates.musicsync.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 15: payoff null — gate not run → does NOT block
+//             (same graceful SKIP semantics as musicsync: absent metrics ≠ hard fail)
+//
+// All seven base gates: hardGatesPass=true
+// payoff: null (no metrics.json — absent metrics, graceful SKIP)
+//
+// Expected: shipReady=true, blockers=[], payoff.ran=false, payoff.hardGatesPass=true
+// ---------------------------------------------------------------------------
+
+const payoffNullVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+});
+
+describe('computeShipVerdict — payoff null (gate not run — graceful SKIP, not a hard blocker)', () => {
+  it('shipReady is true — null payoff does not block', () => {
+    expect(payoffNullVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(payoffNullVerdict.blockers).toHaveLength(0);
+  });
+
+  it('payoff gate ran=false but hardGatesPass=true (graceful SKIP)', () => {
+    expect(payoffNullVerdict.gates.payoff.ran).toBe(false);
+    expect(payoffNullVerdict.gates.payoff.hardGatesPass).toBe(true);
+  });
+
+  it('payoff advisory failures is empty', () => {
+    expect(payoffNullVerdict.gates.payoff.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 16: payoff hard fail — P1/P2 blocked → shipReady=false
+//
+// All seven base gates: hardGatesPass=true
+// payoff: hardGatesPass=false (P1 no settled identity in closing window)
+//
+// Expected: shipReady=false, blockers=['payoff hard gates failed']
+// ---------------------------------------------------------------------------
+
+const payoffHardFailVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     hookMetrics({ hardGatesPass: false }),
+});
+
+describe('computeShipVerdict — payoff hard fail (P1/P2 failed)', () => {
+  it('shipReady is false', () => {
+    expect(payoffHardFailVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "payoff hard gates failed"', () => {
+    expect(payoffHardFailVerdict.blockers).toContain('payoff hard gates failed');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(payoffHardFailVerdict.blockers).toHaveLength(1);
+  });
+
+  it('payoff gate ran but hardGatesPass false', () => {
+    expect(payoffHardFailVerdict.gates.payoff.ran).toBe(true);
+    expect(payoffHardFailVerdict.gates.payoff.hardGatesPass).toBe(false);
+  });
+
+  it('all seven base gates are not blockers', () => {
+    expect(payoffHardFailVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(payoffHardFailVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(payoffHardFailVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(payoffHardFailVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(payoffHardFailVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(payoffHardFailVerdict.gates.codeCraft.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 17: payoff advisory-only — P3 closing stability advisory fail only,
+//             all other gates clean → still ships.
+//
+// All seven base gates: hardGatesPass=true
+// payoff: hardGatesPass=true, advisory fail: 'Closing stability'
+//
+// Expected: shipReady=true, blockers=[], payoff.justified=false
+// ---------------------------------------------------------------------------
+
+const payoffAdvisoryOnlyVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     hookMetrics({ hardGatesPass: true, advisoryFails: ['Closing stability'] }),
+});
+
+describe('computeShipVerdict — payoff advisory-only (P3 advisory fail, all others clean)', () => {
+  it('shipReady is true — advisory fails never block', () => {
+    expect(payoffAdvisoryOnlyVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(payoffAdvisoryOnlyVerdict.blockers).toHaveLength(0);
+  });
+
+  it('payoff gate ran and hardGatesPass true', () => {
+    expect(payoffAdvisoryOnlyVerdict.gates.payoff.ran).toBe(true);
+    expect(payoffAdvisoryOnlyVerdict.gates.payoff.hardGatesPass).toBe(true);
+  });
+
+  it('payoff advisory failure listed — Closing stability', () => {
+    expect(payoffAdvisoryOnlyVerdict.gates.payoff.advisoryFailures).toContain('Closing stability');
+    expect(payoffAdvisoryOnlyVerdict.gates.payoff.justified).toBe(false);
   });
 });

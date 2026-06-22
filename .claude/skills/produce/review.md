@@ -28,7 +28,7 @@ Same-session review drifts toward approval. Counteract mechanically:
 | Alignment | Edges align to something (grid, optical center, each other); no almost-aligned |
 | Realism | UI data plausible & dense; no Lorem/John Doe; nothing stretched or upscaled-blurry |
 | Frame 0 | Works as a static thumbnail (hook scene only) |
-| Final frame | CTA legible, loop-friendly vs frame 0 (CTA scene only) |
+| Final frame 🤖 | Payoff gate (`scripts/payoff.sh <CompId>`) run at full-cut review: P1 (payoff presence & dwell) + P2 (final-frame legibility) are HARD; P3 (closing stability) is advisory. `hardGatesPass: true` is required before final render. See `payoff.md` + §12. |
 
 ## 2. Motion gates (filmstrip, step 8 per-scene / 15 full cut)
 
@@ -224,6 +224,34 @@ or intentional syncopation. Unjustified advisory failures are not acceptable.
 
 **Machine signal**: `out/review/<CompId>/musicsync/metrics.json` is the artifact
 of record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
+## 12. Payoff gate (run on EVERY video at full-cut, both build paths)
+
+Run `scripts/payoff.sh <CompId>` after the full cut is assembled and judge
+against `payoff.md`. Optional flag:
+  `--window=S:E`  override the closing window (default: final 90 frames / 3 s)
+
+### Blocking vs advisory enforcement
+
+**Gates P1–P2 — Payoff presence & dwell / Final-frame end-card legibility (HARD):**
+P1 fails when the closing window contains no settled identity card (video ends on a
+bare or still-animating frame). P2 fails when the final frame is blank or near-
+monochrome (fails as a static end card). Either failure means the CTA/autoplay loop
+is broken. A video where P1 or P2 fails cannot proceed to the final render. Do not
+call `SHIP: READY` with a non-zero `payoff.sh` exit code.
+
+**Gate P3 — Closing stability (ADVISORY):**
+Failing requires a named, written justification in the review before continuing.
+Common justified P3 fail: a loop-back animation that intentionally resolves after
+the declared window end. Unjustified advisory failures are not acceptable.
+
+**SKIP / graceful degradation:** individual gates SKIP in degenerate-sample cases
+(never a hard failure). If `payoff.sh` was not run, `ship-metrics.mjs` reports
+`payoff.ran = false` (not a hard blocker) — re-run the script to evaluate.
+
+**Machine signal**: `out/review/<CompId>/payoff/metrics.json` is the artifact of
+record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
 ## 5. Render hygiene (final gate before "done")
