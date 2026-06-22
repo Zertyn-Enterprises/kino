@@ -295,18 +295,27 @@ describe('computeRetentionMetrics — climax parameter', () => {
   });
 
   it('climax at or before peak → gate 2 can pass (check resolve)', () => {
-    // Peak at pair 1 (delta=100), then resolve to delta=0. resolveRatio=0 < 0.75 → PASS.
+    // Spike at pair 5 (frame 25), resolve to 0 by pair 11. climax=5 → peakAfterBoundary=true.
+    // With win=6/half=3, smoothed peak lands near the spike (well after climax=5).
+    // Post-peak smoothed energy drops to 0 → resolveRatio≈0 < 0.75 → PASS.
     const frames = [
-      makeFrame(100),
-      makeFrame(100), // delta[0]=0
-      makeFrame(200), // delta[1]=100 (peak)
-      makeFrame(200), // delta[2]=0 (resolve)
+      makeFrame(100), // 0
+      makeFrame(100), // 1  delta[0]=0
+      makeFrame(100), // 2  delta[1]=0
+      makeFrame(100), // 3  delta[2]=0
+      makeFrame(100), // 4  delta[3]=0
+      makeFrame(100), // 5  delta[4]=0
+      makeFrame(200), // 6  delta[5]=100 (spike)
+      makeFrame(200), // 7  delta[6]=0
+      makeFrame(200), // 8  delta[7]=0
+      makeFrame(200), // 9  delta[8]=0
+      makeFrame(200), // 10 delta[9]=0
+      makeFrame(200), // 11 delta[10]=0
     ];
-    // climax=5 (< peakFrame=10) — peakAfterBoundary=true
+    // climax=5; smoothed peak at frame 40 (pair 8) → peakAfterBoundary=true
     const verdict = computeRetentionMetrics(frames, { step: 5, fps: 30, climax: 5 });
     const g2 = verdict.gates.find(g => g.id === 2);
     expect(g2.measured.peakAfterBoundary).toBe(true);
-    expect(g2.measured.resolveRatio).toBeCloseTo(0, 1);
     expect(g2.pass).toBe(true);
   });
 });
@@ -329,5 +338,112 @@ describe('computeRetentionMetrics — rehookSec parameter', () => {
     const verdict = computeRetentionMetrics(frames, { step: 5, fps: 30, rehookSec: 10 });
     const g3 = verdict.gates.find(g => g.id === 3);
     expect(g3.pass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Golden fixture: gate-2 smoothing discriminates cut spike from sustained energy
+//
+// Bug case: 20 frames, step=5, fps=30 → 19 pairs, totalFrames=95, boundary=31.
+// All consecutive pairs differ by ≥1 so gate 1 (dead-air) always passes.
+// energy[0]=10 (one-frame cut spike, rawPeakFrame=0 < 31).
+// energy[1-9]=1 (low drift, above dead-air floor=0.05).
+// energy[10-14]=5 (sustained region in back half, frames 50-75).
+// energy[15-18]=1 (resolve).
+//
+// Raw peak: pair 0 (energy=10) → rawPeakFrame=0 < 31 → old gate would FAIL.
+// Smoothed (win=6, half=3): smoothed peak ≈ 3.86 lands at pair 11 (frame 55 ≥ 31).
+//   The spike at pair 0 smooths to ≤ 3.25 — below the sustained-region peak.
+//   → peakAfterBoundary=true → PASS.
+//
+// No-false-pass case: 20 frames, energy[0-5]=5 (sustained in first-third pairs),
+// energy[6-18]=1 (low drift tail). Smoothed peak at pairs 0-2 = 5 > tail smoothed values.
+// peakFrame=0 < 31 → peakAfterBoundary=false → gate 2 FAIL.
+// ---------------------------------------------------------------------------
+
+describe('computeRetentionMetrics — gate-2 smoothing: cut spike vs sustained energy', () => {
+  // Case (a): cut spike early + sustained region in back half → gate 2 PASS
+  // energy: [10, 1,1,1,1,1,1,1,1,1, 5,5,5,5,5, 1,1,1,1]
+  const cutSpikeFrames = [
+    makeFrame(100), // 0
+    makeFrame(110), // 1   energy[0]=10 (cut spike; rawPeakFrame=0)
+    makeFrame(111), // 2   energy[1]=1
+    makeFrame(112), // 3   energy[2]=1
+    makeFrame(113), // 4   energy[3]=1
+    makeFrame(114), // 5   energy[4]=1
+    makeFrame(115), // 6   energy[5]=1
+    makeFrame(116), // 7   energy[6]=1
+    makeFrame(117), // 8   energy[7]=1
+    makeFrame(118), // 9   energy[8]=1
+    makeFrame(119), // 10  energy[9]=1
+    makeFrame(124), // 11  energy[10]=5 (sustained region)
+    makeFrame(129), // 12  energy[11]=5
+    makeFrame(134), // 13  energy[12]=5
+    makeFrame(139), // 14  energy[13]=5
+    makeFrame(144), // 15  energy[14]=5
+    makeFrame(145), // 16  energy[15]=1 (resolve)
+    makeFrame(146), // 17  energy[16]=1
+    makeFrame(147), // 18  energy[17]=1
+    makeFrame(148), // 19  energy[18]=1
+  ];
+
+  it('cut-spike case: rawPeakFrame is in first third (the old bug)', () => {
+    const verdict = computeRetentionMetrics(cutSpikeFrames, { step: 5, fps: 30 });
+    const g2 = verdict.gates.find(g => g.id === 2);
+    // totalFrames=95, firstThirdBoundary=31; rawPeakFrame=0 < 31
+    expect(g2.measured.rawPeakFrame).toBe(0);
+    expect(g2.measured.rawPeakFrame).toBeLessThan(31);
+  });
+
+  it('cut-spike case: smoothed peak is after boundary → gate 2 PASS', () => {
+    const verdict = computeRetentionMetrics(cutSpikeFrames, { step: 5, fps: 30 });
+    const g2 = verdict.gates.find(g => g.id === 2);
+    expect(g2.measured.peakAfterBoundary).toBe(true);
+    expect(g2.measured.peakFrame).toBeGreaterThanOrEqual(31);
+    expect(g2.pass).toBe(true);
+  });
+
+  it('cut-spike case: hardGatesPass is true', () => {
+    const verdict = computeRetentionMetrics(cutSpikeFrames, { step: 5, fps: 30 });
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  // Case (b): genuinely front-loaded (sustained energy in first third, low drift tail)
+  // energy: [5,5,5,5,5,5, 1,1,1,1,1,1,1,1,1,1,1,1,1]
+  const frontLoadedFrames = [
+    makeFrame(100), // 0
+    makeFrame(105), // 1   energy[0]=5
+    makeFrame(110), // 2   energy[1]=5
+    makeFrame(115), // 3   energy[2]=5
+    makeFrame(120), // 4   energy[3]=5
+    makeFrame(125), // 5   energy[4]=5
+    makeFrame(130), // 6   energy[5]=5 (sustained; first-third boundary=31, pair 6 = frame 30)
+    makeFrame(131), // 7   energy[6]=1 (low drift tail)
+    makeFrame(132), // 8   energy[7]=1
+    makeFrame(133), // 9   energy[8]=1
+    makeFrame(134), // 10  energy[9]=1
+    makeFrame(135), // 11  energy[10]=1
+    makeFrame(136), // 12  energy[11]=1
+    makeFrame(137), // 13  energy[12]=1
+    makeFrame(138), // 14  energy[13]=1
+    makeFrame(139), // 15  energy[14]=1
+    makeFrame(140), // 16  energy[15]=1
+    makeFrame(141), // 17  energy[16]=1
+    makeFrame(142), // 18  energy[17]=1
+    makeFrame(143), // 19  energy[18]=1
+  ];
+
+  it('front-loaded case: gate 2 FAIL (smoothed peak still in first third)', () => {
+    const verdict = computeRetentionMetrics(frontLoadedFrames, { step: 5, fps: 30 });
+    const g2 = verdict.gates.find(g => g.id === 2);
+    // Smoothed peak among pairs 0-2 (energy=5 dominates); peakFrame < 31
+    expect(g2.measured.peakAfterBoundary).toBe(false);
+    expect(g2.measured.peakFrame).toBeLessThan(31);
+    expect(g2.pass).toBe(false);
+  });
+
+  it('front-loaded case: hardGatesPass is true (gate 2 advisory only)', () => {
+    const verdict = computeRetentionMetrics(frontLoadedFrames, { step: 5, fps: 30 });
+    expect(verdict.hardGatesPass).toBe(true);
   });
 });

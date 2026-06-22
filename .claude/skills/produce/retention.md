@@ -51,34 +51,38 @@ cat out/review/<CompId>/retention/metrics.txt    # human-readable table
 
 ---
 
-**Recorded snapshot — 2026-06-21 (step=10). Do not hand-edit; re-run
+**Recorded snapshot — 2026-06-22 (step=5, gate-2 smoothing fix). Do not hand-edit; re-run
 `scripts/retention.sh <CompId>` to update.**
 
 Gates marked 🤖 are machine-asserted (see `metrics.json`). Advisory fails
 require a named justification below.
 
+Gate 2 now uses a windowed sustained-energy signal (centered rolling mean, win≈1s) so
+single-frame cut spikes average down. `rawPeakFrame` in `metrics.json` shows the raw
+(unsmoothed) peak for comparison.
+
 ### RelayLaunch
 
-Full cut: 950 frames (31.67s). 96 samples at step=10.
+Full cut: 955 frames (31.83s). 192 samples at step=5.
 
 | Gate | Measured value | Pass? |
 |---|---|---|
-| Dead-air 🤖 | longestStaticSec=0.00s — all sampled pairs show delta≥0.15 (terminal typing animation keeps every frame alive) | ✓ |
-| Energy build-to-climax 🤖 | peakFrame=260, boundary=316 (first-third heuristic, no --climax supplied), peakAfterBoundary=false, resolveRatio=N/A | ✗ (advisory) |
-| Re-hook cadence 🤖 | longestFlatSec=5.00s @frame0 (longest stretch before first energy spike) | ✓ |
+| Dead-air 🤖 | longestStaticSec=0.17s @frames 480-485 — terminal typing animation keeps all pairs alive | ✓ |
+| Energy build-to-climax 🤖 | smoothedPeakFrame=280, rawPeakFrame=265, boundary=318 (first-third heuristic), peakAfterBoundary=false, resolveRatio=0.194 | ✗ (advisory) |
+| Re-hook cadence 🤖 | longestFlatSec=5.00s @frame0 (before first energy spike) | ✓ |
 
 **Named advisory fails:**
-1. **Gate 2 — energy peak in first third**: the pixel-energy peak at f260 correlates with a dramatic visual scene transition (high frame-to-frame delta), not the narrative climax. Both shipped videos exhibit this pattern — the gate is a diagnostic signal for future productions. Supply `--climax=<narrativeClimaxFrame>` to assert the correct window once the edit is final.
+1. **Gate 2 — sustained energy peak in first third (true signal)**: the smoothed peak at f280 represents a sustained region of high visual activity in the opening third — scene transitions and animated reveals front-load the visual energy. The narrative climax exists in the back half but with lower total luminance delta. This is a real finding about the edit's pacing: the opening is visually more intense than the climax. To gate the actual narrative climax, supply `--climax=<narrativeClimaxFrame>` explicitly; without it the heuristic correctly identifies that peak visual energy is not building toward the end.
 
 ### GranipaLaunch
 
-Full cut: 1120 frames (37.33s). 113 samples at step=10.
+Full cut: 1120 frames (37.33s). 225 samples at step=5.
 
 | Gate | Measured value | Pass? |
 |---|---|---|
-| Dead-air 🤖 | longestStaticSec=0.00s — all sampled pairs show motion (icon stamp-ins + transitions throughout) | ✓ |
-| Energy build-to-climax 🤖 | peakFrame=290, boundary=373 (first-third heuristic, no --climax supplied), peakAfterBoundary=false, resolveRatio=N/A | ✗ (advisory) |
-| Re-hook cadence 🤖 | longestFlatSec=4.67s @frame630 | ✓ |
+| Dead-air 🤖 | longestStaticSec=0.00s — icon stamp-ins + transitions keep all pairs active | ✓ |
+| Energy build-to-climax 🤖 | smoothedPeakFrame=305, rawPeakFrame=290, boundary=373 (first-third heuristic), peakAfterBoundary=false, resolveRatio=0.12 | ✗ (advisory) |
+| Re-hook cadence 🤖 | longestFlatSec=7.67s @frame390 | ✓ |
 
 **Named advisory fails:**
-1. **Gate 2 — energy peak in first third**: same pattern as RelayLaunch — the pixel-energy peak correlates with the largest scene transition (f290), which falls before the first-third boundary (f373). The narrative climax (sovereignty scene) is later but produces lower pixel delta. Known limitation of the first-third heuristic when dramatic transitions cluster early; supply `--climax=F` to gate the actual narrative climax on future productions.
+1. **Gate 2 — sustained energy peak in first third (true signal)**: the smoothed peak at f305 represents sustained visual activity (icon stamp-ins and scene transitions) concentrated in the opening act. The sovereignty/reveal scene in the back half has lower pixel delta than the opening sequence. Same diagnosis as RelayLaunch: the edit front-loads visual intensity. To gate the actual narrative climax, supply `--climax=<narrativeClimaxFrame>` explicitly; without it the heuristic is reporting a real pacing characteristic of this cut.

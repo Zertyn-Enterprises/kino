@@ -120,7 +120,7 @@ Legibility measured: L1 intervals=31 eligible=17 violations=0 shortestDwell=15f 
 **Named advisory fails:**
 1. **hook / Background activity** — no `AmbientField`; single terminal region (active=1/16, not separated). Intentional airy identity for Relay. Add `AmbientField` to pass on future productions.
 2. **hook / Frame-0 liveness** — terminal in single grid row (cells=2/16, rows=1). Named: narrow terminal at 4×4 resolution; human review confirms mid-action. See `hook.md §2 RelayLaunch`.
-3. **retention / Energy build-to-climax** — pixel-energy peak at f265, before first-third boundary (f318). Named: large scene transition coincides with pixel peak, not narrative climax. Supply `--climax=F` to gate the actual climax on future productions.
+3. **retention / Energy build-to-climax** — sustained-energy (smoothed) peak at f280 (rawPeakFrame=265), before first-third boundary (f318). Named: the opening act front-loads visual intensity (transitions + animated reveals); the narrative climax in the back half has lower luminance delta. True signal — supply `--climax=<narrativeClimaxFrame>` to gate the actual climax frame directly.
 4. **legibility / Reading-budget share** — typing animation in the terminal holds high edge density while remaining temporally stable; algorithm classifies animation pauses as held-text intervals (share 74.9% > 60%). Intentional: the typing IS readable text, not a wall-of-text violation.
 
 ### GranipaLaunch
@@ -147,5 +147,5 @@ Legibility measured: L1 intervals=21 eligible=15 violations=0 shortestDwell=36f 
 
 **Named advisory fails:**
 1. **hook / Frame-0 liveness** — text confined to single grid row (cells=3/16, rows=1). Named: serif question spans row 1 only; arc F intentionally withholds action until icon stamps at f38–f54. See `hook.md §2 GranipaLaunch`.
-2. **retention / Energy build-to-climax** — pixel-energy peak at f290, before first-third boundary (f373). Named: scene transition (largest visual delta) precedes narrative climax. Supply `--climax=F` to gate the actual climax on future productions.
+2. **retention / Energy build-to-climax** — sustained-energy (smoothed) peak at f305 (rawPeakFrame=290), before first-third boundary (f373). Named: icon stamp-ins and scene transitions front-load visual intensity in the opening act; the sovereignty reveal in the back half has lower pixel delta. True signal — supply `--climax=<narrativeClimaxFrame>` to gate the actual climax frame directly.
 3. **legibility / Reading-budget share** — icon stamp animations hold high edge density while dipping below the temporal-delta threshold; algorithm classifies these as held-text intervals (share 87.7% > 60%). Intentional: these are visual anchors, not a wall-of-text violation.
