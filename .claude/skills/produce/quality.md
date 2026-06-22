@@ -78,6 +78,12 @@ craft.md §1.5–1.7 + §2 apply unchanged. Motion serves the styleframe.
   and assert `hardGatesPass: true` in `out/review/<CompId>/motion/metrics.json`.
   M1 (stutter/jank) is HARD; M2 (easing presence) and M3 (sustained life)
   are advisory. See `review.md §8`.
+- **Legibility AI-tells 🤖 (L1–L3):** text-flash too short to read · wall-of-text
+  (reading budget > 60% of runtime) · unstable detail during text holds — now
+  machine-checked. Run `scripts/legibility.sh <CompId>` and assert
+  `hardGatesPass: true` in `out/review/<CompId>/legibility/metrics.json`.
+  L1 (text-flash floor) is HARD; L2 (reading-budget share) and L3 (detail
+  stability) are advisory. See `review.md §9`.
 - **X-virality production audit** (from 2025-2026 top launches): Hook unmissable in first 1-3s (contrarian claim + live parallel demo with constant background activity)? Frame feels alive with things happening / micro-updates in every shot (no static/slow)? Fast pacing + re-hooks every 5-8s? Professional native chrome + dynamic layered motion? Muted-first (strong visuals + big text)? If any fail, fix before motion pass.
 - Minimum two polish rounds per scene. "Compiles and renders" is not a
   bar; "would a motion designer sign this?" is. Would it stop a muted X scroller and hold through the full video?
@@ -92,9 +98,9 @@ scripts/ship-gate.sh <CompId> <slug> \
   [-- --holds=S:E,... --climax=F --rehook=N]
 ```
 
-This runs `hook.sh`, `retention.sh`, `contrast.sh`, and `motion.sh` in
-sequence, writes `out/review/<CompId>/ship/report.json` (machine source of
-truth) and `report.txt` (human-readable table), and prints `SHIP: READY` or
+This runs `hook.sh`, `retention.sh`, `contrast.sh`, `motion.sh`, and
+`legibility.sh` in sequence, writes `out/review/<CompId>/ship/report.json`
+(machine source of truth) and `report.txt` (human-readable table), and prints `SHIP: READY` or
 `SHIP: BLOCKED`. A missing gate metrics.json is a hard blocker. See `ship.md`
 for the full report shape, re-run command, and recorded snapshots.
 
@@ -114,6 +120,12 @@ for the full report shape, re-run command, and recorded snapshots.
   (Easing presence) and M3 (Sustained life) failing require a named, written
   justification. Motion gate runs automatically via `motion.sh` (default step=3;
   no extra flags needed for standard productions).
+- **Legibility gate L1 — Text-flash floor** is HARD BLOCKING. Advisory gates L2
+  (Reading-budget share) and L3 (Detail stability) failing require a named, written
+  justification. Common justified L2 fail: typing-animation or icon-animation content
+  where the algorithm classifies motion pauses as held-text intervals. Legibility gate
+  runs automatically via `legibility.sh` (default step=3; no extra flags needed for
+  standard productions).
 
 **Named-justification rule:** advisory failures are acceptable only with a
 named, written justification recorded in the review (mirrors the "Named

@@ -1,15 +1,17 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Seven fixture sets:
- *   - Ship-ready:           all five gates hardGatesPass true, advisory fails present
- *                           → shipReady true, blockers empty.
- *   - Blocked:              one gate hardGatesPass false → shipReady false, gate named in blockers.
- *   - Missing gate:         contrast null → shipReady false, 'contrast gate not run' blocker.
- *   - Motion blocked:       motion hardGatesPass false → shipReady false, motion in blockers.
- *   - Missing motion:       motion null → shipReady false, 'motion gate not run' blocker.
- *   - Legibility blocked:   legibility hardGatesPass false → shipReady false, legibility in blockers.
- *   - Missing legibility:   legibility null → shipReady false, 'legibility gate not run' blocker.
+ * Eight fixture sets:
+ *   - Ship-ready:                 all five gates hardGatesPass true, advisory fails present
+ *                                 → shipReady true, blockers empty.
+ *   - Blocked:                    one gate hardGatesPass false → shipReady false, gate named in blockers.
+ *   - Missing gate:               contrast null → shipReady false, 'contrast gate not run' blocker.
+ *   - Motion blocked:             motion hardGatesPass false → shipReady false, motion in blockers.
+ *   - Missing motion:             motion null → shipReady false, 'motion gate not run' blocker.
+ *   - Legibility blocked:         legibility hardGatesPass false → shipReady false, legibility in blockers.
+ *   - Missing legibility:         legibility null → shipReady false, 'legibility gate not run' blocker.
+ *   - Legibility advisory-only:   legibility has advisory fail only, all other gates clean
+ *                                 → shipReady true (advisory fails never block).
  *
  * All inputs are plain objects matching the shape of each gate's metrics.json;
  * no file I/O is exercised — pure computeShipVerdict path only.
@@ -414,5 +416,59 @@ describe('computeShipVerdict — missing legibility gate (legibility null)', () 
     expect(missingLegibilityVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(missingLegibilityVerdict.gates.motion.ran).toBe(true);
     expect(missingLegibilityVerdict.gates.motion.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 8: legibility advisory-only — legibility has L2/L3 advisory fails,
+//            all other gates clean (no advisory fails) → still ships.
+//
+// hook:       hardGatesPass=true, no advisory fails
+// retention:  hardGatesPass=true, no advisory fails
+// contrast:   hardGatesPass=true, no advisory fails
+// motion:     hardGatesPass=true, no advisory fails
+// legibility: hardGatesPass=true, advisory fail: 'Reading-budget share' (L2)
+//
+// Expected: shipReady=true, blockers=[], legibility.justified=false
+// ---------------------------------------------------------------------------
+
+const legibilityAdvisoryOnlyVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true, advisoryFails: ['Reading-budget share'] }),
+});
+
+describe('computeShipVerdict — legibility advisory-only (L2/L3 advisory fail, all others clean)', () => {
+  it('shipReady is true — advisory fails never block', () => {
+    expect(legibilityAdvisoryOnlyVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(legibilityAdvisoryOnlyVerdict.blockers).toHaveLength(0);
+  });
+
+  it('all five gates ran', () => {
+    expect(legibilityAdvisoryOnlyVerdict.gates.hook.ran).toBe(true);
+    expect(legibilityAdvisoryOnlyVerdict.gates.retention.ran).toBe(true);
+    expect(legibilityAdvisoryOnlyVerdict.gates.contrast.ran).toBe(true);
+    expect(legibilityAdvisoryOnlyVerdict.gates.motion.ran).toBe(true);
+    expect(legibilityAdvisoryOnlyVerdict.gates.legibility.ran).toBe(true);
+  });
+
+  it('legibility advisory failure listed — Reading-budget share', () => {
+    expect(legibilityAdvisoryOnlyVerdict.gates.legibility.advisoryFailures).toContain('Reading-budget share');
+    expect(legibilityAdvisoryOnlyVerdict.gates.legibility.justified).toBe(false);
+  });
+
+  it('legibility hardGatesPass true despite advisory fail', () => {
+    expect(legibilityAdvisoryOnlyVerdict.gates.legibility.hardGatesPass).toBe(true);
+  });
+
+  it('other gates have no advisory failures', () => {
+    expect(legibilityAdvisoryOnlyVerdict.gates.hook.advisoryFailures).toHaveLength(0);
+    expect(legibilityAdvisoryOnlyVerdict.gates.retention.advisoryFailures).toHaveLength(0);
+    expect(legibilityAdvisoryOnlyVerdict.gates.motion.advisoryFailures).toHaveLength(0);
   });
 });

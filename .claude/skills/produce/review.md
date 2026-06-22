@@ -45,8 +45,8 @@ Same-session review drifts toward approval. Counteract mechanically:
 
 ## 3. Full-cut judgment (after all scenes pass)
 
-Run `scripts/motion.sh <Comp>` and `scripts/retention.sh <Comp>` and record
-the verdicts before reading the filmstrip:
+Run `scripts/motion.sh <Comp>`, `scripts/retention.sh <Comp>`, and
+`scripts/legibility.sh <Comp>` and record the verdicts before reading the filmstrip:
 
 - **Dead-air (HARD):** confirm `hardGatesPass: true` in
   `out/review/<Comp>/retention/metrics.json`. Non-zero exit = dead air detected;
