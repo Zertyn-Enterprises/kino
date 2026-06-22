@@ -14,6 +14,8 @@ out
 !out/review/*/
 !out/review/*/hook/
 !out/review/*/hook/metrics.json
+!out/review/*/hook-tournament/
+!out/review/*/hook-tournament/ranking.json
 
 # Generated smoke-test media
 public/smoke
