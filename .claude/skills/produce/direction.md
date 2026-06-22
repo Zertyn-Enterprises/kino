@@ -21,20 +21,12 @@ procedures = the treatment.
 Never open with: logo on black, slow fade-in, "Introducing…" before showing
 anything, or an establishing shot of a full UI (nothing to focus on).
 
-Hook patterns — pick ONE, commit hard:
-
-- **Mid-action demo**: the product already doing its most impressive thing,
-  cropped tight on the exact pixels that matter. Curiosity: "wait, what did
-  that just do?"
-- **Bold claim**: 3–6 words of typography that pick a fight with the status
-  quo ("Your CI is lying to you."). The claim must be earned by the video.
-- **The pain, dramatized**: 1–2s of the ugly familiar thing (error wall,
-  23 browser tabs, a spinner) — recognition is the strongest silent emotion —
-  then the interrupt.
-- **Pattern interrupt**: something visually wrong-on-purpose (UI element
-  behaving impossibly, type breaking physics) that demands explanation.
-- **A number**: a metric counting fast toward something absurd ("0 → 14,000
-  deploys"), context delivered at the peak.
+**Pick one archetype from `hooks.md`** — eight gate-aligned, buildable specs
+(mid-action demo, bold/contrast claim, dramatized pain, pattern interrupt,
+number-counting, payoff flash-forward, open question/indictment, multi-layer
+live demo). Each entry includes a gate mapping, AmbientField recipe, and arc-fit
+guidance. Cross-reference the arc menu (§4) and `src/videos/_registry.md`
+before committing. Pick ONE, commit hard.
 
 Hook rules: motion within the first 10 frames; one focal point; if there is
 text, ≤6 words; the hook's question must be ANSWERED by the reveal (open

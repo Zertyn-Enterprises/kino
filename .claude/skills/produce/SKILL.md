@@ -25,6 +25,7 @@ Read these before any creative decision (all in this folder):
 - `hook.md` — hook gate rubric + `scripts/hook.sh` usage; recorded snapshots for
   RelayLaunch, GranipaLaunch, and AmbientCheck (the first PASS for gates 4+5).
   Use `AmbientField` from `src/lib/fx.tsx` to satisfy the background-activity gate.
+- `hooks.md` — eight gate-aligned hook archetype catalog; pick one here before writing the treatment.
 - `ship.md` — unified ship gate: `scripts/ship-gate.sh` usage, `report.json`
   shape, and re-run command. The single entrypoint for the final ship verdict.
 
@@ -44,7 +45,7 @@ to it for HOW to write Remotion code. This skill owns WHAT to make.
    code) and the rough-cut listen (audio is the one channel you cannot review).
 5. **One message.** If the treatment can't state it in one sentence, keep
    interviewing.
-6. **Hook is #1 (X virality).** The first 1-3s must be unmissable (contrarian claim + instant live multi-layer demo with constant background elements/things happening). Research current top viral X launch videos before every treatment. Video must feel fast/professional with parallel activity — no static/slow frames or people swipe. See direction.md + references.md for the 2025-2026 patterns.
+6. **Hook is #1 (X virality).** The first 1-3s must be unmissable — contrarian claim + instant live multi-layer demo + constant background activity. **Select an archetype from `hooks.md`** before writing the treatment — each spec includes gate mapping, AmbientField recipe, and arc fit. See `direction.md` + `references.md` for the 2025-2026 viral patterns.
 
 ## File layout per video
 

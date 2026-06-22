@@ -44,6 +44,7 @@ public/<slug>/  per-video assets — every asset needs a MANIFEST.md entry
 4. Two human checkpoints per video: treatment approval, rough-cut listen.
 5. Components in `src/lib/` carry no taste — colors/curves/durations come from
    the video's theme. Don't add to lib until a pattern is written twice.
+6. Hook design: pick an archetype from `.claude/skills/produce/hooks.md` — eight gate-aligned, buildable specs; do not invent hook patterns ad-hoc.
 
 30fps, 1920×1080, 16:9 only. WebGL effects need the angle backend (already in
 `remotion.config.ts`). Remotion is free ≤3 employees; larger needs a company
