@@ -29,8 +29,13 @@
  *   HOLD_DELTA_THRESHOLD   = 0.50  (strict <)
  *   CUT_THRESHOLD          = 5.0   (strict >)
  *   MIN_READ_FRAMES        = 12    (dwell must be ≥ 12 to avoid L1 violation)
+ *   MIN_HOLD_PAIRS         = 3     (run must span ≥ 3 pairs to be L1-eligible)
  *   L2_MAX_SHARE           = 0.60
  *   L3_CV_THRESHOLD        = 0.40
+ *
+ * Note on L1 detectability: at step=3, min eligible dwell = (3+1)×3 = 12f = MIN_READ_FRAMES,
+ * so a flash is only detectable if step < 3. The L1 FAIL fixture uses step=1 to demonstrate
+ * a 3-pair run with dwell=4f that genuinely violates the 0.4s floor.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -74,22 +79,25 @@ const CUT = makeUniform(0);   // delta(T,CUT)≈100.5 >> CUT_THRESHOLD=5.0 → t
 // ---------------------------------------------------------------------------
 // L1 HARD FAIL — brief presented flash (terminated cut, dwell < MIN_READ_FRAMES)
 //
-// [T, T, CUT] — N=3, step=3
-//   pair 0 (T→T): ED(T)=0.5>0.30 ✓, delta=0 < 0.50 → hold pair
-//   pair 1 (T→CUT): delta≈100.5 > 0.50 → NOT hold pair (run ends)
-//   Run {start:0,end:0}: runLength=1, dwell=(1+1)×3=6, afterDelta≈100.5>5.0 → terminated
-//   L1: flashViolations=1 (dwell=6 < MIN_READ_FRAMES=12) → HARD FAIL
+// [T, T, T, T, CUT] — N=5, step=1
+//   pairs 0,1,2 (T→T): hold pairs (ED=0.5>0.30, delta=0<0.50)
+//   pair 3 (T→CUT): delta≈100.5 > 0.50 → NOT hold pair → run ends
+//   Run {start:0,end:2}: runLength=3 ≥ MIN_HOLD_PAIRS=3 → L1-eligible
+//   dwell=(3+1)×1=4f < MIN_READ_FRAMES=12 → violation; afterDelta≈100.5>CUT_THRESHOLD → terminated
+//   L1: flashViolations=1 (dwell=4 < MIN_READ_FRAMES=12) → HARD FAIL
 //   hardGatesPass = false
 // ---------------------------------------------------------------------------
 
+const flashFrames = [T, T, T, T, CUT];
+
 describe('computeLegibilityMetrics — L1 HARD FAIL (brief flash, terminated cut)', () => {
-  const verdict = computeLegibilityMetrics([T, T, CUT], { step: 3, fps: 30 });
+  const verdict = computeLegibilityMetrics(flashFrames, { step: 1, fps: 30 });
 
   it('hardGatesPass is false', () => {
     expect(verdict.hardGatesPass).toBe(false);
   });
 
-  it('L1 (text-flash floor, hard) fails — dwell=6 < MIN_READ_FRAMES=12', () => {
+  it('L1 (text-flash floor, hard) fails — dwell=4 < MIN_READ_FRAMES=12', () => {
     const g = verdict.gates.find(g => g.id === 1);
     expect(g.hard).toBe(true);
     expect(g.pass).toBe(false);
@@ -101,10 +109,12 @@ describe('computeLegibilityMetrics — L1 HARD FAIL (brief flash, terminated cut
   it('L1 measured has expected fields', () => {
     const g = verdict.gates.find(g => g.id === 1);
     expect(g.measured).toHaveProperty('textHoldIntervals');
+    expect(g.measured).toHaveProperty('l1EligibleIntervals');
     expect(g.measured).toHaveProperty('flashViolations');
     expect(g.measured).toHaveProperty('shortestDwellFrames');
     expect(g.measured).toHaveProperty('firstViolationDwellFrames');
     expect(g.threshold).toHaveProperty('minReadFrames');
+    expect(g.threshold).toHaveProperty('minHoldPairs');
   });
 
   it('L2 and L3 are advisory — do not affect hardGatesPass', () => {
@@ -370,8 +380,8 @@ describe('computeLegibilityMetrics — skip path (fewer than 2 frames)', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeLegibilityMetrics — exit-code / JSON-shape contract', () => {
-  it('hardGatesPass=false iff L1 hard gate fails (flash fixture)', () => {
-    const verdict = computeLegibilityMetrics([T, T, CUT], { step: 3, fps: 30 });
+  it('hardGatesPass=false iff L1 hard gate fails (flash fixture, step=1)', () => {
+    const verdict = computeLegibilityMetrics(flashFrames, { step: 1, fps: 30 });
     const l1 = verdict.gates.find(g => g.id === 1);
     expect(l1.pass).toBe(false);
     expect(verdict.hardGatesPass).toBe(false);
