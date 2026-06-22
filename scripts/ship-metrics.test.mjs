@@ -1,24 +1,28 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Eight fixture sets:
- *   - Ship-ready:                 all five gates hardGatesPass true, advisory fails present
- *                                 → shipReady true, blockers empty.
- *   - Blocked:                    one gate hardGatesPass false → shipReady false, gate named in blockers.
- *   - Missing gate:               contrast null → shipReady false, 'contrast gate not run' blocker.
- *   - Motion blocked:             motion hardGatesPass false → shipReady false, motion in blockers.
- *   - Missing motion:             motion null → shipReady false, 'motion gate not run' blocker.
- *   - Legibility blocked:         legibility hardGatesPass false → shipReady false, legibility in blockers.
- *   - Missing legibility:         legibility null → shipReady false, 'legibility gate not run' blocker.
- *   - Legibility advisory-only:   legibility has advisory fail only, all other gates clean
- *                                 → shipReady true (advisory fails never block).
+ * Eleven fixture sets:
+ *   - Ship-ready:                  all six gates hardGatesPass true, advisory fails present
+ *                                  → shipReady true, blockers empty.
+ *   - Blocked:                     one gate hardGatesPass false → shipReady false, gate named in blockers.
+ *   - Missing gate:                contrast null → shipReady false, 'contrast gate not run' blocker.
+ *   - Motion blocked:              motion hardGatesPass false → shipReady false, motion in blockers.
+ *   - Missing motion:              motion null → shipReady false, 'motion gate not run' blocker.
+ *   - Legibility blocked:          legibility hardGatesPass false → shipReady false, legibility in blockers.
+ *   - Missing legibility:          legibility null → shipReady false, 'legibility gate not run' blocker.
+ *   - Legibility advisory-only:    legibility has advisory fail only, all other gates clean
+ *                                  → shipReady true (advisory fails never block).
+ *   - CodeCraft blocked:           codeCraft hardGatesPass false → shipReady false, codeCraft in blockers.
+ *   - Missing codeCraft:           codeCraft null → shipReady false, 'codeCraft gate not run' blocker.
+ *   - CodeCraft advisory-only:     codeCraft has advisory fail only, all other gates clean
+ *                                  → shipReady true (advisory fails never block).
  *
  * All inputs are plain objects matching the shape of each gate's metrics.json;
  * no file I/O is exercised — pure computeShipVerdict path only.
  *
  * Advisory failures:
- *   hook/retention/motion/legibility: metrics.gates entries with advisory=true, pass=false, skip=false
- *   contrast:                         metrics.pairs entries with hard=false, pass=false
+ *   hook/retention/motion/legibility/codeCraft: metrics.gates entries with advisory=true, pass=false, skip=false
+ *   contrast:                                   metrics.pairs entries with hard=false, pass=false
  */
 
 import { describe, expect, it } from 'vitest';
@@ -28,7 +32,7 @@ import { computeShipVerdict } from './ship-metrics.mjs';
 // Fixture helpers
 // ---------------------------------------------------------------------------
 
-/** Minimal hook/retention/motion/legibility metrics object. */
+/** Minimal hook/retention/motion/legibility/codeCraft metrics object. */
 function hookMetrics({ hardGatesPass, advisoryFails = [] }) {
   return {
     hardGatesPass,
@@ -49,13 +53,14 @@ function contrastMetrics({ hardGatesPass, advisoryFails = [] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Fixture 1: ship-ready — all five gates pass, advisory fails present
+// Fixture 1: ship-ready — all six gates pass, advisory fails present
 //
 // hook:       hardGatesPass=true, advisory fail: 'background-activity'
 // retention:  hardGatesPass=true, advisory fail: 're-hook cadence'
 // contrast:   hardGatesPass=true, advisory fail: 'accent-on-bg'
 // motion:     hardGatesPass=true, advisory fail: 'Easing presence'
 // legibility: hardGatesPass=true, advisory fail: 'Reading-budget share'
+// codeCraft:  hardGatesPass=true, advisory fail: 'C2-hex'
 //
 // Expected: shipReady=true, blockers=[], all gates ran
 // ---------------------------------------------------------------------------
@@ -66,6 +71,7 @@ const shipReadyVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
   motion:     hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
   legibility: hookMetrics({ hardGatesPass: true, advisoryFails: ['Reading-budget share'] }),
+  codeCraft:  hookMetrics({ hardGatesPass: true, advisoryFails: ['C2-hex'] }),
 });
 
 describe('computeShipVerdict — ship-ready (all hard gates pass, advisory fails present)', () => {
@@ -77,20 +83,22 @@ describe('computeShipVerdict — ship-ready (all hard gates pass, advisory fails
     expect(shipReadyVerdict.blockers).toHaveLength(0);
   });
 
-  it('all five gates ran', () => {
+  it('all six gates ran', () => {
     expect(shipReadyVerdict.gates.hook.ran).toBe(true);
     expect(shipReadyVerdict.gates.retention.ran).toBe(true);
     expect(shipReadyVerdict.gates.contrast.ran).toBe(true);
     expect(shipReadyVerdict.gates.motion.ran).toBe(true);
     expect(shipReadyVerdict.gates.legibility.ran).toBe(true);
+    expect(shipReadyVerdict.gates.codeCraft.ran).toBe(true);
   });
 
-  it('all five gates hardGatesPass true', () => {
+  it('all six gates hardGatesPass true', () => {
     expect(shipReadyVerdict.gates.hook.hardGatesPass).toBe(true);
     expect(shipReadyVerdict.gates.retention.hardGatesPass).toBe(true);
     expect(shipReadyVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(shipReadyVerdict.gates.motion.hardGatesPass).toBe(true);
     expect(shipReadyVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(shipReadyVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 
   it('hook advisory failure listed — background-activity', () => {
@@ -117,6 +125,11 @@ describe('computeShipVerdict — ship-ready (all hard gates pass, advisory fails
     expect(shipReadyVerdict.gates.legibility.advisoryFailures).toContain('Reading-budget share');
     expect(shipReadyVerdict.gates.legibility.justified).toBe(false);
   });
+
+  it('codeCraft advisory failure listed — C2-hex', () => {
+    expect(shipReadyVerdict.gates.codeCraft.advisoryFailures).toContain('C2-hex');
+    expect(shipReadyVerdict.gates.codeCraft.justified).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -127,6 +140,7 @@ describe('computeShipVerdict — ship-ready (all hard gates pass, advisory fails
 // contrast:   hardGatesPass=true
 // motion:     hardGatesPass=true
 // legibility: hardGatesPass=true
+// codeCraft:  hardGatesPass=true
 //
 // Expected: shipReady=false, blockers=['hook hard gates failed']
 // ---------------------------------------------------------------------------
@@ -137,6 +151,7 @@ const blockedVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true }),
   motion:     hookMetrics({ hardGatesPass: true }),
   legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — blocked (hook hard gates failed)', () => {
@@ -157,11 +172,12 @@ describe('computeShipVerdict — blocked (hook hard gates failed)', () => {
     expect(blockedVerdict.gates.hook.hardGatesPass).toBe(false);
   });
 
-  it('retention, contrast, motion, legibility gates are not blockers', () => {
+  it('retention, contrast, motion, legibility, codeCraft gates are not blockers', () => {
     expect(blockedVerdict.gates.retention.hardGatesPass).toBe(true);
     expect(blockedVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(blockedVerdict.gates.motion.hardGatesPass).toBe(true);
     expect(blockedVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(blockedVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 });
 
@@ -173,6 +189,7 @@ describe('computeShipVerdict — blocked (hook hard gates failed)', () => {
 // contrast:   null (gate not run)
 // motion:     hardGatesPass=true
 // legibility: hardGatesPass=true
+// codeCraft:  hardGatesPass=true
 //
 // Expected: shipReady=false, blockers=['contrast gate not run'], contrast.ran=false
 // ---------------------------------------------------------------------------
@@ -183,6 +200,7 @@ const missingGateVerdict = computeShipVerdict({
   contrast:   null,
   motion:     hookMetrics({ hardGatesPass: true }),
   legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — missing gate (contrast null)', () => {
@@ -207,7 +225,7 @@ describe('computeShipVerdict — missing gate (contrast null)', () => {
     expect(missingGateVerdict.gates.contrast.advisoryFailures).toHaveLength(0);
   });
 
-  it('hook, retention, motion, legibility gates ran and passed', () => {
+  it('hook, retention, motion, legibility, codeCraft gates ran and passed', () => {
     expect(missingGateVerdict.gates.hook.ran).toBe(true);
     expect(missingGateVerdict.gates.hook.hardGatesPass).toBe(true);
     expect(missingGateVerdict.gates.retention.ran).toBe(true);
@@ -216,6 +234,8 @@ describe('computeShipVerdict — missing gate (contrast null)', () => {
     expect(missingGateVerdict.gates.motion.hardGatesPass).toBe(true);
     expect(missingGateVerdict.gates.legibility.ran).toBe(true);
     expect(missingGateVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(missingGateVerdict.gates.codeCraft.ran).toBe(true);
+    expect(missingGateVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 });
 
@@ -227,6 +247,7 @@ describe('computeShipVerdict — missing gate (contrast null)', () => {
 // contrast:   hardGatesPass=true
 // motion:     hardGatesPass=false (M1 stutter detected)
 // legibility: hardGatesPass=true
+// codeCraft:  hardGatesPass=true
 //
 // Expected: shipReady=false, blockers=['motion hard gates failed']
 // ---------------------------------------------------------------------------
@@ -237,6 +258,7 @@ const motionBlockedVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true }),
   motion:     hookMetrics({ hardGatesPass: false }),
   legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — motion blocked (motion hard gate failed)', () => {
@@ -257,11 +279,12 @@ describe('computeShipVerdict — motion blocked (motion hard gate failed)', () =
     expect(motionBlockedVerdict.gates.motion.hardGatesPass).toBe(false);
   });
 
-  it('hook, retention, contrast, legibility gates are not blockers', () => {
+  it('hook, retention, contrast, legibility, codeCraft gates are not blockers', () => {
     expect(motionBlockedVerdict.gates.hook.hardGatesPass).toBe(true);
     expect(motionBlockedVerdict.gates.retention.hardGatesPass).toBe(true);
     expect(motionBlockedVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(motionBlockedVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(motionBlockedVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 });
 
@@ -273,6 +296,7 @@ describe('computeShipVerdict — motion blocked (motion hard gate failed)', () =
 // contrast:   hardGatesPass=true
 // motion:     null (gate not run — missing metrics.json = hard blocker)
 // legibility: hardGatesPass=true
+// codeCraft:  hardGatesPass=true
 //
 // Expected: shipReady=false, blockers=['motion gate not run'], motion.ran=false
 // ---------------------------------------------------------------------------
@@ -283,6 +307,7 @@ const missingMotionVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true }),
   motion:     null,
   legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — missing motion gate (motion null)', () => {
@@ -307,7 +332,7 @@ describe('computeShipVerdict — missing motion gate (motion null)', () => {
     expect(missingMotionVerdict.gates.motion.advisoryFailures).toHaveLength(0);
   });
 
-  it('hook, retention, contrast, legibility gates ran and passed', () => {
+  it('hook, retention, contrast, legibility, codeCraft gates ran and passed', () => {
     expect(missingMotionVerdict.gates.hook.ran).toBe(true);
     expect(missingMotionVerdict.gates.hook.hardGatesPass).toBe(true);
     expect(missingMotionVerdict.gates.retention.ran).toBe(true);
@@ -316,6 +341,8 @@ describe('computeShipVerdict — missing motion gate (motion null)', () => {
     expect(missingMotionVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(missingMotionVerdict.gates.legibility.ran).toBe(true);
     expect(missingMotionVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(missingMotionVerdict.gates.codeCraft.ran).toBe(true);
+    expect(missingMotionVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 });
 
@@ -327,6 +354,7 @@ describe('computeShipVerdict — missing motion gate (motion null)', () => {
 // contrast:   hardGatesPass=true
 // motion:     hardGatesPass=true
 // legibility: hardGatesPass=false (L1 text-flash detected)
+// codeCraft:  hardGatesPass=true
 //
 // Expected: shipReady=false, blockers=['legibility hard gates failed']
 // ---------------------------------------------------------------------------
@@ -337,6 +365,7 @@ const legibilityBlockedVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true }),
   motion:     hookMetrics({ hardGatesPass: true }),
   legibility: hookMetrics({ hardGatesPass: false }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — legibility blocked (legibility hard gate failed)', () => {
@@ -357,11 +386,12 @@ describe('computeShipVerdict — legibility blocked (legibility hard gate failed
     expect(legibilityBlockedVerdict.gates.legibility.hardGatesPass).toBe(false);
   });
 
-  it('hook, retention, contrast, motion gates are not blockers', () => {
+  it('hook, retention, contrast, motion, codeCraft gates are not blockers', () => {
     expect(legibilityBlockedVerdict.gates.hook.hardGatesPass).toBe(true);
     expect(legibilityBlockedVerdict.gates.retention.hardGatesPass).toBe(true);
     expect(legibilityBlockedVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(legibilityBlockedVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(legibilityBlockedVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 });
 
@@ -373,6 +403,7 @@ describe('computeShipVerdict — legibility blocked (legibility hard gate failed
 // contrast:   hardGatesPass=true
 // motion:     hardGatesPass=true
 // legibility: null (gate not run — missing metrics.json = hard blocker)
+// codeCraft:  hardGatesPass=true
 //
 // Expected: shipReady=false, blockers=['legibility gate not run'], legibility.ran=false
 // ---------------------------------------------------------------------------
@@ -383,6 +414,7 @@ const missingLegibilityVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true }),
   motion:     hookMetrics({ hardGatesPass: true }),
   legibility: null,
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — missing legibility gate (legibility null)', () => {
@@ -407,7 +439,7 @@ describe('computeShipVerdict — missing legibility gate (legibility null)', () 
     expect(missingLegibilityVerdict.gates.legibility.advisoryFailures).toHaveLength(0);
   });
 
-  it('hook, retention, contrast, motion gates ran and passed', () => {
+  it('hook, retention, contrast, motion, codeCraft gates ran and passed', () => {
     expect(missingLegibilityVerdict.gates.hook.ran).toBe(true);
     expect(missingLegibilityVerdict.gates.hook.hardGatesPass).toBe(true);
     expect(missingLegibilityVerdict.gates.retention.ran).toBe(true);
@@ -416,6 +448,8 @@ describe('computeShipVerdict — missing legibility gate (legibility null)', () 
     expect(missingLegibilityVerdict.gates.contrast.hardGatesPass).toBe(true);
     expect(missingLegibilityVerdict.gates.motion.ran).toBe(true);
     expect(missingLegibilityVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(missingLegibilityVerdict.gates.codeCraft.ran).toBe(true);
+    expect(missingLegibilityVerdict.gates.codeCraft.hardGatesPass).toBe(true);
   });
 });
 
@@ -428,6 +462,7 @@ describe('computeShipVerdict — missing legibility gate (legibility null)', () 
 // contrast:   hardGatesPass=true, no advisory fails
 // motion:     hardGatesPass=true, no advisory fails
 // legibility: hardGatesPass=true, advisory fail: 'Reading-budget share' (L2)
+// codeCraft:  hardGatesPass=true, no advisory fails
 //
 // Expected: shipReady=true, blockers=[], legibility.justified=false
 // ---------------------------------------------------------------------------
@@ -438,6 +473,7 @@ const legibilityAdvisoryOnlyVerdict = computeShipVerdict({
   contrast:   contrastMetrics({ hardGatesPass: true }),
   motion:     hookMetrics({ hardGatesPass: true }),
   legibility: hookMetrics({ hardGatesPass: true, advisoryFails: ['Reading-budget share'] }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
 });
 
 describe('computeShipVerdict — legibility advisory-only (L2/L3 advisory fail, all others clean)', () => {
@@ -449,12 +485,13 @@ describe('computeShipVerdict — legibility advisory-only (L2/L3 advisory fail, 
     expect(legibilityAdvisoryOnlyVerdict.blockers).toHaveLength(0);
   });
 
-  it('all five gates ran', () => {
+  it('all six gates ran', () => {
     expect(legibilityAdvisoryOnlyVerdict.gates.hook.ran).toBe(true);
     expect(legibilityAdvisoryOnlyVerdict.gates.retention.ran).toBe(true);
     expect(legibilityAdvisoryOnlyVerdict.gates.contrast.ran).toBe(true);
     expect(legibilityAdvisoryOnlyVerdict.gates.motion.ran).toBe(true);
     expect(legibilityAdvisoryOnlyVerdict.gates.legibility.ran).toBe(true);
+    expect(legibilityAdvisoryOnlyVerdict.gates.codeCraft.ran).toBe(true);
   });
 
   it('legibility advisory failure listed — Reading-budget share', () => {
@@ -470,5 +507,171 @@ describe('computeShipVerdict — legibility advisory-only (L2/L3 advisory fail, 
     expect(legibilityAdvisoryOnlyVerdict.gates.hook.advisoryFailures).toHaveLength(0);
     expect(legibilityAdvisoryOnlyVerdict.gates.retention.advisoryFailures).toHaveLength(0);
     expect(legibilityAdvisoryOnlyVerdict.gates.motion.advisoryFailures).toHaveLength(0);
+    expect(legibilityAdvisoryOnlyVerdict.gates.codeCraft.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 9: codeCraft blocked — codeCraft hardGatesPass false → named in blockers
+//
+// hook:       hardGatesPass=true
+// retention:  hardGatesPass=true
+// contrast:   hardGatesPass=true
+// motion:     hardGatesPass=true
+// legibility: hardGatesPass=true
+// codeCraft:  hardGatesPass=false (C1 emoji detected in on-screen copy)
+//
+// Expected: shipReady=false, blockers=['codeCraft hard gates failed']
+// ---------------------------------------------------------------------------
+
+const codeCraftBlockedVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: false }),
+});
+
+describe('computeShipVerdict — codeCraft blocked (codeCraft hard gate failed)', () => {
+  it('shipReady is false', () => {
+    expect(codeCraftBlockedVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "codeCraft hard gates failed"', () => {
+    expect(codeCraftBlockedVerdict.blockers).toContain('codeCraft hard gates failed');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(codeCraftBlockedVerdict.blockers).toHaveLength(1);
+  });
+
+  it('codeCraft gate ran but hardGatesPass false', () => {
+    expect(codeCraftBlockedVerdict.gates.codeCraft.ran).toBe(true);
+    expect(codeCraftBlockedVerdict.gates.codeCraft.hardGatesPass).toBe(false);
+  });
+
+  it('hook, retention, contrast, motion, legibility gates are not blockers', () => {
+    expect(codeCraftBlockedVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(codeCraftBlockedVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(codeCraftBlockedVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(codeCraftBlockedVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(codeCraftBlockedVerdict.gates.legibility.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 10: missing codeCraft — codeCraft null → 'codeCraft gate not run' blocker
+//
+// hook:       hardGatesPass=true
+// retention:  hardGatesPass=true
+// contrast:   hardGatesPass=true
+// motion:     hardGatesPass=true
+// legibility: hardGatesPass=true
+// codeCraft:  null (gate not run — missing metrics.json = hard blocker)
+//
+// Expected: shipReady=false, blockers=['codeCraft gate not run'], codeCraft.ran=false
+// ---------------------------------------------------------------------------
+
+const missingCodeCraftVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  null,
+});
+
+describe('computeShipVerdict — missing codeCraft gate (codeCraft null)', () => {
+  it('shipReady is false', () => {
+    expect(missingCodeCraftVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "codeCraft gate not run"', () => {
+    expect(missingCodeCraftVerdict.blockers).toContain('codeCraft gate not run');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(missingCodeCraftVerdict.blockers).toHaveLength(1);
+  });
+
+  it('codeCraft gate ran=false, hardGatesPass=false', () => {
+    expect(missingCodeCraftVerdict.gates.codeCraft.ran).toBe(false);
+    expect(missingCodeCraftVerdict.gates.codeCraft.hardGatesPass).toBe(false);
+  });
+
+  it('codeCraft advisoryFailures is empty (gate never ran)', () => {
+    expect(missingCodeCraftVerdict.gates.codeCraft.advisoryFailures).toHaveLength(0);
+  });
+
+  it('hook, retention, contrast, motion, legibility gates ran and passed', () => {
+    expect(missingCodeCraftVerdict.gates.hook.ran).toBe(true);
+    expect(missingCodeCraftVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(missingCodeCraftVerdict.gates.retention.ran).toBe(true);
+    expect(missingCodeCraftVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(missingCodeCraftVerdict.gates.contrast.ran).toBe(true);
+    expect(missingCodeCraftVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(missingCodeCraftVerdict.gates.motion.ran).toBe(true);
+    expect(missingCodeCraftVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(missingCodeCraftVerdict.gates.legibility.ran).toBe(true);
+    expect(missingCodeCraftVerdict.gates.legibility.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 11: codeCraft advisory-only — codeCraft has C2/C3 advisory fails only,
+//             all other gates clean → still ships.
+//
+// hook:       hardGatesPass=true, no advisory fails
+// retention:  hardGatesPass=true, no advisory fails
+// contrast:   hardGatesPass=true, no advisory fails
+// motion:     hardGatesPass=true, no advisory fails
+// legibility: hardGatesPass=true, no advisory fails
+// codeCraft:  hardGatesPass=true, advisory fail: 'C3-easing'
+//
+// Expected: shipReady=true, blockers=[], codeCraft.justified=false
+// ---------------------------------------------------------------------------
+
+const codeCraftAdvisoryOnlyVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true, advisoryFails: ['C3-easing'] }),
+});
+
+describe('computeShipVerdict — codeCraft advisory-only (C2/C3 advisory fail, all others clean)', () => {
+  it('shipReady is true — advisory fails never block', () => {
+    expect(codeCraftAdvisoryOnlyVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(codeCraftAdvisoryOnlyVerdict.blockers).toHaveLength(0);
+  });
+
+  it('all six gates ran', () => {
+    expect(codeCraftAdvisoryOnlyVerdict.gates.hook.ran).toBe(true);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.retention.ran).toBe(true);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.contrast.ran).toBe(true);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.motion.ran).toBe(true);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.legibility.ran).toBe(true);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.codeCraft.ran).toBe(true);
+  });
+
+  it('codeCraft advisory failure listed — C3-easing', () => {
+    expect(codeCraftAdvisoryOnlyVerdict.gates.codeCraft.advisoryFailures).toContain('C3-easing');
+    expect(codeCraftAdvisoryOnlyVerdict.gates.codeCraft.justified).toBe(false);
+  });
+
+  it('codeCraft hardGatesPass true despite advisory fail', () => {
+    expect(codeCraftAdvisoryOnlyVerdict.gates.codeCraft.hardGatesPass).toBe(true);
+  });
+
+  it('other gates have no advisory failures', () => {
+    expect(codeCraftAdvisoryOnlyVerdict.gates.hook.advisoryFailures).toHaveLength(0);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.retention.advisoryFailures).toHaveLength(0);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.motion.advisoryFailures).toHaveLength(0);
+    expect(codeCraftAdvisoryOnlyVerdict.gates.legibility.advisoryFailures).toHaveLength(0);
   });
 });

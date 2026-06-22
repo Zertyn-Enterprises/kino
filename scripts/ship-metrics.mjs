@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Aggregates hook, retention, contrast, motion, and legibility gate verdicts into a single ship verdict.
+// Aggregates hook, retention, contrast, motion, legibility, and code-craft gate verdicts into a single ship verdict.
 //
 // Usage:
-//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> [--json]
+//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [--json]
 //   --json  emit structured JSON verdict instead of human-readable table
 //
 // shipReady is true iff every gate ran AND every gate's hardGatesPass is true.
@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url';
 
 /**
  * Extract advisory failure names from a gate's metrics.json object.
- * Hook/retention/motion/legibility: { gates: [{advisory, pass, skip, name}] }
- * Contrast:                         { pairs: [{hard, pass, role}] }
+ * Hook/retention/motion/legibility/codeCraft: { gates: [{advisory, pass, skip, name}] }
+ * Contrast:                                   { pairs: [{hard, pass, role}] }
  * @param {object} metrics
  * @returns {string[]}
  */
@@ -35,9 +35,9 @@ function extractAdvisoryFailures(metrics) {
 }
 
 /**
- * Pure computation: evaluate the overall ship verdict from the five gate metrics.
+ * Pure computation: evaluate the overall ship verdict from the six gate metrics.
  *
- * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null, legibility: object|null }} opts
+ * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null, legibility: object|null, codeCraft: object|null }} opts
  *   Each field is the parsed metrics.json for that gate, or null if the gate was not run.
  * @returns {{
  *   shipReady: boolean,
@@ -47,11 +47,12 @@ function extractAdvisoryFailures(metrics) {
  *     contrast:   { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     motion:     { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     legibility: { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
+ *     codeCraft:  { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *   },
  *   blockers: string[],
  * }}
  */
-export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null }) {
+export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null }) {
   const blockers = [];
 
   function summarize(name, metrics) {
@@ -77,6 +78,7 @@ export function computeShipVerdict({ hook, retention, contrast, motion = null, l
     contrast:   summarize('contrast', contrast),
     motion:     summarize('motion', motion),
     legibility: summarize('legibility', legibility),
+    codeCraft:  summarize('codeCraft', codeCraft),
   };
 
   const shipReady = blockers.length === 0;
@@ -116,11 +118,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args      = process.argv.slice(2);
   const jsonMode  = args.includes('--json');
   const positional = args.filter(a => !a.startsWith('--'));
-  const [hookPath, retentionPath, contrastPath, motionPath, legibilityPath] = positional;
+  const [hookPath, retentionPath, contrastPath, motionPath, legibilityPath, codeCraftPath] = positional;
 
-  if (!hookPath || !retentionPath || !contrastPath || !motionPath || !legibilityPath) {
+  if (!hookPath || !retentionPath || !contrastPath || !motionPath || !legibilityPath || !codeCraftPath) {
     process.stderr.write(
-      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> [--json]\n',
+      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [--json]\n',
     );
     process.exit(1);
   }
@@ -130,8 +132,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const contrast   = loadMetrics(contrastPath);
   const motion     = loadMetrics(motionPath);
   const legibility = loadMetrics(legibilityPath);
+  const codeCraft  = loadMetrics(codeCraftPath);
 
-  const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility });
+  const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
