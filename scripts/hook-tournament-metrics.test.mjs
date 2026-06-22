@@ -337,6 +337,54 @@ describe('rankHookVariants — contested verdict (hard-gate-equal, margin 0 < DE
   });
 });
 
+// ── Boundary case — margin = exactly DECISIVE_MARGIN → decisive ───────────────
+//
+// Two hard-gate-equal variants where compositeHigh − compositeLow = exactly
+// DECISIVE_MARGIN (0.05). The rule is margin >= DECISIVE_MARGIN → decisive,
+// so the boundary is inclusive: 0.05 >= 0.05 → decisive.
+//
+// Design: shared motion=1.0, contrast=10.0, active=4, separated=false;
+//   boundaryHigh liveness = cells(4)×rows(2) = 8  → W_LIVENESS×8/32 = 0.05 extra
+//   boundaryLow  liveness = cells(0)×rows(0) = 0  → no liveness contribution
+// hardPassCount = 3 for both (gates 1/2/3 all pass); equal hpc so verdict is
+// determined solely by composite margin.
+// ---------------------------------------------------------------------------
+
+describe('rankHookVariants — boundary: margin = DECISIVE_MARGIN → decisive (inclusive)', () => {
+  const boundaryHigh = makeVariant('boundary-high', [
+    makeGate1(true, 1.0),    // motion=1.0 (shared)
+    makeGate2(true, 10.0),   // contrast=10.0 (shared)
+    makeGate3(true, 5.0),    // loop seam (shared)
+    makeGate4(4, false),     // active=4, separated=false (shared)
+    makeGate5(4, 2),         // liveness = 4×2 = 8 → W_LIVENESS×8/32 = +0.05 composite
+  ]);
+  const boundaryLow = makeVariant('boundary-low', [
+    makeGate1(true, 1.0),
+    makeGate2(true, 10.0),
+    makeGate3(true, 5.0),
+    makeGate4(4, false),
+    makeGate5(0, 0),         // liveness = 0×0 = 0 → no liveness contribution
+  ]);
+  const result = rankHookVariants([boundaryHigh, boundaryLow]);
+
+  it('both variants have hardPassCount=3 (equal hpc — verdict determined by margin)', () => {
+    expect(result.ranking[0].hardPassCount).toBe(3);
+    expect(result.ranking[1].hardPassCount).toBe(3);
+  });
+
+  it('margin equals DECISIVE_MARGIN exactly (0.05 — clean by construction)', () => {
+    expect(result.margin).toBe(DECISIVE_MARGIN);
+  });
+
+  it('verdict is decisive (boundary inclusive: margin >= DECISIVE_MARGIN)', () => {
+    expect(result.verdict).toBe('decisive');
+  });
+
+  it('winner is boundary-high (higher liveness composite)', () => {
+    expect(result.winner.label).toBe('boundary-high');
+  });
+});
+
 // ── Golden calibration — real hook-metrics JSON yields sensible ranking ───────
 //
 // Reads the committed AmbientCheck hook-metrics artifact and verifies the ranking
