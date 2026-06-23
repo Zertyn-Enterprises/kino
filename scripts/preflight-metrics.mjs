@@ -19,6 +19,8 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseRegistry } from './distinct-metrics.mjs';
+import { computeRegistrySync } from './registry-sync-metrics.mjs';
 
 // ── P1 helpers ────────────────────────────────────────────────────────────────
 
@@ -252,13 +254,88 @@ function checkP4({ themeContent, manifestExists, storyboardContent }) {
   };
 }
 
+// ── P5 helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Extract treatment status string from treatment.md content.
+ * Returns 'APPROVED' | 'DRAFT' | null.
+ * @param {string|null} treatmentContent
+ * @returns {'APPROVED'|'DRAFT'|null}
+ */
+function extractTreatmentStatus(treatmentContent) {
+  if (!treatmentContent) return null;
+  if (/^Status:\s*APPROVED/m.test(treatmentContent) || /^##\s*Status:\s*APPROVED/m.test(treatmentContent)) {
+    return 'APPROVED';
+  }
+  if (/Status:\s*DRAFT/i.test(treatmentContent)) return 'DRAFT';
+  return null;
+}
+
+/**
+ * P5 (HARD + advisory): Registry↔filesystem sync.
+ *   HARD: APPROVED video missing from _registry.md.
+ *   Advisory: orphan entries in _registry.md (entries with no matching src/videos/<slug>/).
+ * @param {{ slug: string, treatmentContent: string|null, registryText: string|null, allVideoDirs: string[] }} opts
+ * @returns {{ hard: object, orphan: object }}
+ */
+function checkP5({ slug, treatmentContent, registryText, allVideoDirs }) {
+  if (registryText == null) {
+    const skipped = { pass: false, skip: true, detail: '_registry.md not found — P5 skipped' };
+    return { hard: skipped, orphan: skipped };
+  }
+
+  const registryEntries = parseRegistry(registryText);
+  const treatmentStatus = extractTreatmentStatus(treatmentContent);
+  const treatmentStatuses = new Map([[slug.toLowerCase(), treatmentStatus]]);
+
+  // Only check candidateSlug resolution when treatment is APPROVED (DRAFT is OK without entry).
+  const candidateSlug = treatmentStatus === 'APPROVED' ? slug : null;
+
+  const sync = computeRegistrySync({
+    videoDirs: allVideoDirs,
+    registryEntries,
+    candidateSlug,
+    treatmentStatuses,
+  });
+
+  // Hard gate: missing-entry or unresolved-candidate.
+  const hardPass = sync.missingEntries.length === 0 && sync.candidateResolved;
+  let hardDetail;
+  if (!hardPass) {
+    if (sync.missingEntries.length > 0) {
+      hardDetail = `"${slug}" is APPROVED but missing from _registry.md — append entry before shipping`;
+    } else {
+      hardDetail = `candidate "${slug}" not found in _registry.md`;
+    }
+  } else {
+    hardDetail = treatmentStatus === 'APPROVED'
+      ? `"${slug}" found in _registry.md`
+      : `"${slug}" not yet in registry — OK for DRAFT/unapproved treatment`;
+  }
+
+  // Advisory gate: orphan entries.
+  const orphanDetail = sync.orphanEntries.length === 0
+    ? 'no orphan registry entries'
+    : `orphan registry entries (no matching src/videos/): ${sync.orphanEntries.join(', ')}`;
+
+  return {
+    hard: { pass: hardPass, skip: false, detail: hardDetail },
+    orphan: {
+      pass: sync.orphanEntries.length === 0,
+      skip: false,
+      detail: orphanDetail,
+    },
+  };
+}
+
 // ── Main pure export ──────────────────────────────────────────────────────────
 
 /**
- * Evaluate the four preflight gates for a video.
+ * Evaluate the six preflight gates for a video.
  *
  * @param {{
  *   compId: string,
+ *   slug: string,
  *   rootTsxContent: string|null,
  *   treatmentContent: string|null,
  *   storyboardContent: string|null,
@@ -267,6 +344,8 @@ function checkP4({ themeContent, manifestExists, storyboardContent }) {
  *   mainExists: boolean,
  *   scenesNonEmpty: boolean,
  *   manifestExists: boolean,
+ *   registryText: string|null,
+ *   allVideoDirs: string[],
  * }} opts
  *
  * @returns {{
@@ -276,6 +355,7 @@ function checkP4({ themeContent, manifestExists, storyboardContent }) {
  */
 export function computePreflightVerdict({
   compId,
+  slug,
   rootTsxContent,
   treatmentContent,
   storyboardContent,
@@ -284,17 +364,22 @@ export function computePreflightVerdict({
   mainExists,
   scenesNonEmpty,
   manifestExists,
+  registryText = null,
+  allVideoDirs = [],
 }) {
   const p1 = checkP1({ compId, rootTsxContent });
   const p2 = checkP2({ treatmentContent, storyboardContent, themeContent, timelineExists, mainExists, scenesNonEmpty });
   const p3 = checkP3({ treatmentContent });
   const p4 = checkP4({ themeContent, manifestExists, storyboardContent });
+  const p5 = checkP5({ slug: slug ?? '', treatmentContent, registryText, allVideoDirs });
 
   const gates = [
-    { name: 'P1-registration', advisory: false, pass: p1.pass, skip: p1.skip, detail: p1.detail },
-    { name: 'P2-files',        advisory: false, pass: p2.pass, skip: p2.skip, detail: p2.detail },
-    { name: 'P3-approved',     advisory: true,  pass: p3.pass, skip: p3.skip, detail: p3.detail },
-    { name: 'P4-metadata',     advisory: true,  pass: p4.pass, skip: p4.skip, detail: p4.detail },
+    { name: 'P1-registration',    advisory: false, pass: p1.pass, skip: p1.skip, detail: p1.detail },
+    { name: 'P2-files',           advisory: false, pass: p2.pass, skip: p2.skip, detail: p2.detail },
+    { name: 'P3-approved',        advisory: true,  pass: p3.pass, skip: p3.skip, detail: p3.detail },
+    { name: 'P4-metadata',        advisory: true,  pass: p4.pass, skip: p4.skip, detail: p4.detail },
+    { name: 'P5-registry-sync',   advisory: false, pass: p5.hard.pass,   skip: p5.hard.skip,   detail: p5.hard.detail },
+    { name: 'P5-registry-orphan', advisory: true,  pass: p5.orphan.pass, skip: p5.orphan.skip, detail: p5.orphan.detail },
   ];
 
   const hardGatesPass = gates
@@ -347,8 +432,19 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
   const manifestExists = existsSync(join(cwd, 'public', slug, 'MANIFEST.md'));
 
+  // P5: registry sync — read _registry.md and scan all video dirs.
+  const registryPath = join(cwd, 'src', 'videos', '_registry.md');
+  const registryText = existsSync(registryPath) ? readFileSync(registryPath, 'utf8') : null;
+  const videosDir    = join(cwd, 'src', 'videos');
+  const allVideoDirs = existsSync(videosDir)
+    ? readdirSync(videosDir, { withFileTypes: true })
+        .filter(d => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.'))
+        .map(d => d.name.toLowerCase())
+    : [];
+
   const verdict = computePreflightVerdict({
     compId,
+    slug,
     rootTsxContent,
     treatmentContent,
     storyboardContent,
@@ -357,6 +453,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     mainExists,
     scenesNonEmpty,
     manifestExists,
+    registryText,
+    allVideoDirs,
   });
 
   if (jsonMode) {

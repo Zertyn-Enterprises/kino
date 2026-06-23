@@ -82,6 +82,43 @@ justification if advisory fires on the new video.
 gate not invoked). When `metrics.json` is present, `hardGatesPass:false` blocks
 ship. This matches musicsync/payoff/remotionCorrect behaviour.
 
+## Registry sync
+
+`scripts/registry-sync.sh [<slug>]` enforces that every APPROVED-treatment video
+has a matching `_registry.md` entry, and that the candidate slug (if provided)
+resolves in the registry. Render-free; reads treatment status and scans
+`src/videos/*/`.
+
+```bash
+scripts/registry-sync.sh <slug>   # candidate slug check + APPROVED-video audit
+scripts/registry-sync.sh          # APPROVED-video audit only
+```
+
+Outputs:
+- `out/review/registry-sync/metrics.json` — machine verdict
+- `out/review/registry-sync/report.txt` — human-readable table
+
+### Gates
+
+| Gate | Severity | Condition |
+|---|---|---|
+| APPROVED-entries | HARD | Every APPROVED-treatment video must have a registry entry |
+| candidate-resolves | HARD | Candidate slug (if supplied) must appear in registry |
+| no-orphan-entries | Advisory | Every registry entry must have a matching `src/videos/<slug>/` dir |
+
+**DRAFT / absent treatment → OK.** Only APPROVED-treatment videos are checked.
+
+### How to add a registry entry
+
+1. Run `scripts/distinct.sh <slug>` to confirm ≥4 axes differ from all priors.
+2. Add a `## N · <slug> / <CompId>` block to `src/videos/_registry.md` with all
+   9 identity axes filled in.
+3. Re-run `scripts/registry-sync.sh <slug>` to confirm both HARD gates pass.
+
+`ship-metrics.mjs` treats `registrySync=null` as graceful SKIP (absent metrics).
+When `metrics.json` is present, `hardGatesPass:false` blocks ship — matching
+the musicsync/payoff/remotionCorrect/distinct pattern.
+
 ## Treatment checklist (run at stage 2)
 
 Before finalising the treatment, run the gate with pre-registry overrides to

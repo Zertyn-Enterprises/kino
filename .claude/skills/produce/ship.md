@@ -1,7 +1,7 @@
 # Ship gate — unified verdict
 
 Run `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]`
-to run all ten gates (hook, retention, contrast, motion, legibility, code-craft, musicsync, payoff, remotion-correct, distinct) in sequence and produce:
+to run all eleven gates (hook, retention, contrast, motion, legibility, code-craft, musicsync, payoff, remotion-correct, distinct, registry-sync) in sequence and produce:
 - `out/review/<CompId>/ship/report.json` — machine source of truth (single verdict)
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
@@ -30,6 +30,7 @@ scripts/ship-gate.sh <CompId> <slug> \
 - Legibility gate runs automatically (`scripts/legibility.sh <CompId>`, default step=3).
 - Code-craft gate runs automatically (`scripts/code-craft.sh <CompId> <slug>`, no render required).
 - Music-sync gate runs automatically (`scripts/musicsync.sh <CompId> <slug>`); degrades to SKIP when no `public/<slug>/*.analysis.json` is present — SKIP never blocks ship.
+- Registry-sync gate runs automatically (`scripts/registry-sync.sh <slug>`); produces `out/review/registry-sync/metrics.json`. Degrades to SKIP when `metrics.json` is absent — SKIP never blocks ship. A real hard-gate failure (APPROVED video missing registry entry) blocks ship.
 
 Inspect the outputs:
 
@@ -129,6 +130,9 @@ See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, `cod
 | Music-sync MS2 (downbeat lock) | BLOCKING when analysis present; SKIP otherwise | — |
 | Music-sync MS3 (climax on drop) | — | named justification required (skips when no drops/climax) |
 | Music-sync MS4 (cut-on-beat coverage) | — | named justification required (skips when no analysis) |
+| Registry-sync: APPROVED-entries | BLOCKING when analysis present; SKIP when metrics absent | — |
+| Registry-sync: candidate-resolves | BLOCKING when metrics present | — |
+| Registry-sync: no-orphan-entries | — | named justification required |
 
 Advisory failures appear in `advisoryFailures` and are never hard blockers, but each
 one must have a named, written justification recorded in the review before continuing.

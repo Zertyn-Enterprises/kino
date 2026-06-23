@@ -153,7 +153,7 @@ export function loadGateMetrics(compId, slug) {
 
 const GATE_ORDER = [
   'hook', 'retention', 'contrast', 'motion', 'legibility', 'codeCraft',
-  'musicsync', 'payoff', 'remotionCorrect', 'distinct',
+  'musicsync', 'payoff', 'remotionCorrect', 'distinct', 'registrySync',
 ];
 
 /**

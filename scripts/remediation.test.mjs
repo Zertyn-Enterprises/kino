@@ -43,7 +43,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function allGatesPass({ musicsync = null, payoff = null, remotionCorrect = null, distinct = null } = {}) {
+function allGatesPass({ musicsync = null, payoff = null, remotionCorrect = null, distinct = null, registrySync = null } = {}) {
   return computeShipVerdict({
     hook:       hookMetrics({ hardGatesPass: true }),
     retention:  hookMetrics({ hardGatesPass: true }),
@@ -55,6 +55,7 @@ function allGatesPass({ musicsync = null, payoff = null, remotionCorrect = null,
     payoff,
     remotionCorrect,
     distinct,
+    registrySync,
   });
 }
 
@@ -567,6 +568,80 @@ describe('buildRemediations — Fixture H: multi-gate integration (≥4 gates, g
   });
 });
 
+// ── Fixture I: registrySync gate-not-run blocker ──────────────────────────────
+
+describe('buildRemediations — registrySync gate not run', () => {
+  const verdict = computeShipVerdict({
+    hook:       hookMetrics({ hardGatesPass: true }),
+    retention:  hookMetrics({ hardGatesPass: true }),
+    contrast:   contrastMetrics({ hardGatesPass: true }),
+    motion:     hookMetrics({ hardGatesPass: true }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true }),
+    registrySync: hookMetrics({ hardGatesPass: false }),
+  });
+  const rems = buildRemediations(verdict);
+
+  it('returns exactly one blocker entry', () => {
+    expect(rems).toHaveLength(1);
+    expect(rems[0].severity).toBe('blocker');
+  });
+
+  it('entry is for registrySync gate', () => {
+    expect(rems[0].gate).toBe('registrySync');
+  });
+
+  it('fix mentions _registry.md', () => {
+    expect(rems[0].fix).toMatch(/_registry\.md/);
+  });
+
+  it('docRef file exists', () => {
+    const filePart = rems[0].docRef.split(' §')[0];
+    expect(existsSync(join(ROOT, filePart))).toBe(true);
+  });
+
+  it('docRef §heading exists in file', () => {
+    const parts = rems[0].docRef.split(' §');
+    if (parts.length < 2) return;
+    const [filePart, section] = parts;
+    const content = readFileSync(join(ROOT, filePart), 'utf8');
+    const re = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+    expect(re.test(content)).toBe(true);
+  });
+});
+
+// ── Fixture J: registrySync advisory-only (orphan entry) ─────────────────────
+
+describe('buildRemediations — registrySync advisory-only (orphan registry entry)', () => {
+  const verdict = computeShipVerdict({
+    hook:       hookMetrics({ hardGatesPass: true }),
+    retention:  hookMetrics({ hardGatesPass: true }),
+    contrast:   contrastMetrics({ hardGatesPass: true }),
+    motion:     hookMetrics({ hardGatesPass: true }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true }),
+    registrySync: hookMetrics({ hardGatesPass: true, advisoryFails: ['Advisory: orphan registry entries'] }),
+  });
+  const rems = buildRemediations(verdict);
+
+  it('returns one advisory entry', () => {
+    expect(rems).toHaveLength(1);
+    expect(rems[0].severity).toBe('advisory');
+  });
+
+  it('entry is for registrySync gate', () => {
+    expect(rems[0].gate).toBe('registrySync');
+  });
+
+  it('shipReady is true — orphan advisory does not block', () => {
+    expect(verdict.shipReady).toBe(true);
+  });
+
+  it('fix mentions orphan entries', () => {
+    expect(rems[0].fix).toMatch(/orphan/i);
+  });
+});
+
 // ── Source-level docRef validation ────────────────────────────────────────────
 // Extracts every `docRef: '...'` literal directly from remediation.mjs source
 // and validates file+heading, independent of which test fixtures exercise them.
@@ -582,8 +657,8 @@ describe('remediation.mjs — source-level docRef literal validation', () => {
     docRefs.push(m[1]);
   }
 
-  it('finds ≥39 docRef literal values (16 BLOCKER_MAP + 20 ADVISORY_MAP + 3 DISTINCT_DRIFT_MAP)', () => {
-    expect(docRefs.length).toBeGreaterThanOrEqual(39);
+  it('finds ≥42 docRef literal values (18 BLOCKER_MAP + 21 ADVISORY_MAP + 3 DISTINCT_DRIFT_MAP)', () => {
+    expect(docRefs.length).toBeGreaterThanOrEqual(42);
   });
 
   it('every source docRef file exists on disk', () => {

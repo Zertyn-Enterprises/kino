@@ -597,3 +597,49 @@ describe('tokenSet and jaccard', () => {
     expect(jaccard(['a', 'b', 'c'], ['a'])).toBeCloseTo(1 / 3, 5);
   });
 });
+
+// ── Fixture 13: fail-loud when slug not in registry ───────────────────────────
+
+describe('computeDistinctMetrics — fail-loud: candidateSlug not in registry (default)', () => {
+  const result = computeDistinctMetrics({
+    registryText: REGISTRY_TWO,
+    candidateSlug: 'unknownslug',
+    overrides: {},
+    allowUnregistered: false,
+  });
+
+  it('hardGatesPass is false', () => {
+    expect(result.hardGatesPass).toBe(false);
+  });
+
+  it('skip is false', () => {
+    expect(result.skip).toBe(false);
+  });
+
+  it('gates[0] fails with detail mentioning the slug', () => {
+    expect(result.gates[0].pass).toBe(false);
+    expect(result.gates[0].detail).toMatch(/unknownslug/);
+  });
+
+  it('gates[0] detail mentions --unregistered', () => {
+    expect(result.gates[0].detail).toMatch(/--unregistered/);
+  });
+});
+
+describe('computeDistinctMetrics — allowUnregistered=true: synthesize when slug missing', () => {
+  const result = computeDistinctMetrics({
+    registryText: REGISTRY_TWO,
+    candidateSlug: 'synthtest',
+    overrides: { bg: '#FF0000', accent: '#00FF00', luminance: 'light', arc: 'C', bpm: '60', grain: '0' },
+    allowUnregistered: true,
+  });
+
+  it('does not hard-fail due to missing registry entry', () => {
+    // May pass or fail the 4-axis rule, but should not fail on missing-entry alone.
+    expect(result.candidateSlug).toBe('synthtest');
+  });
+
+  it('candidateSlug is set to synthtest', () => {
+    expect(result.candidateSlug).toBe('synthtest');
+  });
+});

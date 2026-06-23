@@ -1,7 +1,7 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Twenty-three fixture sets:
+ * Twenty-six fixture sets:
  *   - Ship-ready:                     all gates hardGatesPass true, advisory fails present
  *                                     → shipReady true, blockers empty.
  *   - Blocked:                        hook hardGatesPass false → shipReady false, gate named in blockers.
@@ -28,12 +28,15 @@
  *   - Distinct null:                  distinct=null → graceful SKIP, does NOT block ship.
  *   - Distinct hard fail:             distinct hardGatesPass false (<4 axes differ) → shipReady false.
  *   - Distinct advisory-only:         distinct has drift advisory fail only → shipReady true.
+ *   - RegistrySync null:              registrySync=null → graceful SKIP, does NOT block ship.
+ *   - RegistrySync hard fail:         registrySync hardGatesPass false → shipReady false.
+ *   - RegistrySync advisory-only:     registrySync has orphan advisory fail only → shipReady true.
  *
  * All inputs are plain objects matching the shape of each gate's metrics.json;
  * no file I/O is exercised — pure computeShipVerdict path only.
  *
  * Advisory failures:
- *   hook/retention/motion/legibility/codeCraft/musicsync/payoff/remotionCorrect/distinct:
+ *   hook/retention/motion/legibility/codeCraft/musicsync/payoff/remotionCorrect/distinct/registrySync:
  *                                   metrics.gates entries with advisory=true, pass=false, skip=false
  *   contrast:                       metrics.pairs entries with hard=false, pass=false
  */
@@ -1332,5 +1335,143 @@ describe('computeShipVerdict().remediations — ordering: blockers before adviso
 
   it('has 2 advisories (accent-on-bg + Easing presence)', () => {
     expect(verdict.remediations.filter(r => r.severity === 'advisory')).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 28: registrySync null — gate not run → does NOT block
+//             (same graceful SKIP semantics as musicsync/payoff/remotionCorrect/distinct)
+//
+// All ten base gates: hardGatesPass=true
+// registrySync: null (no metrics.json — graceful SKIP)
+//
+// Expected: shipReady=true, blockers=[], registrySync.ran=false, registrySync.hardGatesPass=true
+// ---------------------------------------------------------------------------
+
+const registrySyncNullVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+  distinct:   null,
+  registrySync: null,
+});
+
+describe('computeShipVerdict — registrySync null (gate not run — graceful SKIP, not a hard blocker)', () => {
+  it('shipReady is true — null registrySync does not block', () => {
+    expect(registrySyncNullVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(registrySyncNullVerdict.blockers).toHaveLength(0);
+  });
+
+  it('registrySync gate ran=false but hardGatesPass=true (graceful SKIP)', () => {
+    expect(registrySyncNullVerdict.gates.registrySync.ran).toBe(false);
+    expect(registrySyncNullVerdict.gates.registrySync.hardGatesPass).toBe(true);
+  });
+
+  it('registrySync advisory failures is empty', () => {
+    expect(registrySyncNullVerdict.gates.registrySync.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 29: registrySync hard fail — APPROVED video missing registry entry → blocks
+//
+// All ten base gates: hardGatesPass=true
+// registrySync: hardGatesPass=false (APPROVED video not in registry)
+//
+// Expected: shipReady=false, blockers=['registrySync hard gates failed']
+// ---------------------------------------------------------------------------
+
+const registrySyncHardFailVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+  distinct:   null,
+  registrySync: hookMetrics({ hardGatesPass: false }),
+});
+
+describe('computeShipVerdict — registrySync hard fail (APPROVED video missing registry entry)', () => {
+  it('shipReady is false', () => {
+    expect(registrySyncHardFailVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "registrySync hard gates failed"', () => {
+    expect(registrySyncHardFailVerdict.blockers).toContain('registrySync hard gates failed');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(registrySyncHardFailVerdict.blockers).toHaveLength(1);
+  });
+
+  it('registrySync gate ran but hardGatesPass false', () => {
+    expect(registrySyncHardFailVerdict.gates.registrySync.ran).toBe(true);
+    expect(registrySyncHardFailVerdict.gates.registrySync.hardGatesPass).toBe(false);
+  });
+
+  it('all other gates are not blockers', () => {
+    expect(registrySyncHardFailVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(registrySyncHardFailVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(registrySyncHardFailVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(registrySyncHardFailVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(registrySyncHardFailVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(registrySyncHardFailVerdict.gates.codeCraft.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 30: registrySync advisory-only — orphan registry entry fires advisory,
+//             hard gates pass → still ships.
+//
+// All ten base gates: hardGatesPass=true
+// registrySync: hardGatesPass=true, advisory fail: 'Advisory: orphan registry entries'
+//
+// Expected: shipReady=true, blockers=[], registrySync.justified=false
+// ---------------------------------------------------------------------------
+
+const registrySyncAdvisoryOnlyVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+  distinct:   null,
+  registrySync: hookMetrics({ hardGatesPass: true, advisoryFails: ['Advisory: orphan registry entries'] }),
+});
+
+describe('computeShipVerdict — registrySync advisory-only (orphan advisory, hard gates pass)', () => {
+  it('shipReady is true — advisory fails never block', () => {
+    expect(registrySyncAdvisoryOnlyVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(registrySyncAdvisoryOnlyVerdict.blockers).toHaveLength(0);
+  });
+
+  it('registrySync gate ran and hardGatesPass true', () => {
+    expect(registrySyncAdvisoryOnlyVerdict.gates.registrySync.ran).toBe(true);
+    expect(registrySyncAdvisoryOnlyVerdict.gates.registrySync.hardGatesPass).toBe(true);
+  });
+
+  it('registrySync advisory failure listed — orphan registry entries', () => {
+    expect(registrySyncAdvisoryOnlyVerdict.gates.registrySync.advisoryFailures).toContain('Advisory: orphan registry entries');
+    expect(registrySyncAdvisoryOnlyVerdict.gates.registrySync.justified).toBe(false);
   });
 });

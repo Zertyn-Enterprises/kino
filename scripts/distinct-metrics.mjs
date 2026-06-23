@@ -441,13 +441,17 @@ export function computeDriftWarnings(allEntries) {
  * Compute the distinctiveness verdict for a candidate against all prior registry entries.
  *
  * @param {object} opts
- * @param {string}      opts.registryText   - full text of _registry.md
- * @param {string|null} opts.candidateSlug  - slug to find candidate (null = last entry)
- * @param {object}      [opts.overrides]    - field overrides applied to the candidate's parsed record
+ * @param {string}      opts.registryText      - full text of _registry.md
+ * @param {string|null} opts.candidateSlug     - slug to find candidate (null = last entry)
+ * @param {object}      [opts.overrides]       - field overrides applied to the candidate's parsed record
  *   Supported: bg, accent, luminance, arc, bpmBand, grainBand
+ * @param {boolean}     [opts.allowUnregistered=false]
+ *   When false (default), a candidateSlug that is absent from the registry returns a
+ *   HARD FAIL instead of synthesizing. Set to true only for pre-registry theme-lock
+ *   runs via `distinct.sh --unregistered`.
  * @returns {object} metrics verdict matching ship-metrics gate contract
  */
-export function computeDistinctMetrics({ registryText, candidateSlug = null, overrides = {} }) {
+export function computeDistinctMetrics({ registryText, candidateSlug = null, overrides = {}, allowUnregistered = false }) {
   const allRecords = parseRegistry(registryText);
 
   // SKIP when fewer than 2 entries total — nothing to compare.
@@ -470,7 +474,24 @@ export function computeDistinctMetrics({ registryText, candidateSlug = null, ove
   if (candidateSlug) {
     const idx = allRecords.findIndex(r => r.slug === candidateSlug.toLowerCase());
     if (idx === -1) {
-      // Slug not in registry: synthesize a minimal candidate from overrides only.
+      if (!allowUnregistered) {
+        // Slug not in registry and --unregistered not given: hard fail with explicit message.
+        return {
+          hardGatesPass: false,
+          skip: false,
+          n: allRecords.length,
+          candidateSlug: candidateSlug.toLowerCase(),
+          priorSlugs: allRecords.map(r => r.slug),
+          perPrior: [],
+          gates: [{
+            name: 'HARD: ≥4 axes distinct from every prior',
+            hard: true, advisory: false,
+            pass: false, skip: false,
+            detail: `candidate "${candidateSlug}" not found in registry — add it to src/videos/_registry.md first, or pass --unregistered for pre-registry theme-lock only`,
+          }],
+        };
+      }
+      // allowUnregistered=true: synthesize from overrides (pre-registry theme-lock).
       candidateRecord = synthesizeCandidate(candidateSlug, overrides);
       priorRecords = allRecords;
     } else {
@@ -649,7 +670,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (bpmFlag)        overrides.bpm         = bpmFlag;
   if (grainFlag)      overrides.grain       = grainFlag;
 
-  const verdict = computeDistinctMetrics({ registryText, candidateSlug, overrides });
+  const allowUnregistered = args.includes('--unregistered');
+
+  const verdict = computeDistinctMetrics({ registryText, candidateSlug, overrides, allowUnregistered });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
