@@ -29,7 +29,7 @@ scripts/remotion-correct.sh <CompId> <slug>                              # Remot
 scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]  # distinctiveness gate (registry-completeness + ≥4-axis anti-template + registry-axis-drift; axes auto-derived from theme.ts; no render) → out/review/<slug>/distinct/
 scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate; retention flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/
 scripts/preflight.sh <CompId> <slug>                                         # structural-integrity gate (no render; P1/P2 HARD, P3/P4/P5/P6 advisory) → out/review/<CompId>/preflight/
-node scripts/new-video.mjs <slug> <CompId>                                   # scaffold new video skeleton (P1/P2-passing by construction)
+node scripts/new-video.mjs <slug> <CompId>                                   # scaffold new video skeleton (hook-gate-green by construction: P1/P2 + AmbientField + valid palette + Hook scene)
 npm run dogfood:check:rf                                                     # render-free dogfood — CI-enforced on every PR (code-craft/remotion-correct/distinct/preflight source gates only, no Chromium)
 npm run dogfood:check                                                        # full-render dogfood — run locally before merging gate-spine or src/lib changes (all 10 ship gates; too heavy for CI)
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
