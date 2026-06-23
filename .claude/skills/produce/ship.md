@@ -1,7 +1,7 @@
 # Ship gate — unified verdict
 
 Run `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]`
-to run all seven gates (hook, retention, contrast, motion, legibility, code-craft, musicsync) in sequence and produce:
+to run all ten gates (hook, retention, contrast, motion, legibility, code-craft, musicsync, payoff, remotion-correct, distinct) in sequence and produce:
 - `out/review/<CompId>/ship/report.json` — machine source of truth (single verdict)
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
@@ -85,6 +85,18 @@ The fix recipes are deterministic: they map every gate identifier to a concrete
 action. Advisory failures require a named written justification when the fix
 is intentionally not applied (see each gate's doc for accepted exception classes).
 
+**Retention Gate 4 (Full-video loop seam) advisory recipe:**
+`loopable:false` when `loopSeamDelta ≥ 60.0`. Opportunity flag — CTA-card endings
+legitimately do not loop. Fix: ease the final frame back toward the opening palette,
+or record a named justification for the deliberate non-loop ending.
+Inspect: `out/review/<CompId>/retention/metrics.json → gates[3].measured`.
+
+**Retention Gate 5 (Ending hold / no-limp-tail) advisory recipe:**
+`endingMode=limp` when final ~1.5s has neither a held card (mean < 1.5) nor a final
+accent (max > 2.0). Fix: add a settled brand/CTA card held for ≥1.5s (mode=held), or
+land a deliberate final punch (logo slam, typography reveal, delta > 2.0, mode=accented).
+Inspect: `out/review/<CompId>/retention/metrics.json → gates[4].measured`.
+
 ## Per-gate semantics
 
 See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, `code-craft.md`, and `musicsync.md` for the full gate specs. In brief:
@@ -95,6 +107,8 @@ See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, `cod
 | Hook 4–5 (background activity / frame-0 liveness) | — | named justification required |
 | Retention 1 (dead-air) | BLOCKING | — |
 | Retention 2–3 (energy build / re-hook cadence) | — | named justification required |
+| Retention 4 (full-video loop seam) | — | opportunity flag — loopable:false when CTA-card ending; named justification required |
+| Retention 5 (ending hold / no-limp-tail) | — | named justification required |
 | Contrast text on bg/surface | BLOCKING (≥7:1) | — |
 | Contrast textDim on bg/surface | BLOCKING (≥4.5:1) | — |
 | Contrast accent/accentAlt on bg | — | named justification required |
