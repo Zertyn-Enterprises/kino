@@ -29,7 +29,7 @@ export type SceneDef<Id extends string = string> = {
   /**
    * Hook promise declaration (hook beat only). The specific on-screen
    * promise/tension copy and the frame it first appears. Ignored by the
-   * renderer; consumed by the promise-metrics gate in Task 2.
+   * renderer; consumed by the promise-metrics gate in scripts/promise-metrics.mjs.
    *
    * - text:    the verbatim on-screen copy that crystallises the hook tension.
    * - byFrame: composition frame at which the text first appears. When omitted,
