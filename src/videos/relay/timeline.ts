@@ -7,7 +7,7 @@ import { buildTimeline } from "../../lib/timeline";
  * and every cut, SFX, and pulse re-aligns.
  */
 export const relayTimeline = buildTimeline({ fps: 30, bpm: 120 }, [
-  { id: "hook", beats: 10 },
+  { id: "hook", beats: 10, promise: { text: "Queued — waiting for runner", byFrame: 52 } },
   { id: "turn", beats: 6 },
   { id: "reveal", beats: 8 },
   { id: "proofUrls", beats: 8 },

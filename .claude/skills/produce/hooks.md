@@ -15,6 +15,8 @@ Machine-asserted gates (🤖) from `hook.md §1`:
 | 3 | Loop seam 🤖 | delta < 60 (frame 0 vs final frame) | **HARD** |
 | 4 | Background activity 🤖 | Path A: ≥ 2 spatially-separated cells (Chebyshev ≥ 2) with mean-abs-Δluminance > 5 (frame 0 vs mid-hook); OR Path B (concentrated focal): highest active-cell delta > 10. Frozen/low-motion single region (max delta 5–10) fails both. | advisory |
 | 5 | Frame-0 liveness 🤖 | Path A: ≥ 2 cells AND ≥ 2 rows with luminance stddev > 10; OR Path B (concentrated focal): ≥ 2 cells with stddev > 10 AND at least one cell stddev > 20. Flat/near-solid frame-0 (all cells < 10) fails both. | advisory |
+| 6 | Promise by 2.5s 🤖 | `promise.text` non-empty AND `promise.frame` ≤ round(2.5 × fps); fps derived from timeline.ts | **HARD** |
+| 7 | Text density 🤖 | `promise.wordCount` ≤ 6 | **HARD** |
 
 **Default `AmbientField` recipe (satisfies gates 4 + 5):**
 
