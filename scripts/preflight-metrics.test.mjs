@@ -671,3 +671,78 @@ describe('computePreflightVerdict — golden calibration (granipa)', () => {
     expect(verdict.gates).toHaveLength(6);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixtures
+//
+// (A) Music-less no-promise video: timeline with no bpm and no promise:.
+//   P5 advisory fails (no promise: keyword), P6 skips (no open loop to close).
+//   P1/P2 HARD gates pass via passingOpts (compId registered, files present).
+//   hardGatesPass=true. Confirms ambient/restrained arcs not hard-blocked.
+//
+// (B) Light-palette theme: full token set with light color values.
+//   P4 checks key names, not color values → passes for any palette polarity.
+//   Confirms light-bg videos not false-blocked by theme token check.
+// Result: robust, zero mis-fires.
+// ---------------------------------------------------------------------------
+
+const TIMELINE_NO_PROMISE_MUSICLESS = `export const t = buildTimeline({ fps: 30 }, [
+  { id: 'opening', beats: 15 },
+  { id: 'demo', beats: 30 },
+  { id: 'cta', beats: 10 },
+] as const);`;
+
+const THEME_LIGHT_FULL = `
+export const serenoTheme = defineTheme({
+  palette: {
+    bg: '#FDF8F2',
+    surface: '#F2E8DC',
+    text: '#2D2520',
+    textDim: '#8B7055',
+    accent: '#FF7A5C',
+  },
+});
+`;
+
+describe('computePreflightVerdict — divergent: music-less no-promise video (P5 advisory FAIL, P6 SKIP)', () => {
+  const verdict = computePreflightVerdict({
+    ...passingOpts(),
+    timelineContent: TIMELINE_NO_PROMISE_MUSICLESS,
+  });
+
+  it('hardGatesPass is true — P5 advisory only, P6 skips (not a FAIL)', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P5-promise advisory fails — no promise: key in music-less timeline', () => {
+    const g = verdict.gates.find(g => g.name === 'P5-promise');
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(false);
+  });
+
+  it('P6-payoff skips — no promise means no open loop to close', () => {
+    const g = verdict.gates.find(g => g.name === 'P6-payoff');
+    expect(g.skip).toBe(true);
+  });
+
+  it('P1 and P2 (HARD) still pass — registration and file structure intact', () => {
+    expect(verdict.gates.find(g => g.name === 'P1-registration').pass).toBe(true);
+    expect(verdict.gates.find(g => g.name === 'P2-files').pass).toBe(true);
+  });
+});
+
+describe('computePreflightVerdict — divergent: light-palette theme (P4 passes, polarity-agnostic)', () => {
+  const verdict = computePreflightVerdict({
+    ...passingOpts(),
+    themeContent: THEME_LIGHT_FULL,
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P4-metadata passes with light-palette color values — token check is key-name-only', () => {
+    const g = verdict.gates.find(g => g.name === 'P4-metadata');
+    expect(g.pass).toBe(true);
+  });
+});

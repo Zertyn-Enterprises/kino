@@ -291,3 +291,49 @@ describe('computePayoffMetrics — JSON shape contract', () => {
     expect(typeof verdict.summary.holdRuns).toBe('number');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixture: light-palette end-card
+//
+// Bright background (fill=240) with dark text (fill=20) checkerboard.
+// Edge density for a bimodal checkerboard is the same regardless of polarity —
+// the gate measures gradient magnitude, not luminance direction. P1 (dwell
+// legibility) and P2 (final-frame legibility) both PASS.
+// Result: robust, zero mis-fires on light-luminance palette.
+// ---------------------------------------------------------------------------
+
+describe('computePayoffMetrics — divergent: light-palette end-card (light-bg/dark-text checkerboard)', () => {
+  function lightRichFrame(w = 64, h = 36) {
+    const pixels = Buffer.alloc(w * h * 3);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = ((x + y) % 2 === 0) ? 240 : 20;
+        const i = (y * w + x) * 3;
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = v;
+      }
+    }
+    return { width: w, height: h, channels: 3, pixels };
+  }
+
+  const frame = lightRichFrame();
+  const verdict = computePayoffMetrics([frame, frame, frame, frame, frame], { step: 3, fps: 30 });
+
+  it('hardGatesPass is true — light-palette payoff not blocked', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P1 PASS — light-bg/dark-text checkerboard has high edge density (polarity-agnostic)', () => {
+    const p1 = verdict.gates.find(g => g.id === 1);
+    expect(p1.hard).toBe(true);
+    expect(p1.pass).toBe(true);
+    expect(p1.measured.maxDwellFrames).toBeGreaterThanOrEqual(1);
+  });
+
+  it('P2 PASS — final light-palette frame clears both edge-density (>0.30) and contrast (>5.0) thresholds', () => {
+    const p2 = verdict.gates.find(g => g.id === 2);
+    expect(p2.hard).toBe(true);
+    expect(p2.pass).toBe(true);
+    expect(p2.measured.edgeDensity).toBeGreaterThan(0.30);
+    expect(p2.measured.contrast).toBeGreaterThan(5.0);
+  });
+});

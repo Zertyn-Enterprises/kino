@@ -445,3 +445,66 @@ describe('computeCodeCraftMetrics — golden calibration (granipa source)', () =
     expect(verdict.gates.every(g => g.advisory)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixture: light-palette/restrained scene
+//
+// Uses theme token references (no raw hex), a custom display font (Playfair
+// Display — not in BAD_FONT_PRIMARIES), Remotion's <Img>, and no springs or
+// interpolate calls. All 4 gates are advisory by design → hardGatesPass is
+// always true for any code shape. Confirms light-palette restrained style
+// is not false-blocked.
+// Result: robust, zero mis-fires.
+// ---------------------------------------------------------------------------
+
+const lightPaletteFiles = [
+  {
+    path: 'src/videos/sereno/scenes/AuraBloom.tsx',
+    content: `
+import { Img } from 'remotion';
+export function AuraBloom({ opacity }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: theme.bg,
+        opacity,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontFamily: 'Playfair Display, Georgia, serif',
+      }}
+    >
+      <Img src={staticFile('sereno/bloom.png')} style={{ width: '60%' }} />
+      <p style={{ color: theme.text }}>Focus starts here.</p>
+    </div>
+  );
+}
+`,
+  },
+];
+
+describe('computeCodeCraftMetrics — divergent: light-palette restrained scene (all advisory, hardGatesPass=true)', () => {
+  const verdict = computeCodeCraftMetrics({ files: lightPaletteFiles });
+
+  it('hardGatesPass is true — all 4 gates are advisory by design', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('C1-emoji passes — no emoji in light-palette scene', () => {
+    expect(verdict.gates.find(g => g.name === 'C1-emoji').pass).toBe(true);
+  });
+
+  it('C1-font passes — Playfair Display is not a bad system font primary', () => {
+    expect(verdict.gates.find(g => g.name === 'C1-font').pass).toBe(true);
+  });
+
+  it('C2-hex passes — no raw hex literals in scene (uses theme.bg/theme.text tokens)', () => {
+    expect(verdict.gates.find(g => g.name === 'C2-hex').pass).toBe(true);
+  });
+
+  it('C3-easing passes — no interpolate or Easing.linear calls in restrained scene', () => {
+    expect(verdict.gates.find(g => g.name === 'C3-easing').pass).toBe(true);
+  });
+});

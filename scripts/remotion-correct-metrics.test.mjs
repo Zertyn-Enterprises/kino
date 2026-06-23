@@ -767,3 +767,70 @@ describe('computeRemotionCorrectMetrics — golden calibration (granipa source)'
     expect(verdict.gates.find(g => g.name === 'R2-media').pass).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixture: restrained minimal layout (no springs, no interpolate)
+//
+// Represents a quiet/ambient scene using only JSX composition and theme tokens —
+// no animation APIs. R1/R2 (HARD): no nondeterminism, no raw media tags → PASS.
+// R3/R4/R5 (advisory): no interpolate/spring/wallclock calls → all PASS.
+// Confirms restrained code style is not false-blocked.
+// Result: robust, zero mis-fires.
+// ---------------------------------------------------------------------------
+
+const restrainedSceneFiles = [
+  {
+    path: 'src/videos/sereno/scenes/TitleCard.tsx',
+    content: `
+import { Img } from 'remotion';
+export function TitleCard() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: theme.bg,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Img src={staticFile('sereno/logo.png')} style={{ width: 180, height: 180 }} />
+      <p style={{ color: theme.text, fontFamily: 'Lora, serif', fontSize: 48 }}>
+        Focus starts here.
+      </p>
+    </div>
+  );
+}
+`,
+  },
+];
+
+describe('computeRemotionCorrectMetrics — divergent: restrained minimal layout (no springs/interpolate)', () => {
+  const verdict = computeRemotionCorrectMetrics({ files: restrainedSceneFiles });
+
+  it('hardGatesPass is true — restrained code style not blocked', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('R1-determinism passes — no nondeterminism in restrained scene', () => {
+    expect(verdict.gates.find(g => g.name === 'R1-determinism').pass).toBe(true);
+  });
+
+  it('R2-media passes — uses <Img> not raw <img>', () => {
+    expect(verdict.gates.find(g => g.name === 'R2-media').pass).toBe(true);
+  });
+
+  it('R3-interpolate-clamp passes — no interpolate calls in restrained scene', () => {
+    expect(verdict.gates.find(g => g.name === 'R3-interpolate-clamp').pass).toBe(true);
+  });
+
+  it('R4-spring-fps passes — no spring calls in restrained scene', () => {
+    expect(verdict.gates.find(g => g.name === 'R4-spring-fps').pass).toBe(true);
+  });
+
+  it('R5-wallclock passes — no setTimeout/useEffect in restrained scene', () => {
+    expect(verdict.gates.find(g => g.name === 'R5-wallclock').pass).toBe(true);
+  });
+});
