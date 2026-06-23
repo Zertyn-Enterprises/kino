@@ -26,8 +26,9 @@ scripts/musicsync.sh <CompId> <slug> [--climax=F]                        # music
 scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]           # payoff/CTA gate (P1/P2 HARD, P3 advisory) → out/review/<CompId>/payoff/
 scripts/remotion-correct.sh <CompId> <slug>                              # Remotion-correctness source gate (R1/R2 HARD, R3-R5 advisory, no render) → out/review/<CompId>/remotion-correct/
 scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]  # distinctiveness gate (≥4-axis anti-template, no render) → out/review/<slug>/distinct/
+scripts/registry-sync.sh [<slug>]                                            # registry↔filesystem sync gate (no render; APPROVED-entries/candidate-resolves HARD, orphan advisory) → out/review/registry-sync/
 scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate; retention flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/
-scripts/preflight.sh <CompId> <slug>                                         # structural-integrity gate (no render; P1/P2 HARD, P3/P4 advisory) → out/review/<CompId>/preflight/
+scripts/preflight.sh <CompId> <slug>                                         # structural-integrity gate (no render; P1/P2/P5 HARD, P3/P4/P5-orphan advisory) → out/review/<CompId>/preflight/
 node scripts/new-video.mjs <slug> <CompId>                                   # scaffold new video skeleton (P1/P2-passing by construction)
 npm run dogfood:check                                                        # machine-assert relay+granipa ship verdicts vs golden — run before merging gate-spine or src/lib changes
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed

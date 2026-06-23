@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Deterministic failure→fix map for all ten ship gate identifiers.
+// Deterministic failure→fix map for all eleven ship gate identifiers.
 // Maps every blocker string and advisory failure name emitted by the ten gates
 // to a concrete { gate, symptom, severity, likelyCause, fix, docRef, inspect } entry.
 //
@@ -24,6 +24,7 @@ const GATE_DOCS = {
   payoff:          '.claude/skills/produce/payoff.md',
   remotionCorrect: '.claude/skills/produce/remotion-correct.md',
   distinct:        '.claude/skills/produce/distinct.md',
+  registrySync:    '.claude/skills/produce/distinct.md',
 };
 
 // ── Hard blocker → remediation map ────────────────────────────────────────────
@@ -156,6 +157,22 @@ const BLOCKER_MAP = {
     fix: 'Run `scripts/distinct.sh <slug>` to see which axes collide. Change ≥4 of: palette-bg, palette-accent, luminance class, typefaces, arc (A–E), rhythm+signature-moves, grain%, transitions, bpm band. Update the treatment and re-register in _registry.md',
     docRef: '.claude/skills/produce/distinct.md §Nine identity axes',
     inspect: 'out/review/<slug>/distinct/metrics.json → perPrior[].collidingAxes for each failing prior',
+  },
+  'registrySync gate not run': {
+    gate: 'registrySync',
+    symptom: 'registry-sync gate not run — metrics.json absent',
+    likelyCause: 'scripts/registry-sync.sh was not run before ship-gate.sh',
+    fix: 'Run `scripts/registry-sync.sh <slug>` to produce out/review/registry-sync/metrics.json, or re-run `scripts/ship-gate.sh <CompId> <slug> ...`',
+    docRef: '.claude/skills/produce/distinct.md §Registry sync',
+    inspect: 'out/review/registry-sync/metrics.json',
+  },
+  'registrySync hard gates failed': {
+    gate: 'registrySync',
+    symptom: 'registry-sync hard gates failed — APPROVED video has no registry entry, or candidate slug not found in registry',
+    likelyCause: 'treatment.md is marked APPROVED but src/videos/_registry.md has no matching entry, or the candidate slug is missing from the registry',
+    fix: 'Add the video to src/videos/_registry.md following the format `## N · <slug> / <CompId>` with all 9 identity axes filled in. Run `scripts/distinct.sh <slug>` first to confirm axes are sufficiently distinct from prior entries, then commit the new registry entry',
+    docRef: '.claude/skills/produce/distinct.md §Registry sync',
+    inspect: 'out/review/registry-sync/metrics.json → missingEntries[], candidateResolved, gates[]',
   },
 };
 
@@ -328,6 +345,16 @@ const ADVISORY_MAP = {
     fix: 'Extend the settled end-card hold by ≥2 more step-intervals (at step=3: ≥6 frames). Ensure the animation reaches its final state at least 2 step-intervals before the last frame. Check maxTailDelta to see the worst-pair delta',
     docRef: '.claude/skills/produce/payoff.md §Gates',
     inspect: 'out/review/<CompId>/payoff/metrics.json → gates[2].measured (tailPairsChecked, maxTailDelta, stable)',
+  },
+
+  // Registry sync
+  'Advisory: orphan registry entries': {
+    gate: 'registrySync',
+    symptom: 'Registry-sync advisory — orphan registry entries: _registry.md has entries with no matching src/videos/<slug>/ directory',
+    likelyCause: 'A video directory was renamed or deleted without updating _registry.md, or a registry entry was added before the video scaffold was created',
+    fix: 'Either create the missing src/videos/<slug>/ scaffold (`node scripts/new-video.mjs <slug> <CompId>`) or remove the orphan entry from _registry.md if the video was intentionally deleted. Re-run `scripts/registry-sync.sh` to confirm no orphans remain',
+    docRef: '.claude/skills/produce/distinct.md §Registry sync',
+    inspect: 'out/review/registry-sync/metrics.json → orphanEntries[]',
   },
 
   // Remotion correct

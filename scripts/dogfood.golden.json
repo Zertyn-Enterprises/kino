@@ -41,6 +41,10 @@
       "distinct": {
         "hardVerdict": "PASS",
         "coverage": "ran"
+      },
+      "registrySync": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
       }
     },
     "blockers": [],
@@ -153,6 +157,10 @@
         "coverage": "ran"
       },
       "distinct": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "registrySync": {
         "hardVerdict": "PASS",
         "coverage": "ran"
       }

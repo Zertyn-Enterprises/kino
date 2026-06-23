@@ -30,8 +30,10 @@ function — safe to call from unit tests without any filesystem dependency.
 | P2-files | **HARD** | `src/videos/<slug>/` contains all six required items: `treatment.md`, `storyboard.md`, `theme.ts`, `timeline.ts`, `Main.tsx`, and a non-empty `scenes/` directory (at least one non-dotfile). |
 | P3-approved | Advisory | `treatment.md` contains `Status: APPROVED`. Warns (does NOT block) when `Status: DRAFT` — preflight can and should run early in the storyboard phase. |
 | P4-metadata | Advisory | `theme.ts` exports all five palette tokens (`bg`, `surface`, `text`, `textDim`, `accent`); `public/<slug>/MANIFEST.md` exists; `storyboard.md` contains the per-scene status table header (`\| #`). |
+| P5-registry-sync | **HARD** | APPROVED-treatment video has a matching `_registry.md` entry, AND the candidate slug resolves in the registry. Skipped (not blocking) when `_registry.md` is absent or treatment is DRAFT/absent. |
+| P5-registry-orphan | Advisory | Every `_registry.md` entry has a matching `src/videos/<slug>/` directory. Advisory — does NOT block hardGatesPass. |
 
-**P1 and P2 are HARD gates.** Any P1 or P2 failure means `hardGatesPass: false`
+**P1, P2, and P5 are HARD gates.** Any failure means `hardGatesPass: false`
 and `scripts/preflight.sh` exits non-zero.
 
 ## Blocking vs advisory enforcement
@@ -46,6 +48,16 @@ with no `treatment.md` has had no director checkpoint. Fix before any render.
 **P3 (advisory):** Treatment approval is a human checkpoint — P3 failing is
 expected during the storyboard phase (status is `DRAFT`). P3 PASS (status:
 `APPROVED`) is the gate for starting scene code (Hard Rule #4).
+
+**P5 (HARD):** Enforces the registry↔filesystem contract — an APPROVED-treatment
+video that isn't in `_registry.md` is invisible to the distinctiveness gate and
+could silently false-PASS a future video's anti-convergence check. Fix: add the
+video to `_registry.md` and confirm ≥4 axes differ (run `scripts/distinct.sh`).
+Skipped entirely when `_registry.md` is not found or treatment is DRAFT/absent.
+
+**P5-orphan (advisory):** A registry entry with no matching directory usually
+means a video was renamed or deleted without updating the ledger. Investigate
+before deleting — the video may still exist under a different path.
 
 **P4 (advisory):** Advisory failures should be reviewed:
 - `theme.ts` palette tokens: a missing token means scene components reading the
