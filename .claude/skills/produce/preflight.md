@@ -31,6 +31,7 @@ function — safe to call from unit tests without any filesystem dependency.
 | P3-approved | Advisory | `treatment.md` contains `Status: APPROVED`. Warns (does NOT block) when `Status: DRAFT` — preflight can and should run early in the storyboard phase. |
 | P4-metadata | Advisory | `theme.ts` exports all five palette tokens (`bg`, `surface`, `text`, `textDim`, `accent`); `public/<slug>/MANIFEST.md` exists; `storyboard.md` contains the per-scene status table header (`\| #`). |
 | P5-promise | Advisory | `timeline.ts` contains a `promise:` field on the hook scene. Warns (does NOT block) when absent — `hook.sh` Promise-by-2.5s and Text-density gates will HARD FAIL if undeclared. |
+| P6-payoff | Advisory | When `promise:` is declared, `timeline.ts` must also contain a `payoff:` field on the climax/CTA scene. SKIPs when no promise is declared (no open loop to close). Warns (does NOT block) — the HARD enforcement lives in the closure gate (`scripts/payoff.sh` C1/C2) at ship time. |
 
 **P1 and P2 are HARD gates.** Any P1 or P2 failure means `hardGatesPass: false`
 and `scripts/preflight.sh` exits non-zero.
@@ -56,6 +57,8 @@ expected during the storyboard phase (status is `DRAFT`). P3 PASS (status:
 
 **P5 (advisory):** Warns when `timeline.ts` has no `promise:` field on any scene. Without this declaration, `scripts/hook.sh` cannot machine-assert the Promise-by-2.5s and Text-density gates (gates 6 and 7 in `hooks.md`), and they will HARD FAIL. The scaffold from `scripts/new-video.mjs` includes a TODO placeholder by construction.
 
+**P6 (advisory):** Warns when `timeline.ts` has a `promise:` field but no `payoff:` field. The open loop opened in the hook MUST close at the climax/CTA. The advisory here is an early warning — the HARD enforcement fires at ship time via the closure gate (`scripts/payoff.sh` C1 payoffDeclared / C2 payoffLandsLate). SKIPs when no `promise:` is declared (no open loop to close). The scaffold from `scripts/new-video.mjs` includes a TODO payoff stub on the CTA scene by construction.
+
 **Machine signal:** `out/review/<CompId>/preflight/metrics.json` is the artifact
 of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip`.
 
@@ -74,6 +77,7 @@ All checks are textual/regex with the following rules:
 | P4 tokens | each of `bg`, `surface`, `text`, `textDim`, `accent` appears as `\b<token>\s*:` in `theme.ts` |
 | P4 storyboard table | `/^\|[\s]*#/m` matches a row header in `storyboard.md` |
 | P5 promise | `/\bpromise\s*:/` matches anywhere in `timeline.ts` |
+| P6 payoff | SKIP when no `promise:` found; PASS when `/\bpayoff\s*:/` also matches; FAIL (advisory) when `promise:` present but `payoff:` absent |
 
 ---
 
