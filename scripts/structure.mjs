@@ -23,27 +23,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// Pure: resolve a raw SceneDef promise declaration into the normalised form
-// ---------------------------------------------------------------------------
-
-/**
- * Resolve the raw promise declaration from a SceneDef into the normalised
- * form carried by TimelineStructure.promise.
- *
- * @param {{ text: string; byFrame?: number }|null|undefined} raw
- * @param {number} fallbackFrame  - the scene's cutFrame, used when byFrame is absent
- * @returns {{ text: string; frame: number; wordCount: number }|null}
- */
-export function resolvePromise(raw, fallbackFrame) {
-  if (raw == null) return null;
-  return {
-    text: raw.text,
-    frame: raw.byFrame ?? fallbackFrame,
-    wordCount: raw.text.trim().split(/\s+/).filter(Boolean).length,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Pure: convert a TimelineStructure to the gate flag string
 // ---------------------------------------------------------------------------
 

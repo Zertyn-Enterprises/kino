@@ -22,7 +22,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { structureToFlags, loadStructure, resolvePromise } from './structure.mjs';
+import { structureToFlags, loadStructure } from './structure.mjs';
 
 // ---------------------------------------------------------------------------
 // structureToFlags — pure unit tests
@@ -148,64 +148,6 @@ describe('loadStructure — golden calibration (granipa)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// resolvePromise — pure unit tests for promise derivation
-// ---------------------------------------------------------------------------
-
-describe('resolvePromise — absent (null raw)', () => {
-  it('returns null when no promise declared', () => {
-    expect(resolvePromise(null, 150)).toBeNull();
-  });
-
-  it('returns null when raw is undefined', () => {
-    expect(resolvePromise(undefined, 150)).toBeNull();
-  });
-});
-
-describe('resolvePromise — byFrame override', () => {
-  const result = resolvePromise({ text: 'Queued — waiting for runner', byFrame: 52 }, 150);
-
-  it('uses byFrame as the resolved frame', () => {
-    expect(result.frame).toBe(52);
-  });
-
-  it('carries through the text', () => {
-    expect(result.text).toBe('Queued — waiting for runner');
-  });
-
-  it('wordCount is 5 (em-dash counts as a token)', () => {
-    expect(result.wordCount).toBe(5);
-  });
-});
-
-describe('resolvePromise — frame fallback to beat cutFrame', () => {
-  const result = resolvePromise({ text: 'what your mac tools see in a day:' }, 74);
-
-  it('uses fallbackFrame when byFrame absent', () => {
-    expect(result.frame).toBe(74);
-  });
-
-  it('carries through the text', () => {
-    expect(result.text).toBe('what your mac tools see in a day:');
-  });
-
-  it('wordCount is 8 (whitespace-split)', () => {
-    expect(result.wordCount).toBe(8);
-  });
-});
-
-describe('resolvePromise — wordCount edge cases', () => {
-  it('trims leading/trailing whitespace before counting', () => {
-    const result = resolvePromise({ text: '  two words  ' }, 0);
-    expect(result.wordCount).toBe(2);
-  });
-
-  it('single word gives wordCount=1', () => {
-    const result = resolvePromise({ text: 'Waiting' }, 0);
-    expect(result.wordCount).toBe(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Golden calibration — promise field via loadStructure (relay)
 //
 // relay hook beat: 10 beats @ 120bpm/30fps → cutFrame = beatFrame(10) = 150.
@@ -240,7 +182,7 @@ describe('loadStructure — promise golden (relay)', () => {
 //
 // granipa hook beat: 5 beats @ 122bpm/30fps → cutFrame = beatFrame(5) = 74.
 // Declared: promise.text = "what your mac tools see in a day:", byFrame = 8.
-// Resolved: frame = 8, wordCount = 7.
+// Resolved: frame = 8, wordCount = 8.
 // ---------------------------------------------------------------------------
 
 describe('loadStructure — promise golden (granipa)', () => {
