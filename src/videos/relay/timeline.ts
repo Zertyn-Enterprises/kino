@@ -13,6 +13,6 @@ export const relayTimeline = buildTimeline({ fps: 30, bpm: 120 }, [
   { id: "proofUrls", beats: 8 },
   { id: "proofShare", beats: 8 },
   { id: "proofRollback", beats: 8 },
-  { id: "climax", beats: 8 },
+  { id: "climax", beats: 8, role: "climax" },
   { id: "cta", beats: 8 },
 ] as const);
