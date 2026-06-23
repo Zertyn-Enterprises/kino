@@ -20,6 +20,12 @@ export type SceneDef<Id extends string = string> = {
    * Omit for a hard cut.
    */
   transitionAfterBeats?: number;
+  /**
+   * Structural role of this scene, used by gates to derive --climax / --holds
+   * without hand-typed frame numbers. At most one scene per timeline should
+   * carry role 'climax'.
+   */
+  role?: "climax" | "hold";
 };
 
 export type SceneTiming = {
@@ -40,6 +46,30 @@ export type TimelineConfig = {
   firstDownbeatSec?: number;
   /** Composition frame at which the music starts playing. */
   musicStartFrame?: number;
+  /**
+   * Override the default 8-second re-hook cadence threshold for this video.
+   * Passed through verbatim in the derived structure so gate scripts can
+   * auto-load it without a hand-typed --rehook flag.
+   */
+  rehookSeconds?: number;
+};
+
+/**
+ * Structural flags derived from scene roles in the timeline declaration.
+ * Gate scripts (retention.sh, payoff.sh, musicsync.sh) consume this so
+ * frame numbers never need to be hand-typed or hard-coded.
+ *
+ * - climaxFrame:   start frame of the 'climax'-roled scene (the cut INTO it),
+ *                  used as the boundary for the energy-build-to-climax gate.
+ *                  null when no scene carries role 'climax'.
+ * - holds:         [from, from+durationInFrames] ranges of 'hold'-roled scenes,
+ *                  used to exclude static sections from the dead-air gate.
+ * - rehookSeconds: passthrough of TimelineConfig.rehookSeconds, or null.
+ */
+export type TimelineStructure = {
+  climaxFrame: number | null;
+  holds: Array<[number, number]>;
+  rehookSeconds: number | null;
 };
 
 export type Timeline<Id extends string = string> = {
@@ -55,6 +85,8 @@ export type Timeline<Id extends string = string> = {
   beatsToFrames: (beats: number) => number;
   /** Convert an absolute frame to a scene-local frame (for <Sequence from>). */
   toLocal: (id: Id, absoluteFrame: number) => number;
+  /** Structural flags derived from scene roles — consumed by gate scripts. */
+  structure: TimelineStructure;
 };
 
 export const buildTimeline = <Id extends string>(
@@ -142,6 +174,17 @@ export const buildTimeline = <Id extends string>(
     };
   });
 
+  const climaxDef = sceneDefs.find((s) => s.role === "climax");
+  const holdDefs = sceneDefs.filter((s) => s.role === "hold");
+  const structure: TimelineStructure = {
+    climaxFrame: climaxDef != null ? scenes[climaxDef.id].from : null,
+    holds: holdDefs.map((s) => [
+      scenes[s.id].from,
+      scenes[s.id].from + scenes[s.id].durationInFrames,
+    ]),
+    rehookSeconds: config.rehookSeconds ?? null,
+  };
+
   return {
     fps,
     bpm,
@@ -152,5 +195,6 @@ export const buildTimeline = <Id extends string>(
     beatFrame,
     beatsToFrames,
     toLocal: (id, absoluteFrame) => absoluteFrame - scenes[id].from,
+    structure,
   };
 };
