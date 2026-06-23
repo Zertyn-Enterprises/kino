@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the full ship gate: hook.sh + retention.sh + contrast.sh + motion.sh + legibility.sh + code-craft.sh + musicsync.sh + payoff.sh, aggregates results.
+# Runs the full ship gate: hook.sh + retention.sh + contrast.sh + motion.sh + legibility.sh + code-craft.sh + musicsync.sh + payoff.sh + remotion-correct.sh, aggregates results.
 #   out/review/<CompId>/ship/report.json  — machine source of truth
 #   out/review/<CompId>/ship/report.txt   — human-readable table
 # Prints SHIP: READY|BLOCKED and exits non-zero when not ship-ready.
@@ -47,6 +47,7 @@ LEGIBILITY_JSON="out/review/$COMP/legibility/metrics.json"
 CODE_CRAFT_JSON="out/review/$COMP/code-craft/metrics.json"
 MUSICSYNC_JSON="out/review/$COMP/musicsync/metrics.json"
 PAYOFF_JSON="out/review/$COMP/payoff/metrics.json"
+REMOTION_CORRECT_JSON="out/review/$COMP/remotion-correct/metrics.json"
 
 # --- 0. Build shared render corpus once (retention/motion/legibility/payoff slice from it) ---
 
@@ -61,7 +62,7 @@ else
 fi
 echo ""
 
-# --- 1. Run all gates concurrently (bounded: one job per gate = 8 max), collect exit codes ---
+# --- 1. Run all gates concurrently (bounded: one job per gate = 9 max), collect exit codes ---
 
 GATE_TMPDIR=$(mktemp -d)
 trap 'rm -rf "$GATE_TMPDIR"' EXIT
@@ -74,6 +75,7 @@ LEGIBILITY_EXIT=0
 CODE_CRAFT_EXIT=0
 MUSICSYNC_EXIT=0
 PAYOFF_EXIT=0
+REMOTION_CORRECT_EXIT=0
 
 scripts/hook.sh "$COMP" >"$GATE_TMPDIR/hook.log" 2>&1 &
 HOOK_PID=$!
@@ -109,15 +111,19 @@ MUSICSYNC_PID=$!
 scripts/payoff.sh "$COMP" >"$GATE_TMPDIR/payoff.log" 2>&1 &
 PAYOFF_PID=$!
 
+scripts/remotion-correct.sh "$COMP" "$SLUG" >"$GATE_TMPDIR/remotion-correct.log" 2>&1 &
+REMOTION_CORRECT_PID=$!
+
 # Join all background jobs; collect each exit code without losing failures.
-wait "$HOOK_PID"      || HOOK_EXIT=$?
-wait "$RETENTION_PID" || RETENTION_EXIT=$?
+wait "$HOOK_PID"              || HOOK_EXIT=$?
+wait "$RETENTION_PID"         || RETENTION_EXIT=$?
 [ -n "$CONTRAST_PID" ] && { wait "$CONTRAST_PID" || CONTRAST_EXIT=$?; }
-wait "$MOTION_PID"      || MOTION_EXIT=$?
-wait "$LEGIBILITY_PID"  || LEGIBILITY_EXIT=$?
-wait "$CODE_CRAFT_PID"  || CODE_CRAFT_EXIT=$?
-wait "$MUSICSYNC_PID"   || MUSICSYNC_EXIT=$?
-wait "$PAYOFF_PID"      || PAYOFF_EXIT=$?
+wait "$MOTION_PID"              || MOTION_EXIT=$?
+wait "$LEGIBILITY_PID"          || LEGIBILITY_EXIT=$?
+wait "$CODE_CRAFT_PID"          || CODE_CRAFT_EXIT=$?
+wait "$MUSICSYNC_PID"           || MUSICSYNC_EXIT=$?
+wait "$PAYOFF_PID"              || PAYOFF_EXIT=$?
+wait "$REMOTION_CORRECT_PID"    || REMOTION_CORRECT_EXIT=$?
 
 # Print gate outputs in the original fixed order.
 echo "==> hook gate:"
@@ -144,13 +150,16 @@ echo ""
 echo "==> payoff gate:"
 cat "$GATE_TMPDIR/payoff.log"
 echo ""
+echo "==> remotion-correct gate:"
+cat "$GATE_TMPDIR/remotion-correct.log"
+echo ""
 
 # --- 2. Aggregate via ship-metrics.mjs ---
 
 SHIP_EXIT=0
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" --json \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" "$REMOTION_CORRECT_JSON" --json \
   > "$SHIP_OUT/report.json" || SHIP_EXIT=$?
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" "$REMOTION_CORRECT_JSON" \
   | tee "$SHIP_OUT/report.txt" || true
 
 echo "Ship review — $SHIP_OUT/"
