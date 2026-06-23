@@ -211,7 +211,9 @@ correctly via the existing skip paths. **Robust, zero mis-fires.**
 | musicsync-metrics | 15 | 31 | +16 |
 | **Total** | **345** | **414** | **+59** |
 
-All 1096 tests pass (1085 passed + 11 skipped pre-existing). `npm run lint` green.
+Task 2 (plan-3i2law) added 7 further tests (`dogfood.test.mjs` Fixture K — see §Lock below).
+
+All 1103 tests pass (all-suite, includes Fixture K). `npm run lint` green.
 
 ---
 
