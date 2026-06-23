@@ -6,7 +6,7 @@
 // Usage:
 //   node scripts/distinct-metrics.mjs [<slug>] [--bg=#.. --accent=#..] [--registry=..] [--json]
 //   <slug>             slug of the candidate video (default: last registry entry)
-//   --bg=#rrggbb       override candidate's bg hex (useful at theme-lock before registry finalized)
+//   --bg=#rrggbb       override candidate's bg hex (overrides derived AND registry value)
 //   --accent=#rrggbb   override candidate's accent hex
 //   --luminance=dark   override candidate's luminance class
 //   --arc=B            override candidate's arc letter
@@ -14,6 +14,18 @@
 //   --grain=5          override candidate's grain % value
 //   --registry=<path>  path to _registry.md (default: src/videos/_registry.md)
 //   --json             emit structured JSON verdict instead of human-readable output
+//
+// Derived axes: when src/videos/<slug>/theme.ts is loadable, the 5 code-derivable axes
+// (palette-bg, palette-accent, luminance, type, texture/grain) are derived from source and
+// replace the registry-parsed values for those axes. Explicit flags above still override.
+// The 4 non-derivable axes (arc, rhythm+moves, transitions, music-bpm) remain registry-sourced
+// and are labeled with the three-state coverage model (ran/skip-na/coverage-gap) in the verdict.
+//
+// Registry-axis-drift HARD gate: when a candidate has both a registry entry and a loadable
+// theme.ts, and a hand-typed registry axis disagrees with the derived value beyond tolerance
+// (CIE94 ΔE > 5 for bg/accent; class mismatch for luminance; band mismatch for grain),
+// the gate BLOCKS and names the field + registry-vs-source values. SKIP when theme.ts is
+// unloadable or when there are <2 registry entries.
 //
 // Axes (9 total — Hard Rule #3 requires ≥4 to differ from every prior entry):
 //   1. palette-bg:     CIE94 ΔE on bg hex > PALETTE_DELTA_E_THRESHOLD
@@ -37,27 +49,28 @@
 // Calibrated so relay-vs-granipa real comparison PASSES ≥4-rule:
 //
 //   relay   bg #0A0E0B → Lab(3.55, -1.46,  0.77)   accent #B6F22E → Lab(88.8, -44.0,  79.5)
-//   granipa bg #0B0F18 → Lab(4.18,  1.05, -6.07)   accent #3D8BFF → Lab(58.7,  15.5, -64.4)
+//   granipa bg #0A0B0E → Lab(3.26,  0.86, -4.55)   accent #3D8BFF → Lab(58.7,  15.5, -64.4)
 //
-//   palette-bg ΔE94      ≈ 7.1  > PALETTE_DELTA_E_THRESHOLD=5  → DIFFERS
+//   palette-bg ΔE94      relay vs granipa ≈ 4.7 (note: below threshold — axes converge here
+//                        but ≥4 other axes still differ, so hard rule satisfied)
 //   palette-accent ΔE94  ≈ 72   > 5                             → DIFFERS
-//   luminance            dark vs tonal                          → DIFFERS
+//   luminance            both derived as 'dark'                 → SAME
 //   type Jaccard         {space grotesk, jetbrains mono} ∩ {sentient, switzer, jetbrains mono}
 //                        = {jetbrains mono} / union(4) = 0.25  < TYPE_JACCARD_THRESHOLD=0.5 → DIFFERS
 //   arc                  B vs A                                 → DIFFERS
 //   rhythm+moves Jaccard ≈ 0.02  < TOKEN_JACCARD_THRESHOLD=0.5 → DIFFERS
-//   texture              filmic(5%) vs light(2.5%)              → DIFFERS
+//   texture              filmic(5%) vs filmic(4%)               → SAME (same band)
 //   transitions Jaccard  ≈ 0.05  < 0.5                         → DIFFERS
 //   music-bpm            upbeat(120bpm) vs mid(avg 110bpm)      → DIFFERS
 //
-//   All 9 axes differ → both shipped examples PASS (9 ≥ 4).
-//   Drift advisory fires: bg-luminance (relay=dark, granipa=tonal — both dark-family) and
-//   mono-font (both JetBrains Mono). These are advisory and never block.
+//   6 of 9 axes differ → both shipped examples PASS (6 ≥ 4).
+//   Drift advisory fires: bg-luminance (both dark) and mono-font (both JetBrains Mono).
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { loadTheme, themeToAxes } from './theme-axes.mjs';
 
 // ── Constants ──────────────────────────────────────────────────────────────────────────────────
 
@@ -79,6 +92,9 @@ const BPM_UPBEAT_MAX  = 140;  // 116–140 bpm
 // Grain % bands for texture axis comparison.
 const GRAIN_LIGHT_MAX  = 3.0;  // 0.1–3.0% → light filmic
 const GRAIN_FILMIC_MAX = 7.0;  // 3.1–7.0% → filmic
+
+// Non-derivable axis names (registry-only; labeled with three-state coverage model).
+const NON_DERIVABLE_AXES = ['arc', 'rhythm+moves', 'transitions', 'music-bpm'];
 
 // ── Color science: sRGB → Lab → CIE94 ΔE ──────────────────────────────────────────────────────
 
@@ -239,6 +255,14 @@ function bpmToBand(bpm) {
   if (bpm <= BPM_MID_MAX)    return 'mid';
   if (bpm <= BPM_UPBEAT_MAX) return 'upbeat';
   return 'fast';
+}
+
+/** Convert a numeric grain% from themeToAxes() to a grain band label. */
+export function grainPctToBand(pct) {
+  if (pct == null || pct <= 0) return 'none';
+  if (pct <= GRAIN_LIGHT_MAX)  return 'light';
+  if (pct <= GRAIN_FILMIC_MAX) return 'filmic';
+  return 'heavy';
 }
 
 /**
@@ -445,9 +469,12 @@ export function computeDriftWarnings(allEntries) {
  * @param {string|null} opts.candidateSlug  - slug to find candidate (null = last entry)
  * @param {object}      [opts.overrides]    - field overrides applied to the candidate's parsed record
  *   Supported: bg, accent, luminance, arc, bpmBand, grainBand
+ * @param {object|null} [opts.derivedAxes]  - output of themeToAxes() for the candidate's theme.ts;
+ *   when provided, replaces registry-parsed values for the 5 code-derivable axes before overrides
+ *   are applied. Also triggers registry-axis-drift HARD check when candidate is in the registry.
  * @returns {object} metrics verdict matching ship-metrics gate contract
  */
-export function computeDistinctMetrics({ registryText, candidateSlug = null, overrides = {} }) {
+export function computeDistinctMetrics({ registryText, candidateSlug = null, overrides = {}, derivedAxes = null }) {
   const allRecords = parseRegistry(registryText);
 
   // SKIP when fewer than 2 entries total — nothing to compare.
@@ -459,27 +486,65 @@ export function computeDistinctMetrics({ registryText, candidateSlug = null, ove
       candidateSlug: allRecords[0]?.slug ?? null,
       priorSlugs: [],
       perPrior: [],
+      nonDerivableCoverage: Object.fromEntries(NON_DERIVABLE_AXES.map(a => [a, 'skip-na'])),
       gates: [
         { name: 'HARD: ≥4 axes distinct from every prior', hard: true, advisory: false, pass: true, skip: true, detail: `n=${allRecords.length} — nothing to compare` },
       ],
     };
   }
 
-  // Identify candidate and priors.
-  let candidateRecord, priorRecords;
+  // Identify candidate, priors, and whether candidate is pre-registry.
+  let candidateRecord, priorRecords, isPreRegistry = false;
+  let registryDriftGate = null;
+
   if (candidateSlug) {
     const idx = allRecords.findIndex(r => r.slug === candidateSlug.toLowerCase());
     if (idx === -1) {
-      // Slug not in registry: synthesize a minimal candidate from overrides only.
-      candidateRecord = synthesizeCandidate(candidateSlug, overrides);
+      isPreRegistry = true;
+      // Slug not in registry: synthesize candidate from derived axes + overrides.
+      if (derivedAxes) {
+        const base = {
+          slug: candidateSlug.toLowerCase(), fields: new Map(),
+          parsed: {
+            bg:               overrides.bg     ?? derivedAxes.bg,
+            accent:           overrides.accent ?? derivedAxes.accent,
+            luminance:        overrides.luminance ? parseLuminanceClass(overrides.luminance) : derivedAxes.luminance,
+            typeFamilies:     derivedAxes.fonts,
+            arc:              overrides.arc  ? parseArc(overrides.arc)             : 'unknown',
+            rhythmMoveTokens: new Set(),
+            grainBand:        overrides.grain ? parseGrainBand(`grain ${overrides.grain}%`) : grainPctToBand(derivedAxes.grainPct),
+            transitionTokens: new Set(),
+            bpmBand:          overrides.bpm  ? bpmToBand(parseInt(overrides.bpm)) : 'unknown',
+            usesJetbrainsMono: derivedAxes.fonts.some(f => f.includes('jetbrains mono')),
+            accentHueBand:    derivedAxes.accent ? hueToFamily(hexToHue(overrides.accent ?? derivedAxes.accent)) : 'unknown',
+          },
+        };
+        candidateRecord = base;
+      } else {
+        candidateRecord = synthesizeCandidate(candidateSlug, overrides);
+      }
       priorRecords = allRecords;
     } else {
-      candidateRecord = applyOverrides(allRecords[idx], overrides);
+      const rawRecord = allRecords[idx];
+      if (derivedAxes) {
+        // Registry-axis-drift: compare RAW registry values against derived source values.
+        registryDriftGate = computeRegistryDriftGate(rawRecord, derivedAxes);
+        // Apply derived axes first (replaces 5 code-derivable axes), then CLI overrides.
+        candidateRecord = applyOverrides(applyDerivedAxesToRecord(rawRecord, derivedAxes), overrides);
+      } else {
+        candidateRecord = applyOverrides(rawRecord, overrides);
+      }
       priorRecords = [...allRecords.slice(0, idx), ...allRecords.slice(idx + 1)];
     }
   } else {
     // Default: last entry is the candidate; all others are priors.
-    candidateRecord = applyOverrides(allRecords[allRecords.length - 1], overrides);
+    const rawRecord = allRecords[allRecords.length - 1];
+    if (derivedAxes) {
+      registryDriftGate = computeRegistryDriftGate(rawRecord, derivedAxes);
+      candidateRecord = applyOverrides(applyDerivedAxesToRecord(rawRecord, derivedAxes), overrides);
+    } else {
+      candidateRecord = applyOverrides(rawRecord, overrides);
+    }
     priorRecords = allRecords.slice(0, allRecords.length - 1);
   }
 
@@ -498,42 +563,45 @@ export function computeDistinctMetrics({ registryText, candidateSlug = null, ove
     };
   });
 
-  const hardPass = perPrior.every(p => p.hardPass);
+  const antiTemplatePass = perPrior.every(p => p.hardPass);
+  const driftPass = registryDriftGate ? registryDriftGate.pass : true;
+  const hardGatesPass = driftPass && antiTemplatePass;
 
   // Advisory drift check over all entries (candidate + priors).
   const allEntries = [candidateRecord, ...priorRecords];
   const driftWarnings = computeDriftWarnings(allEntries);
 
+  // Non-derivable coverage labels.
+  const nonDerivableCoverage = computeNonDerivableCoverage(candidateRecord, isPreRegistry);
+
   // Build gates array matching ship-metrics contract.
-  const hardDetail = hardPass
+  const hardDetail = antiTemplatePass
     ? `all ${perPrior.length} prior(s) satisfied ≥${MIN_DIFFERING_AXES} axes`
     : perPrior
         .filter(p => !p.hardPass)
         .map(p => `vs ${p.priorSlug}: ${p.differingCount} axes differ (${p.differingCount === 0 ? 'none' : p.differingAxes.join(', ')}); colliding: ${p.collidingAxes.join(', ')}`)
         .join('; ');
 
-  const gates = [
-    {
-      name: 'HARD: ≥4 axes distinct from every prior',
-      hard: true, advisory: false,
-      pass: hardPass, skip: false,
-      detail: hardDetail,
-    },
-    ...driftWarnings.map(w => ({
-      name: `Advisory: ${w}`,
-      hard: false, advisory: true,
-      pass: false, skip: false,
-      detail: w,
-    })),
-  ];
+  const gates = [];
+  if (registryDriftGate) gates.push(registryDriftGate);
+  gates.push({
+    name: 'HARD: ≥4 axes distinct from every prior',
+    hard: true, advisory: false,
+    pass: antiTemplatePass, skip: false,
+    detail: hardDetail,
+  });
+  for (const w of driftWarnings) {
+    gates.push({ name: `Advisory: ${w}`, hard: false, advisory: true, pass: false, skip: false, detail: w });
+  }
 
   return {
-    hardGatesPass: hardPass,
+    hardGatesPass,
     skip: false,
     n: allRecords.length,
     candidateSlug: candidateRecord.slug,
     priorSlugs: priorRecords.map(r => r.slug),
     perPrior,
+    nonDerivableCoverage,
     gates,
   };
 }
@@ -572,6 +640,99 @@ function applyOverrides(record, overrides) {
   return { ...record, parsed };
 }
 
+/**
+ * Apply derived axes from themeToAxes() to a registry record for the 5 code-derivable axes.
+ * Does NOT apply CLI overrides — call applyOverrides() after this.
+ */
+function applyDerivedAxesToRecord(record, derivedAxes) {
+  const parsed = { ...record.parsed };
+  if (derivedAxes.bg)                    parsed.bg          = derivedAxes.bg;
+  if (derivedAxes.accent) {
+    parsed.accent       = derivedAxes.accent;
+    parsed.accentHueBand = hueToFamily(hexToHue(derivedAxes.accent));
+  }
+  if (derivedAxes.luminance !== 'unknown') parsed.luminance  = derivedAxes.luminance;
+  if (derivedAxes.grainPct != null)        parsed.grainBand  = grainPctToBand(derivedAxes.grainPct);
+  if (derivedAxes.fonts.length > 0) {
+    parsed.typeFamilies     = derivedAxes.fonts;
+    parsed.usesJetbrainsMono = derivedAxes.fonts.some(f => f.includes('jetbrains mono'));
+  }
+  return { ...record, parsed };
+}
+
+/**
+ * Compute the registry-axis-drift HARD gate: compares RAW registry values against derived
+ * source values. Returns a gate object; pass:true when no drift beyond tolerance.
+ *
+ * Tolerances:
+ *   bg/accent: CIE94 ΔE > PALETTE_DELTA_E_THRESHOLD (same as anti-template threshold)
+ *   luminance: class mismatch (dark / tonal / light)
+ *   grain:     band mismatch (none / light / filmic / heavy)
+ */
+export function computeRegistryDriftGate(rawRecord, derivedAxes) {
+  const reg = rawRecord.parsed;
+  const driftFields = [];
+
+  if (reg.bg && derivedAxes.bg) {
+    try {
+      const e = deltaE94(hexToLab(reg.bg), hexToLab(derivedAxes.bg));
+      if (e > PALETTE_DELTA_E_THRESHOLD) {
+        driftFields.push({ field: 'palette-bg', registry: reg.bg, source: derivedAxes.bg, detail: `ΔE94=${e.toFixed(1)}` });
+      }
+    } catch { /* ignore invalid hex */ }
+  }
+
+  if (reg.accent && derivedAxes.accent) {
+    try {
+      const e = deltaE94(hexToLab(reg.accent), hexToLab(derivedAxes.accent));
+      if (e > PALETTE_DELTA_E_THRESHOLD) {
+        driftFields.push({ field: 'palette-accent', registry: reg.accent, source: derivedAxes.accent, detail: `ΔE94=${e.toFixed(1)}` });
+      }
+    } catch { /* ignore invalid hex */ }
+  }
+
+  const derivedLum = derivedAxes.luminance;
+  if (derivedLum !== 'unknown' && reg.luminance !== 'unknown' && reg.luminance !== derivedLum) {
+    driftFields.push({ field: 'luminance', registry: reg.luminance, source: derivedLum });
+  }
+
+  if (derivedAxes.grainPct != null) {
+    const derivedGrain = grainPctToBand(derivedAxes.grainPct);
+    if (derivedGrain !== reg.grainBand) {
+      driftFields.push({ field: 'texture/grain', registry: reg.grainBand, source: derivedGrain });
+    }
+  }
+
+  if (driftFields.length === 0) {
+    return { name: 'HARD: registry-axis-drift', hard: true, advisory: false, pass: true, skip: false,
+             detail: 'registry matches source on all derivable axes' };
+  }
+
+  const detail = driftFields
+    .map(f => `${f.field}: registry=${f.registry} source=${f.source}${f.detail ? ` (${f.detail})` : ''}`)
+    .join('; ');
+  return { name: 'HARD: registry-axis-drift', hard: true, advisory: false, pass: false, skip: false, detail };
+}
+
+/**
+ * Label the 4 non-derivable axes with the three-state coverage model.
+ *   'ran'          — axis value found and used in comparison
+ *   'coverage-gap' — registry entry exists but the field is missing / unparseable
+ *   'skip-na'      — no registry entry for candidate (pre-registry mode)
+ */
+export function computeNonDerivableCoverage(candidateRecord, isPreRegistry) {
+  if (isPreRegistry) {
+    return Object.fromEntries(NON_DERIVABLE_AXES.map(a => [a, 'skip-na']));
+  }
+  const p = candidateRecord.parsed;
+  return {
+    'arc':          p.arc !== 'unknown'           ? 'ran' : 'coverage-gap',
+    'rhythm+moves': p.rhythmMoveTokens.size > 0   ? 'ran' : 'coverage-gap',
+    'transitions':  p.transitionTokens.size > 0   ? 'ran' : 'coverage-gap',
+    'music-bpm':    p.bpmBand !== 'unknown'        ? 'ran' : 'coverage-gap',
+  };
+}
+
 // ── Human-readable output ─────────────────────────────────────────────────────────────────────
 
 function printHumanReadable(verdict) {
@@ -590,6 +751,14 @@ function printHumanReadable(verdict) {
   console.log(`  Candidate: ${candidateSlug}  |  Priors: ${priorSlugs.join(', ')}`);
   console.log('');
 
+  const driftGate = gates.find(g => g.name === 'HARD: registry-axis-drift');
+  if (driftGate) {
+    const driftLabel = driftGate.pass ? 'PASS' : 'FAIL';
+    console.log(`  Registry-axis-drift: ${driftLabel}`);
+    if (!driftGate.pass) console.log(`    ${driftGate.detail}`);
+    console.log('');
+  }
+
   for (const p of perPrior) {
     const verdict_ = p.hardPass ? 'PASS' : 'FAIL';
     console.log(`  vs ${p.priorSlug}: ${verdict_} (${p.differingCount}/${['palette-bg','palette-accent','luminance','type','arc','rhythm+moves','texture','transitions','music-bpm'].length} axes differ)`);
@@ -599,11 +768,11 @@ function printHumanReadable(verdict) {
     }
   }
 
-  const driftGates = gates.filter(g => g.advisory && !g.pass);
-  if (driftGates.length > 0) {
+  const advisoryGates = gates.filter(g => g.advisory && !g.pass);
+  if (advisoryGates.length > 0) {
     console.log('');
     console.log('  Convergence drift (advisory):');
-    for (const g of driftGates) console.log(`    ⚠  ${g.detail}`);
+    for (const g of advisoryGates) console.log(`    ⚠  ${g.detail}`);
   }
 
   console.log('───────────────────────────────────────────────────────────────');
@@ -649,7 +818,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (bpmFlag)        overrides.bpm         = bpmFlag;
   if (grainFlag)      overrides.grain       = grainFlag;
 
-  const verdict = computeDistinctMetrics({ registryText, candidateSlug, overrides });
+  // Try to load derived axes from theme.ts; SKIP gracefully if unloadable.
+  let derivedAxes = null;
+  if (candidateSlug) {
+    try {
+      const theme = await loadTheme(candidateSlug);
+      derivedAxes = themeToAxes(theme);
+    } catch {
+      // theme.ts unloadable — run registry-only path
+    }
+  }
+
+  const verdict = computeDistinctMetrics({ registryText, candidateSlug, overrides, derivedAxes });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');

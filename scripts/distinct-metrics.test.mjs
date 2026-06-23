@@ -18,10 +18,16 @@
  *  12. parsePaletteHex: extracts bg and accent from registry palette field.
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   computeDistinctMetrics,
   computeAxisDivergences,
+  computeRegistryDriftGate,
+  computeNonDerivableCoverage,
+  grainPctToBand,
   parseRegistry,
   parseHex,
   hexToLab,
@@ -35,6 +41,9 @@ import {
   parseBpmBand,
   parsePaletteHex,
 } from './distinct-metrics.mjs';
+import { loadTheme, themeToAxes } from './theme-axes.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Registry fixtures ─────────────────────────────────────────────────────────────────────────
 
@@ -595,5 +604,332 @@ describe('tokenSet and jaccard', () => {
 
   it('jaccard({a,b,c},{a}) = 1/3', () => {
     expect(jaccard(['a', 'b', 'c'], ['a'])).toBeCloseTo(1 / 3, 5);
+  });
+});
+
+// ── Derived axes fixtures ─────────────────────────────────────────────────────────────────────
+//
+// Synthetic derivedAxes objects mirroring real relay and granipa source values.
+// These are used in pure-function tests that don't need loadTheme().
+
+const RELAY_DERIVED = {
+  bg: '#0A0E0B', accent: '#B6F22E',
+  fonts: ['jetbrains mono', 'space grotesk'],
+  grainPct: 5, luminance: 'dark',
+  derivable: ['palette-bg','palette-accent','luminance','type','texture'],
+  nonDerivable: ['arc','rhythm+moves','transitions','music-bpm'],
+};
+
+const GRANIPA_DERIVED = {
+  bg: '#0A0B0E', accent: '#3D8BFF',
+  fonts: ['jetbrains mono', 'sentient', 'switzer'],
+  grainPct: 4, luminance: 'dark',
+  derivable: ['palette-bg','palette-accent','luminance','type','texture'],
+  nonDerivable: ['arc','rhythm+moves','transitions','music-bpm'],
+};
+
+// Fixed granipa registry entry (matches source values).
+const GRANIPA_ENTRY_FIXED = `
+## 2 · granipa / GranipaLaunch (2026-06-16)
+
+| field           | value                                                                                                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| product         | Grañipa — on-device Mac memory layer                                                                                                                                                                                             |
+| arc             | A · demo-first cold open                                                                                                                                                                                                         |
+| rhythm          | one confident take — the product performing live inside a single developing window, micro-punctuation on the beat, one satisfying wide resolve at the end                                                                        |
+| luminance       | dark (#0A0B0E near-black with subtle blue cast)                                                                                                                                                                                  |
+| palette         | bg #0A0B0E · accent blue #3D8BFF (alive) · violet #A05BF0 (depth) · coral #F4604C                                                                                                                                               |
+| type            | Sentient display / Switzer body / JetBrains Mono                                                                                                                                                                                 |
+| signature moves | live ink · converge & seal · sovereign drift + pullback                                                                                                                                                                          |
+| texture         | filmic — grain 4%, vignette 0.28, almost no leaks                                                                                                                                                                                |
+| transitions     | contained internal motions + one wide pullback at the sovereignty moment                                                                                                                                                         |
+| music           | warm assured modern, ~98-122bpm character                                                                                                                                                                                        |
+`;
+
+const REGISTRY_TWO_FIXED = RELAY_ENTRY + GRANIPA_ENTRY_FIXED;
+
+// ── Fixture 17: relay derived-axes path — no registry drift, passes anti-template ────────────
+
+describe('derived-axes — relay with synthetic RELAY_DERIVED (no drift, anti-template pass)', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,        // granipa still the old registry values (as prior)
+    candidateSlug: 'relay',
+    derivedAxes:   RELAY_DERIVED,
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('registry-axis-drift gate passes (relay registry matches source)', () => {
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate).toBeDefined();
+    expect(driftGate.pass).toBe(true);
+  });
+
+  it('anti-template gate passes (≥4 axes differ vs granipa)', () => {
+    const antiGate = verdict.gates.find(g => g.name === 'HARD: ≥4 axes distinct from every prior');
+    expect(antiGate.pass).toBe(true);
+  });
+
+  it('derived bg is used for relay candidate (not registry)', () => {
+    // The relay registry bg and derived bg are the same hex, so no observable change,
+    // but derived axes are applied — confirm anti-template result still correct.
+    expect(verdict.perPrior[0].differingAxes).toContain('palette-accent');
+  });
+
+  it('nonDerivableCoverage has ran for all 4 axes', () => {
+    const cov = verdict.nonDerivableCoverage;
+    expect(cov['arc']).toBe('ran');
+    expect(cov['rhythm+moves']).toBe('ran');
+    expect(cov['transitions']).toBe('ran');
+    expect(cov['music-bpm']).toBe('ran');
+  });
+});
+
+// ── Fixture 18: granipa derived-axes path — no drift with fixed registry ──────────────────────
+
+describe('derived-axes — granipa with GRANIPA_DERIVED + fixed registry (no drift)', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO_FIXED,
+    candidateSlug: 'granipa',
+    derivedAxes:   GRANIPA_DERIVED,
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('registry-axis-drift gate passes (fixed registry matches derived source)', () => {
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate).toBeDefined();
+    expect(driftGate.pass).toBe(true);
+  });
+
+  it('anti-template gate passes (≥4 axes differ vs relay)', () => {
+    const antiGate = verdict.gates.find(g => g.name === 'HARD: ≥4 axes distinct from every prior');
+    expect(antiGate.pass).toBe(true);
+  });
+
+  it('palette-accent axis differs (blue vs lime)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('palette-accent');
+  });
+
+  it('type axis differs (sentient/switzer/jetbrains vs space grotesk/jetbrains)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('type');
+  });
+
+  it('arc axis differs (A vs B)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('arc');
+  });
+
+  it('music-bpm axis differs (mid vs upbeat)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('music-bpm');
+  });
+
+  it('nonDerivableCoverage all ran', () => {
+    const cov = verdict.nonDerivableCoverage;
+    expect(Object.values(cov).every(v => v === 'ran')).toBe(true);
+  });
+});
+
+// ── Fixture 19: stale registry triggers registry-axis-drift HARD fail ─────────────────────────
+//
+// Uses the OLD GRANIPA_ENTRY (registry bg=#0B0F18, luminance=tonal, grain=2.5%) as the
+// candidate registry value, combined with GRANIPA_DERIVED (derived bg=#0A0B0E, grain=4%,
+// luminance='dark') to simulate a registry that hasn't been updated to match source.
+
+describe('registry-axis-drift — stale granipa registry HARD fail', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,    // old GRANIPA_ENTRY: bg=#0B0F18, luminance=tonal, grain=2.5%
+    candidateSlug: 'granipa',
+    derivedAxes:   GRANIPA_DERIVED, // derived: bg=#0A0B0E, luminance=dark, grain=4%
+  });
+
+  it('hardGatesPass is false (registry-axis-drift blocks)', () => {
+    expect(verdict.hardGatesPass).toBe(false);
+  });
+
+  it('registry-axis-drift gate is present and fails', () => {
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate).toBeDefined();
+    expect(driftGate.hard).toBe(true);
+    expect(driftGate.pass).toBe(false);
+  });
+
+  it('drift detail names the disagreeing fields', () => {
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    // luminance mismatch (registry=tonal, derived=dark) and grain mismatch (light vs filmic) must appear.
+    expect(driftGate.detail).toMatch(/luminance/);
+    expect(driftGate.detail).toMatch(/texture\/grain/);
+  });
+
+  it('drift detail includes registry and source values', () => {
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate.detail).toMatch(/tonal/);   // registry luminance
+    expect(driftGate.detail).toMatch(/dark/);    // derived luminance
+  });
+
+  it('anti-template gate is still evaluated and passes (≥4 axes differ)', () => {
+    const antiGate = verdict.gates.find(g => g.name === 'HARD: ≥4 axes distinct from every prior');
+    expect(antiGate).toBeDefined();
+    expect(antiGate.pass).toBe(true);
+  });
+});
+
+// ── Fixture 20: pre-registry SKIP — nonDerivableCoverage all skip-na ─────────────────────────
+
+describe('pre-registry SKIP path — nonDerivableCoverage is skip-na for all non-derivable axes', () => {
+  const verdict = computeDistinctMetrics({ registryText: REGISTRY_ONE });
+
+  it('skip is true', () => {
+    expect(verdict.skip).toBe(true);
+  });
+
+  it('nonDerivableCoverage exists and all skip-na', () => {
+    const cov = verdict.nonDerivableCoverage;
+    expect(cov['arc']).toBe('skip-na');
+    expect(cov['rhythm+moves']).toBe('skip-na');
+    expect(cov['transitions']).toBe('skip-na');
+    expect(cov['music-bpm']).toBe('skip-na');
+  });
+});
+
+// ── Fixture 21: override flags override derived axes ─────────────────────────────────────────
+
+describe('override flags take precedence over derivedAxes', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,
+    candidateSlug: 'relay',
+    derivedAxes:   RELAY_DERIVED,            // derived: bg=#0A0E0B, luminance=dark
+    overrides:     { luminance: 'light' },   // override wins → luminance='light'
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('luminance override wins over derived (relay now light → differs from granipa tonal)', () => {
+    // With override luminance=light and prior granipa registry luminance=tonal, they differ.
+    expect(verdict.perPrior[0].differingAxes).toContain('luminance');
+  });
+});
+
+// ── Fixture 22: grainPctToBand helper ────────────────────────────────────────────────────────
+
+describe('grainPctToBand', () => {
+  it('0 → none', () => { expect(grainPctToBand(0)).toBe('none'); });
+  it('null → none', () => { expect(grainPctToBand(null)).toBe('none'); });
+  it('2.5 → light', () => { expect(grainPctToBand(2.5)).toBe('light'); });
+  it('3.0 → light (boundary inclusive)', () => { expect(grainPctToBand(3.0)).toBe('light'); });
+  it('4 → filmic', () => { expect(grainPctToBand(4)).toBe('filmic'); });
+  it('5 → filmic', () => { expect(grainPctToBand(5)).toBe('filmic'); });
+  it('7.0 → filmic (boundary inclusive)', () => { expect(grainPctToBand(7.0)).toBe('filmic'); });
+  it('8 → heavy', () => { expect(grainPctToBand(8)).toBe('heavy'); });
+});
+
+// ── Fixture 23: computeRegistryDriftGate — pure unit tests ───────────────────────────────────
+
+describe('computeRegistryDriftGate', () => {
+  const records = parseRegistry(REGISTRY_TWO);
+  const relayRecord   = records.find(r => r.slug === 'relay');
+  const granipaRecord = records.find(r => r.slug === 'granipa');
+
+  it('relay + RELAY_DERIVED → pass (registry matches source)', () => {
+    const gate = computeRegistryDriftGate(relayRecord, RELAY_DERIVED);
+    expect(gate.pass).toBe(true);
+  });
+
+  it('granipa (old registry) + GRANIPA_DERIVED → fail (luminance mismatch + grain mismatch)', () => {
+    const gate = computeRegistryDriftGate(granipaRecord, GRANIPA_DERIVED);
+    expect(gate.pass).toBe(false);
+    expect(gate.detail).toContain('luminance');
+    expect(gate.detail).toContain('texture/grain');
+  });
+
+  it('drift gate is always hard:true', () => {
+    const gate = computeRegistryDriftGate(relayRecord, RELAY_DERIVED);
+    expect(gate.hard).toBe(true);
+  });
+
+  it('accent drift fires when ΔE94 > 5', () => {
+    // Swap relay accent with granipa blue → large ΔE94 → drift fires
+    const staleAxes = { ...RELAY_DERIVED, accent: '#3D8BFF' };
+    const gate = computeRegistryDriftGate(relayRecord, staleAxes);
+    expect(gate.pass).toBe(false);
+    expect(gate.detail).toContain('palette-accent');
+  });
+});
+
+// ── Fixture 24: computeNonDerivableCoverage ──────────────────────────────────────────────────
+
+describe('computeNonDerivableCoverage', () => {
+  const records = parseRegistry(REGISTRY_TWO);
+  const relayRecord = records.find(r => r.slug === 'relay');
+
+  it('relay (in registry, all fields present) → all ran', () => {
+    const cov = computeNonDerivableCoverage(relayRecord, false);
+    expect(cov['arc']).toBe('ran');
+    expect(cov['rhythm+moves']).toBe('ran');
+    expect(cov['transitions']).toBe('ran');
+    expect(cov['music-bpm']).toBe('ran');
+  });
+
+  it('isPreRegistry=true → all skip-na', () => {
+    const cov = computeNonDerivableCoverage(relayRecord, true);
+    expect(Object.values(cov).every(v => v === 'skip-na')).toBe(true);
+  });
+});
+
+// ── Fixture 25: golden calibration via real loadTheme (integration) ──────────────────────────
+//
+// These tests load the actual theme.ts for relay and granipa and verify that
+// distinct-metrics passes for both with the corrected _registry.md.
+
+describe('golden calibration — relay loadTheme + real registry (derived-axes path)', () => {
+  const registryText = readFileSync(resolve(__dirname, '..', 'src', 'videos', '_registry.md'), 'utf8');
+
+  it('relay passes with derived axes from real loadTheme', async () => {
+    const theme = await loadTheme('relay');
+    const derivedAxes = themeToAxes(theme);
+    const verdict = computeDistinctMetrics({ registryText, candidateSlug: 'relay', derivedAxes });
+    expect(verdict.hardGatesPass).toBe(true);
+    expect(verdict.skip).toBe(false);
+  });
+
+  it('relay registry-axis-drift gate passes (registry matches source)', async () => {
+    const theme = await loadTheme('relay');
+    const derivedAxes = themeToAxes(theme);
+    const verdict = computeDistinctMetrics({ registryText, candidateSlug: 'relay', derivedAxes });
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate.pass).toBe(true);
+  });
+});
+
+describe('golden calibration — granipa loadTheme + real registry (derived-axes path)', () => {
+  const registryText = readFileSync(resolve(__dirname, '..', 'src', 'videos', '_registry.md'), 'utf8');
+
+  it('granipa passes with derived axes from real loadTheme', async () => {
+    const theme = await loadTheme('granipa');
+    const derivedAxes = themeToAxes(theme);
+    const verdict = computeDistinctMetrics({ registryText, candidateSlug: 'granipa', derivedAxes });
+    expect(verdict.hardGatesPass).toBe(true);
+    expect(verdict.skip).toBe(false);
+  });
+
+  it('granipa registry-axis-drift gate passes after registry fix', async () => {
+    const theme = await loadTheme('granipa');
+    const derivedAxes = themeToAxes(theme);
+    const verdict = computeDistinctMetrics({ registryText, candidateSlug: 'granipa', derivedAxes });
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate.pass).toBe(true);
+  });
+
+  it('granipa differs from relay on ≥4 axes with derived axes', async () => {
+    const theme = await loadTheme('granipa');
+    const derivedAxes = themeToAxes(theme);
+    const verdict = computeDistinctMetrics({ registryText, candidateSlug: 'granipa', derivedAxes });
+    expect(verdict.perPrior[0].differingCount).toBeGreaterThanOrEqual(4);
+    expect(verdict.perPrior[0].hardPass).toBe(true);
   });
 });

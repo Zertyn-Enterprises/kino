@@ -35,7 +35,7 @@ identity. The agent is the **director** — don't templatize. Read
 - `scripts/musicsync.sh <CompId> <slug> [--climax=F]` — music-sync gate (MS1-MS4; --climax auto-derived from role:'climax' scene; SKIP when no analysis) → out/review/<CompId>/musicsync/
 - `scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]` — payoff/CTA gate (P1/P2 HARD, P3 advisory) → out/review/<CompId>/payoff/
 - `scripts/remotion-correct.sh <CompId> <slug>` — Remotion-correctness source gate (R1/R2 HARD, R3–R5 advisory; no render required) → out/review/<CompId>/remotion-correct/
-- `scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]` — distinctiveness gate (≥4-axis anti-template, HARD when ≥2 registry entries; no render) → out/review/<slug>/distinct/
+- `scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]` — distinctiveness gate (≥4-axis anti-template + registry-axis-drift; axes auto-derived from theme.ts; no render) → out/review/<slug>/distinct/
 - `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (all gates); retention/musicsync structure flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/ (`report.txt §How-to-fix` + `report.json.remediations`)
 - `scripts/preflight.sh <CompId> <slug>` — structural-integrity gate (no render; P1/P2 HARD, P3/P4 advisory) → out/review/<CompId>/preflight/
 - `node scripts/new-video.mjs <slug> <CompId>` — scaffold new video skeleton (P1/P2-passing by construction)
