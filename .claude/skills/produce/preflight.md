@@ -12,8 +12,10 @@ metrics.txt    — human-readable table (tee'd output)
 The script prints `PREFLIGHT: PASS|BLOCKED` and exits non-zero on HARD fail.
 
 Use `node scripts/new-video.mjs <slug> <CompId>` to scaffold a new video
-directory that **passes P1 and P2 by construction** — correctly registered,
-all required files present, palette token placeholders in place.
+directory that is **hook-gate-green by construction** — correctly registered,
+all required files present, valid 7-char hex starter palette, AmbientField
+living-background layer, and a Hook scene with `promise.text` (satisfies P1,
+P2, and hook HARD/advisory gates from frame 0).
 
 ## How it works
 
