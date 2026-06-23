@@ -3,7 +3,7 @@
 #   frame0.png  — full-res frame 0 (thumbnail test)
 #   early.png   — full-res frame 9 (motion-by-frame-10 sample)
 #   mid.png     — full-res frame at ~60% of hook window (background-activity sample)
-#   sheet/      — contact sheet of frames 0..hookFrames at the given step
+#   sheet/      — contact sheet of frames 0..hookFrames at the given step (skipped when corpus)
 #   final.png   — full-res final frame (loop-seam comparison)
 # After rendering, runs scripts/hook-metrics.mjs for objective PASS/FAIL output.
 # All output lands in out/review/<CompId>/hook/.
@@ -12,6 +12,9 @@
 #   hookFrames defaults to the first scene's length from the composition's
 #   timeline.ts (derived via scripts/hook-window.mjs); falls back to 90 if
 #   derivation fails. An explicit value overrides the auto-derived window.
+#   CORPUS_MANIFEST  env var: if set to a valid manifest path, the hook-window
+#                    sequence render is skipped (corpus already holds those frames);
+#                    the 3 full-res review stills and final.png are always rendered.
 #   e.g. scripts/hook.sh GranipaLaunch       # auto-derives hook length
 #        scripts/hook.sh GranipaLaunch 73     # explicit override
 set -euo pipefail
@@ -39,12 +42,23 @@ if [ "$HOOK_FRAMES" -lt "$EARLY_FRAME" ]; then EARLY_FRAME="$HOOK_FRAMES"; fi
 MID_FRAME=$(( HOOK_FRAMES * 6 / 10 ))
 if [ "$MID_FRAME" -gt "$HOOK_FRAMES" ]; then MID_FRAME="$HOOK_FRAMES"; fi
 
+# Corpus handshake: if CORPUS_MANIFEST env var points to a valid manifest,
+# consume corpus frames instead of self-rendering for the hook-window sequence.
+USING_CORPUS=0
+if [ -n "${CORPUS_MANIFEST:-}" ] && [ -f "${CORPUS_MANIFEST}" ]; then
+  USING_CORPUS=1
+fi
+
 # Concurrent-safe temp dir (PID-scoped so parallel runs don't collide).
 TMP="public/review-tmp/${COMP}-hook-$$"
 OUT="out/review/$COMP/hook"
 
-rm -rf "$TMP" "$OUT/sheet"
-mkdir -p "$TMP" "$OUT"
+rm -rf "$OUT/sheet"
+mkdir -p "$OUT"
+if [ "$USING_CORPUS" -eq 0 ]; then
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
+fi
 
 # --- 1. frame 0 — full resolution (thumbnail test) ---
 STILL_ARGS=(still "$COMP" "$OUT/frame0.png" --frame=0)
@@ -67,29 +81,33 @@ if [ -n "$PROPS" ]; then
 fi
 npx remotion "${MID_ARGS[@]}"
 
-# --- 2. Hook-window contact sheet (frames 0..hookFrames at step) ---
-RENDER_ARGS=(render "$COMP" "$TMP" --sequence --image-format=jpeg \
-  --scale=0.25 --every-nth-frame="$STEP" --frames="0-$HOOK_FRAMES")
-if [ -n "$PROPS" ]; then
-  RENDER_ARGS+=("--props=$PROPS")
+if [ "$USING_CORPUS" -eq 0 ]; then
+  # --- 2. Hook-window contact sheet (frames 0..hookFrames at step) ---
+  # Skipped when CORPUS_MANIFEST is set; corpus is 0.25-scale PNG which
+  # ContactSheet can't consume directly (requires public/-relative paths).
+  RENDER_ARGS=(render "$COMP" "$TMP" --sequence --image-format=jpeg \
+    --scale=0.25 --every-nth-frame="$STEP" --frames="0-$HOOK_FRAMES")
+  if [ -n "$PROPS" ]; then
+    RENDER_ARGS+=("--props=$PROPS")
+  fi
+  npx remotion "${RENDER_ARGS[@]}"
+
+  FRAMES=""
+  FILES=""
+  INDEX=0
+  while IFS= read -r FILE; do
+    FRAMES+="${FRAMES:+,}$((INDEX * STEP))"
+    FILES+="${FILES:+,}\"$FILE\""
+    INDEX=$((INDEX + 1))
+  done < <(ls "$TMP" | sort -t- -k2 -n)
+
+  mkdir -p "$OUT/sheet"
+  npx remotion render ContactSheet "$OUT/sheet" --sequence --image-format=png \
+    --props="{\"folder\":\"review-tmp/${COMP}-hook-$$\",\"frames\":[$FRAMES],\"files\":[$FILES]}"
+
+  rm -rf "$TMP"
+  rmdir public/review-tmp 2>/dev/null || true
 fi
-npx remotion "${RENDER_ARGS[@]}"
-
-FRAMES=""
-FILES=""
-INDEX=0
-while IFS= read -r FILE; do
-  FRAMES+="${FRAMES:+,}$((INDEX * STEP))"
-  FILES+="${FILES:+,}\"$FILE\""
-  INDEX=$((INDEX + 1))
-done < <(ls "$TMP" | sort -t- -k2 -n)
-
-mkdir -p "$OUT/sheet"
-npx remotion render ContactSheet "$OUT/sheet" --sequence --image-format=png \
-  --props="{\"folder\":\"review-tmp/${COMP}-hook-$$\",\"frames\":[$FRAMES],\"files\":[$FILES]}"
-
-rm -rf "$TMP"
-rmdir public/review-tmp 2>/dev/null || true
 
 # --- 3. final frame — full resolution (loop-seam comparison) ---
 # Parse total duration from `npx remotion compositions`; the line format is:
@@ -127,8 +145,10 @@ echo "Hook review — $OUT/"
 echo "  frame0.png"
 echo "  early.png  (frame $EARLY_FRAME)"
 echo "  mid.png    (frame $MID_FRAME)"
-echo "  sheet/"
-ls "$OUT/sheet" | sed 's/^/    /'
+if [ -d "$OUT/sheet" ]; then
+  echo "  sheet/"
+  ls "$OUT/sheet" | sed 's/^/    /'
+fi
 if [ -f "$OUT/final.png" ]; then
   echo "  final.png"
 fi
