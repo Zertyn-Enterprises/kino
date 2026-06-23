@@ -36,8 +36,25 @@ identity. The agent is the **director** — don't templatize. Read
 - `scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]` — payoff/CTA gate (P1/P2 HARD, P3 advisory) → out/review/<CompId>/payoff/
 - `scripts/remotion-correct.sh <CompId> <slug>` — Remotion-correctness source gate (R1/R2 HARD, R3–R5 advisory; no render required) → out/review/<CompId>/remotion-correct/
 - `scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]` — distinctiveness gate (≥4-axis anti-template, HARD when ≥2 registry entries; no render) → out/review/<slug>/distinct/
-- `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (10 gates); retention/musicsync structure flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/ (`report.txt §How-to-fix` + `report.json.remediations`)
+- `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (all gates); retention/musicsync structure flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/ (`report.txt §How-to-fix` + `report.json.remediations`)
+- `scripts/preflight.sh <CompId> <slug>` — structural-integrity gate (no render; P1/P2 HARD, P3/P4 advisory) → out/review/<CompId>/preflight/
+- `node scripts/new-video.mjs <slug> <CompId>` — scaffold new video skeleton (P1/P2-passing by construction)
 - `npm run dogfood:check` — machine-assert relay+granipa ship-gate verdicts against committed golden (`scripts/dogfood.golden.json`); **run before merging any gate-spine (`scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structure.mjs`) or `src/lib` change**. Not wired into PR CI (renders too heavy); run locally.
+- `node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34` — ElevenLabs music bed
+- `node scripts/analyze-music.mjs <slug> [--file=...]` — bpm/downbeat/energy → .analysis.json
+
+## Structure
+
+```
+src/lib/        spine: timeline (beats→frames), theme, springs, text, audio,
+                Grain/Vignette, DeviceFrame, DebugGrid, fx (AmbientField) — mechanics, no taste
+src/videos/     one folder per video (treatment.md, storyboard.md, theme.ts,
+                timeline.ts, Main.tsx, scenes/) + _registry.md identity ledger
+src/review/     ContactSheet comp (used by filmstrip.sh)
+src/smoke/      environment checks (SmokeTest) + lib integration (LibCheck)
+public/<slug>/  per-video assets — every asset needs a MANIFEST.md entry
+                (source, license, bpm + first-downbeat for music)
+```
 
 ## Hard rules
 
@@ -50,5 +67,10 @@ identity. The agent is the **director** — don't templatize. Read
 6. To pass the background-activity and frame-0 liveness hook gates, compose
    `AmbientField` from `src/lib/fx.tsx` as a living-background layer.
    See `src/smoke/AmbientCheck.tsx` for the reference gate-PASS fixture.
+7. Hook design: pick an archetype from `.claude/skills/produce/hooks.md` before
+   the treatment — eight gate-aligned, buildable specs; do not invent hook
+   patterns ad-hoc.
 
-30 fps, 1920×1080, 16:9 only. No audio is bundled — see the README's "Audio".
+30fps, 1920×1080, 16:9 only. WebGL effects need the angle backend (already in
+`remotion.config.ts`). Remotion is free ≤3 employees; larger needs a company
+license (remotion.pro).
