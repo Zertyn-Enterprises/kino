@@ -10,6 +10,8 @@
  *  - Unknown/unmapped identifier → generic fallback entry (never throws)
  *  - Every docRef resolves to a file that exists on disk (no dangling references)
  *  - Every fix is non-empty
+ *  - Multi-gate integration: ≥4 gates, ≥1 gate-not-run, ≥1 hard blocker, ≥1 advisory
+ *    → each entry has non-empty fix + docRef resolves to file+heading (Fixture H)
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -434,5 +436,131 @@ describe('buildRemediations — every docRef resolves to an existing file', () =
     for (const r of allRems) {
       expect(r.inspect.trim().length).toBeGreaterThan(5);
     }
+  });
+});
+
+// ── Fixture H: multi-gate integration — ≥4 gates, all three failure types ─────
+//
+// Acceptance spec §3 requirement: "failing fixtures spanning ≥4 distinct gates
+// (incl. ≥1 hard blocker, ≥1 advisory, ≥1 'gate not run') → each yields the
+// expected entry with non-empty fix and a docRef that resolves to an existing
+// file+heading"
+//
+// Gates exercised (6):
+//   hook:       null                               → gate-not-run blocker
+//   retention:  hardGatesPass=false               → hard-gates-failed blocker
+//   contrast:   advisory 'accent-on-bg'           → advisory
+//   motion:     advisory 'Easing presence'        → advisory
+//   legibility: hardGatesPass=true (clean)        → no entry
+//   codeCraft:  advisory 'C2-hex'                 → advisory
+//
+// Expected: 2 blockers (hook gate-not-run, retention hard-fail) then 3 advisories
+// (contrast, motion, codeCraft), each with non-empty fix + resolvable docRef.
+
+describe('buildRemediations — Fixture H: multi-gate integration (≥4 gates, gate-not-run + hard blocker + advisories)', () => {
+  const verdict = computeShipVerdict({
+    hook:       null,
+    retention:  hookMetrics({ hardGatesPass: false }),
+    contrast:   contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
+    motion:     hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true, advisoryFails: ['C2-hex'] }),
+  });
+
+  const rems = buildRemediations(verdict);
+
+  it('verdict is blocked (2 blockers)', () => {
+    expect(verdict.shipReady).toBe(false);
+    expect(verdict.blockers).toHaveLength(2);
+  });
+
+  it('returns 5 entries total (2 blockers + 3 advisories)', () => {
+    expect(rems).toHaveLength(5);
+  });
+
+  it('first two entries are blockers', () => {
+    expect(rems[0].severity).toBe('blocker');
+    expect(rems[1].severity).toBe('blocker');
+  });
+
+  it('last three entries are advisories', () => {
+    expect(rems[2].severity).toBe('advisory');
+    expect(rems[3].severity).toBe('advisory');
+    expect(rems[4].severity).toBe('advisory');
+  });
+
+  it('hook gate-not-run entry: non-empty fix + docRef resolves', () => {
+    const entry = rems.find(r => r.gate === 'hook' && r.severity === 'blocker');
+    expect(entry).toBeDefined();
+    expect(entry.fix.trim().length).toBeGreaterThan(10);
+    const filePart = entry.docRef.split(' §')[0];
+    expect(existsSync(join(ROOT, filePart))).toBe(true);
+    const section = entry.docRef.split(' §')[1];
+    if (section) {
+      const content = readFileSync(join(ROOT, filePart), 'utf8');
+      const re = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+      expect(re.test(content)).toBe(true);
+    }
+  });
+
+  it('retention hard-fail entry: non-empty fix + docRef resolves', () => {
+    const entry = rems.find(r => r.gate === 'retention' && r.severity === 'blocker');
+    expect(entry).toBeDefined();
+    expect(entry.fix.trim().length).toBeGreaterThan(10);
+    const filePart = entry.docRef.split(' §')[0];
+    expect(existsSync(join(ROOT, filePart))).toBe(true);
+    const section = entry.docRef.split(' §')[1];
+    if (section) {
+      const content = readFileSync(join(ROOT, filePart), 'utf8');
+      const re = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+      expect(re.test(content)).toBe(true);
+    }
+  });
+
+  it('contrast accent-on-bg advisory: non-empty fix + docRef resolves', () => {
+    const entry = rems.find(r => r.gate === 'contrast' && r.severity === 'advisory');
+    expect(entry).toBeDefined();
+    expect(entry.fix.trim().length).toBeGreaterThan(10);
+    const filePart = entry.docRef.split(' §')[0];
+    expect(existsSync(join(ROOT, filePart))).toBe(true);
+    const section = entry.docRef.split(' §')[1];
+    if (section) {
+      const content = readFileSync(join(ROOT, filePart), 'utf8');
+      const re = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+      expect(re.test(content)).toBe(true);
+    }
+  });
+
+  it('motion Easing presence advisory: non-empty fix + docRef resolves', () => {
+    const entry = rems.find(r => r.gate === 'motion' && r.severity === 'advisory');
+    expect(entry).toBeDefined();
+    expect(entry.fix.trim().length).toBeGreaterThan(10);
+    const filePart = entry.docRef.split(' §')[0];
+    expect(existsSync(join(ROOT, filePart))).toBe(true);
+    const section = entry.docRef.split(' §')[1];
+    if (section) {
+      const content = readFileSync(join(ROOT, filePart), 'utf8');
+      const re = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+      expect(re.test(content)).toBe(true);
+    }
+  });
+
+  it('codeCraft C2-hex advisory: non-empty fix + docRef resolves', () => {
+    const entry = rems.find(r => r.gate === 'codeCraft' && r.severity === 'advisory');
+    expect(entry).toBeDefined();
+    expect(entry.fix.trim().length).toBeGreaterThan(10);
+    const filePart = entry.docRef.split(' §')[0];
+    expect(existsSync(join(ROOT, filePart))).toBe(true);
+    const section = entry.docRef.split(' §')[1];
+    if (section) {
+      const content = readFileSync(join(ROOT, filePart), 'utf8');
+      const re = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+      expect(re.test(content)).toBe(true);
+    }
+  });
+
+  it('clean gate (legibility) emits no entry', () => {
+    const legibilityEntries = rems.filter(r => r.gate === 'legibility');
+    expect(legibilityEntries).toHaveLength(0);
   });
 });
