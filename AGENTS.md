@@ -39,7 +39,8 @@ identity. The agent is the **director** — don't templatize. Read
 - `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (all gates); retention/musicsync structure flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/ (`report.txt §How-to-fix` + `report.json.remediations`)
 - `scripts/preflight.sh <CompId> <slug>` — structural-integrity gate (no render; P1/P2 HARD, P3/P4/P5/P6 advisory) → out/review/<CompId>/preflight/
 - `node scripts/new-video.mjs <slug> <CompId>` — scaffold new video skeleton (P1/P2-passing by construction)
-- `npm run dogfood:check` — machine-assert relay+granipa ship-gate verdicts against committed golden (`scripts/dogfood.golden.json`); **run before merging any gate-spine (`scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structure.mjs`) or `src/lib` change**. Not wired into PR CI (renders too heavy); run locally.
+- `npm run dogfood:check:rf` — render-free dogfood CI gate: asserts relay+granipa source-level verdicts (code-craft, remotion-correct, distinct, preflight) against `scripts/dogfood.renderfree.golden.json`; **wired into PR CI** — runs automatically on every PR, no Chromium required.
+- `npm run dogfood:check` — full-render dogfood: machine-asserts relay+granipa ship-gate verdicts against `scripts/dogfood.golden.json`; **run before merging any gate-spine (`scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structure.mjs`) or `src/lib` change**. Not wired into PR CI (renders too heavy); run locally.
 - `node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34` — ElevenLabs music bed
 - `node scripts/analyze-music.mjs <slug> [--file=...]` — bpm/downbeat/energy → .analysis.json
 

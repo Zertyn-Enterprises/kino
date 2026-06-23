@@ -49,6 +49,9 @@ jobs:
             popd > /dev/null
           done
 
+      - name: Render-free dogfood regression gate
+        run: npm run dogfood:check:rf
+
       - name: Check Python projects
         shell: bash
         run: |

@@ -1,25 +1,32 @@
 #!/usr/bin/env node
 // Dogfood regression harness: run ship-gate for relay+granipa, normalize verdict,
-// compare to a committed golden.
+// compare to a committed golden. Two-tier dogfood:
 //
-// Modes:
-//   --update   Re-run ship-gate for all canonical videos and write dogfood.golden.json.
-//   --check    Re-run ship-gate, diff against golden; exit 0 on match, non-zero + readable
-//              drift report on mismatch.
+//   Tier 1 — render-free (CI-enforced, no Chromium needed):
+//     npm run dogfood:rf           Re-run 4 render-free gates; write dogfood.renderfree.golden.json.
+//     npm run dogfood:check:rf     Re-run 4 render-free gates; diff against golden; CI fails on drift.
+//     Flags: --render-free --update | --render-free --check
+//     Gates: code-craft, remotion-correct, distinct, preflight (all source-only).
+//     Wired into .github/workflows/checks.yml — runs on every PR automatically.
+//
+//   Tier 2 — full render (local, manual pre-merge):
+//     npm run dogfood              Re-run ship-gate (all gates); write dogfood.golden.json.
+//     npm run dogfood:check        Re-run ship-gate; diff against golden; run locally before merging
+//                                  gate-spine (*-metrics.mjs, ship-metrics.mjs, structure.mjs) or src/lib.
+//     Flags: --update | --check
+//     NOT wired into CI — full renders require Chromium (~44s per video).
 //
 // Exported pure functions (no I/O; tested in dogfood.test.mjs):
 //   normalize(report, gateMetrics) → stable snapshot
 //   diff(compId, golden, current) → Array<drift>
-//
-// NOT wired into .github/workflows/checks.yml — full renders are too heavy for PR CI.
-// Run locally before merging any gate-spine (*-metrics.mjs, ship-metrics.mjs,
-// structure.mjs) or src/lib change.
+//   buildRenderFreeReport(codeCraftM, remotionCorrectM, distinctM, preflightM) → synthetic report
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const GOLDEN_PATH = 'scripts/dogfood.golden.json';
+const RENDERFREE_GOLDEN_PATH = 'scripts/dogfood.renderfree.golden.json';
 
 // Epsilon for float metric comparisons — absorbs sub-pixel render noise across runs.
 // Strict equality is used for shipReady, hard verdicts, coverage, and blockers.
@@ -153,7 +160,7 @@ export function loadGateMetrics(compId, slug) {
 
 const GATE_ORDER = [
   'hook', 'retention', 'contrast', 'motion', 'legibility', 'codeCraft',
-  'musicsync', 'payoff', 'remotionCorrect', 'distinct',
+  'musicsync', 'payoff', 'remotionCorrect', 'distinct', 'preflight',
 ];
 
 /**
@@ -296,16 +303,98 @@ export function diff(compId, golden, current) {
 }
 
 // ---------------------------------------------------------------------------
+// buildRenderFreeReport() — pure exported function
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a normalize()-compatible report from four render-free gate metrics.json objects.
+ * Pure function: no I/O.
+ *
+ * Handles distinct.skip=true → coverage: 'skip-na' (not a blocker).
+ * Other gates (codeCraft, remotionCorrect, preflight) are always ran or missing.
+ *
+ * @param {object|null} codeCraftM       — parsed code-craft/metrics.json
+ * @param {object|null} remotionCorrectM — parsed remotion-correct/metrics.json
+ * @param {object|null} distinctM        — parsed distinct/metrics.json
+ * @param {object|null} preflightM       — parsed preflight/metrics.json
+ * @returns {{ shipReady: boolean, gates: object, blockers: string[] }}
+ */
+export function buildRenderFreeReport(codeCraftM, remotionCorrectM, distinctM, preflightM) {
+  const gates = {};
+  const blockers = [];
+
+  function addGate(name, metrics) {
+    if (!metrics) {
+      gates[name] = { ran: false, hardGatesPass: false, coverage: 'coverage-gap' };
+      blockers.push(`${name} metrics not found`);
+      return;
+    }
+    const skipped = metrics.skip === true;
+    gates[name] = {
+      ran: !skipped,
+      hardGatesPass: metrics.hardGatesPass,
+      coverage: skipped ? 'skip-na' : 'ran',
+    };
+    if (!skipped && !metrics.hardGatesPass) {
+      blockers.push(`${name} hard gates failed`);
+    }
+  }
+
+  addGate('codeCraft', codeCraftM);
+  addGate('remotionCorrect', remotionCorrectM);
+  addGate('distinct', distinctM);
+  addGate('preflight', preflightM);
+
+  return { shipReady: blockers.length === 0, gates, blockers };
+}
+
+// ---------------------------------------------------------------------------
 // CLI — only active when this file is the entry point
 // ---------------------------------------------------------------------------
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const mode = args.includes('--update') ? 'update' : args.includes('--check') ? 'check' : null;
+  const renderFree = args.includes('--render-free');
 
   if (!mode) {
-    process.stderr.write('Usage: node scripts/dogfood.mjs --update | --check\n');
+    process.stderr.write(
+      'Usage: node scripts/dogfood.mjs [--render-free] --update | --check\n' +
+      '  --render-free  Run only the four render-free gates (no Chromium); use dogfood.renderfree.golden.json.\n'
+    );
     process.exit(1);
+  }
+
+  /** Run the four render-free gates for one video and return its normalized snapshot. */
+  function runVideoRenderFree({ compId, slug }) {
+    const gateRuns = [
+      { script: 'scripts/code-craft.sh',       scriptArgs: [compId, slug], metricsPath: `out/review/${compId}/code-craft/metrics.json` },
+      { script: 'scripts/remotion-correct.sh',  scriptArgs: [compId, slug], metricsPath: `out/review/${compId}/remotion-correct/metrics.json` },
+      { script: 'scripts/distinct.sh',          scriptArgs: [slug],         metricsPath: `out/review/${slug}/distinct/metrics.json` },
+      { script: 'scripts/preflight.sh',         scriptArgs: [compId, slug], metricsPath: `out/review/${compId}/preflight/metrics.json` },
+    ];
+
+    for (const g of gateRuns) {
+      process.stdout.write(`\n==> Running ${g.script} for ${compId}...\n`);
+      try {
+        const output = execFileSync(g.script, g.scriptArgs, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'inherit'],
+        });
+        process.stdout.write(output);
+      } catch (err) {
+        // non-zero exit on HARD fail — still read the metrics.json
+        if (err.stdout) process.stdout.write(err.stdout);
+      }
+    }
+
+    const codeCraftM      = loadJson(`out/review/${compId}/code-craft/metrics.json`);
+    const remotionCorrectM = loadJson(`out/review/${compId}/remotion-correct/metrics.json`);
+    const distinctM       = loadJson(`out/review/${slug}/distinct/metrics.json`);
+    const preflightM      = loadJson(`out/review/${compId}/preflight/metrics.json`);
+
+    const report = buildRenderFreeReport(codeCraftM, remotionCorrectM, distinctM, preflightM);
+    return normalize(report, {});
   }
 
   /** Run ship-gate.sh for one video and return its normalized snapshot. */
@@ -337,46 +426,51 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
   if (mode === 'update') {
     const golden = {};
+    const goldenPath = renderFree ? RENDERFREE_GOLDEN_PATH : GOLDEN_PATH;
     for (const video of VIDEOS) {
-      golden[video.compId] = runVideo(video);
+      golden[video.compId] = renderFree ? runVideoRenderFree(video) : runVideo(video);
     }
-    writeFileSync(GOLDEN_PATH, JSON.stringify(golden, null, 2) + '\n');
-    process.stdout.write(`\nGolden written → ${GOLDEN_PATH}\n`);
+    writeFileSync(goldenPath, JSON.stringify(golden, null, 2) + '\n');
+    process.stdout.write(`\nGolden written → ${goldenPath}\n`);
     process.exit(0);
   }
 
   if (mode === 'check') {
-    if (!existsSync(GOLDEN_PATH)) {
-      process.stderr.write(`ERROR: ${GOLDEN_PATH} not found — run npm run dogfood first\n`);
+    const goldenPath = renderFree ? RENDERFREE_GOLDEN_PATH : GOLDEN_PATH;
+    const updateCmd = renderFree ? 'npm run dogfood:rf' : 'npm run dogfood';
+    if (!existsSync(goldenPath)) {
+      process.stderr.write(`ERROR: ${goldenPath} not found — run ${updateCmd} first\n`);
       process.exit(1);
     }
-    const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8'));
+    const golden = JSON.parse(readFileSync(goldenPath, 'utf8'));
 
     const allDrifts = [];
     for (const video of VIDEOS) {
-      const current = runVideo(video);
+      const current = renderFree ? runVideoRenderFree(video) : runVideo(video);
       const goldenSnap = golden[video.compId];
       if (!goldenSnap) {
-        process.stderr.write(`ERROR: ${video.compId} not in golden — run npm run dogfood first\n`);
+        process.stderr.write(`ERROR: ${video.compId} not in golden — run ${updateCmd} first\n`);
         process.exit(1);
       }
       const drifts = diff(video.compId, goldenSnap, current);
       allDrifts.push(...drifts);
     }
 
+    const label = renderFree ? 'Render-free dogfood check' : 'Dogfood check';
+    const fixCmd = renderFree ? 'npm run dogfood:rf' : 'npm run dogfood';
     if (allDrifts.length === 0) {
-      process.stdout.write('\nDogfood check PASSED — all verdicts match golden\n');
+      process.stdout.write(`\n${label} PASSED — all verdicts match golden\n`);
       process.exit(0);
     }
 
-    process.stdout.write(`\nDogfood check FAILED — ${allDrifts.length} drift(s) vs golden:\n`);
+    process.stdout.write(`\n${label} FAILED — ${allDrifts.length} drift(s) vs golden:\n`);
     for (const d of allDrifts) {
       const gateLabel = d.gate ? `gate=${d.gate} ` : '';
       const goldenVal = JSON.stringify(d.golden);
       const actualVal = JSON.stringify(d.actual);
       process.stdout.write(`  ${d.video}  ${gateLabel}field=${d.field}  golden=${goldenVal}  actual=${actualVal}\n`);
     }
-    process.stdout.write('\nFix the drifting gate(s) or run npm run dogfood to update the golden.\n');
+    process.stdout.write(`\nFix the drifting gate(s) or run ${fixCmd} to update the golden.\n`);
     process.exit(1);
   }
 }

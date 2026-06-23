@@ -238,13 +238,26 @@ through `normalize()` and `diff()` — any gate-spine edit that accidentally
 false-blocks a light-palette, music-less, or restrained-motion shape will
 flip a PASS verdict to FAIL in this fixture and fail `npm test`.
 
-### Pre-merge checklist for gate-spine changes
+### Pre-merge checklist for gate-spine or src/lib changes
 
-Before merging any edit to `scripts/*-metrics.mjs`, `ship-metrics.mjs`, or `structure.mjs`:
+Before merging any edit to `scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structure.mjs`, or any file under `src/lib/`:
 
 1. **`npm test`** — validates all 9 metric modules including divergent-shape regression
    fixtures; also validates the dogfood normalize/diff logic against a divergent synthetic shape (Fixture K)
-2. **`npm run dogfood:check`** — validates relay+granipa full-render verdicts against
-   the committed golden (`scripts/dogfood.golden.json`)
+2. **`npm run dogfood:check:rf`** — validates relay+granipa source-level (render-free) verdicts
+   against the committed golden (`scripts/dogfood.renderfree.golden.json`); **CI-enforced on every PR** (no Chromium needed)
+3. **`npm run dogfood:check`** — validates relay+granipa full-render verdicts against
+   the committed golden (`scripts/dogfood.golden.json`); run locally before merging (renders too heavy for CI)
 
-Both must exit 0.
+All three must exit 0.
+
+---
+
+## Two-tier dogfood
+
+| Tier | Command | Golden | CI | What it catches |
+| --- | --- | --- | --- | --- |
+| Render-free | `npm run dogfood:check:rf` | `scripts/dogfood.renderfree.golden.json` | ✅ every PR | Regressions in code-craft, remotion-correct, distinct, preflight source gates |
+| Full render | `npm run dogfood:check` | `scripts/dogfood.golden.json` | ❌ local only | Regressions in all 10 ship gates including pixel-level hook/retention/motion/legibility/contrast/payoff |
+
+The render-free tier runs on every PR automatically (`.github/workflows/checks.yml`). It protects the source-level gates with no Chromium dependency. The full-render tier is the authoritative pre-merge check — run it locally before merging any gate-spine or `src/lib` change.
