@@ -56,3 +56,22 @@ Axes per entry:
 | texture         | filmic — grain 4%, vignette 0.28, almost no leaks                                                                                                                                                                                |
 | transitions     | contained internal motions + one wide pullback at the sovereignty moment                                                                                                                                                         |
 | music           | warm assured modern, ~98–122bpm character (audio not bundled — see `public/granipa/MANIFEST.md`); home bloom aligned to the reveal                                                                                              |
+
+## 3 · sereno / SerenoLaunch (2026-06-23) — calibration fixture (not a shipped sample)
+
+> **Internal calibration fixture.** Proves divergent-shape gate calibration end-to-end on axes
+> that differ from relay+granipa: light-luminance, music-less, arc-C, restrained-motion,
+> serif display type, no grain. Not listed in README sample set.
+
+| field           | value                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| product         | Sereno — mindfulness focus tool (fictional; internal calibration fixture only)           |
+| arc             | C · ambient / no climax                                                                  |
+| rhythm          | slow breath — each scene settles before the next; no energy punches, no dead stops       |
+| luminance       | light (#F7F5F0 warm off-white)                                                           |
+| palette         | bg #F7F5F0 · accent sage #3F6D50                                                         |
+| type            | Playfair Display display / DM Sans body                                                  |
+| signature moves | opacity fade-in reveal · staggered list entrance · stat counter hold                    |
+| texture         | clean — grain 0%, vignette 0%                                                            |
+| transitions     | hard cuts only, unaccented                                                               |
+| music           | no music — ambient nature sound only                                                     |

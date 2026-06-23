@@ -44,5 +44,28 @@
     },
     "blockers": [],
     "metrics": {}
+  },
+  "SerenoLaunch": {
+    "shipReady": true,
+    "gates": {
+      "codeCraft": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "remotionCorrect": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "distinct": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "preflight": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      }
+    },
+    "blockers": [],
+    "metrics": {}
   }
 }
