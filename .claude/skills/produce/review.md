@@ -254,6 +254,41 @@ the declared window end. Unjustified advisory failures are not acceptable.
 record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 13. Remotion-correctness gate (run on EVERY video, no render required)
+
+Run `scripts/remotion-correct.sh <CompId> <slug>` at any point during scene work
+and again at full-cut. Judge against `remotion-correct.md`.
+
+### Blocking vs advisory enforcement
+
+**Gates R1–R2 (HARD):** R1-determinism fails when any nondeterministic call
+(`Math.random()`, `Date.now()`, `new Date()`, `performance.now()`) appears in scanned
+source — these produce different values on every render call, guaranteeing frame flicker
+in the export. R2-media fails when raw `<img>` / `<video>` / `<audio>` JSX opening tags
+appear in source — Remotion's renderer cannot sequence these reliably, and they tear on
+export. Either failure must be fixed before the next render. Do not call `SHIP: READY`
+with a non-zero `remotion-correct.sh` exit code.
+
+**Gates R3–R5 (ADVISORY):** Failing any advisory gate requires a named, written
+justification before continuing. Accepted exception classes:
+- **R3-interpolate-clamp:** named clamp constant (`CLAMP` / `clamp`) passed as the
+  options object — the static scanner cannot resolve identifiers, so these are flagged
+  even when clamping is explicit. Short micro-transitions in the `[0, 1]` output range
+  where overshoot is geometrically impossible are also acceptable.
+- **R4-spring-fps:** `fps` delivered via object spread where the spread source carries `fps`.
+- **R5-wallclock:** `useState` for non-animation UI state (tabs, hover, toggle) where
+  no time-based side-effect exists.
+
+Unjustified advisory failures are not acceptable.
+
+**SKIP / graceful degradation:** all gates report `skip: true` when no scene files are
+found (never a failure). If `remotion-correct.sh` was not run, `ship-metrics.mjs`
+reports `remotionCorrect.ran = false` (not a hard blocker) — re-run to evaluate.
+
+**Machine signal:** `out/review/<CompId>/remotion-correct/metrics.json` is the artifact
+of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip` fields.
+Human-readable verdict is tee'd to `metrics.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.
