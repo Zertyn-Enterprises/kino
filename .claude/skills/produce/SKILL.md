@@ -167,9 +167,16 @@ before approval.**
 
 Before writing the storyboard, **pick a retention pattern per act** from
 `retention-patterns.md` (back-loaded climax, open loop, payoff seeding, etc.)
-and note the chosen pattern + the `--climax`/`--rehook`/`--holds` flags it
-requires in the storyboard header. This determines how visual energy distributes
-across the arc and what flags to pass in the full-cut review.
+and note the chosen pattern in the storyboard header. This determines how visual
+energy distributes across the arc.
+
+**Declare structure in `timeline.ts` — not as CLI flags.** Once you know which
+scene is the narrative climax, add `role: 'climax'` to that scene in `timeline.ts`
+(and `role: 'hold'` to any declared freeze-frame/credits holds; set `rehookSeconds`
+on the `TimelineConfig` if the default 8 s cadence is too loose). The gate scripts
+(`retention.sh`, `musicsync.sh`, `ship-gate.sh`) auto-derive `--climax`/`--holds`/
+`--rehook` from the `slug`'s `timeline.ts` so you never hand-type a frame number
+that goes stale when bpm or beats change.
 
 `storyboard.md`: per scene — intent, copy (exact words on screen), visual
 description, camera/motion notes, beats, SFX cues (beat-anchored), and a

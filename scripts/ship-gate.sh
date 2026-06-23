@@ -10,7 +10,7 @@
 #   <CompId>        Remotion composition ID (e.g. RelayLaunch)
 #   <slug>          Video slug for contrast gate and code-craft gate (e.g. relay)
 #   palette flags   --bg=, --surface=, --text=, --textDim=, --accent=, [--accentAlt=]
-#   -- ret flags    --holds=, --climax=, --rehook= (passed after --)
+#   -- ret flags    --holds=, --climax=, --rehook= override (auto-derived from timeline when omitted)
 #
 # e.g. scripts/ship-gate.sh RelayLaunch relay \
 #        --bg='#0A0E0B' --surface='#131A14' --text='#F2F5F0' \
@@ -82,11 +82,7 @@ DISTINCT_EXIT=0
 scripts/hook.sh "$COMP" >"$GATE_TMPDIR/hook.log" 2>&1 &
 HOOK_PID=$!
 
-if [ "${#RETENTION_ARGS[@]}" -gt 0 ]; then
-  scripts/retention.sh "$COMP" 5 "" "${RETENTION_ARGS[@]}" >"$GATE_TMPDIR/retention.log" 2>&1 &
-else
-  scripts/retention.sh "$COMP" >"$GATE_TMPDIR/retention.log" 2>&1 &
-fi
+scripts/retention.sh "$COMP" 5 "" --slug="$SLUG" "${RETENTION_ARGS[@]}" >"$GATE_TMPDIR/retention.log" 2>&1 &
 RETENTION_PID=$!
 
 CONTRAST_PID=""
@@ -110,7 +106,7 @@ CODE_CRAFT_PID=$!
 scripts/musicsync.sh "$COMP" "$SLUG" >"$GATE_TMPDIR/musicsync.log" 2>&1 &
 MUSICSYNC_PID=$!
 
-scripts/payoff.sh "$COMP" >"$GATE_TMPDIR/payoff.log" 2>&1 &
+scripts/payoff.sh "$COMP" 3 "" --slug="$SLUG" >"$GATE_TMPDIR/payoff.log" 2>&1 &
 PAYOFF_PID=$!
 
 scripts/remotion-correct.sh "$COMP" "$SLUG" >"$GATE_TMPDIR/remotion-correct.log" 2>&1 &

@@ -14,6 +14,11 @@
  *   relay timeline has role:'climax' on the 'climax' scene (beats 48–56 at
  *   120bpm/30fps → from=720). No hold roles, no rehookSeconds.
  *   Expected: climaxFrame=720, holds=[], rehookSeconds=null, flags='--climax=720'
+ *
+ * Golden calibration (granipa, via loadStructure):
+ *   granipa timeline has role:'climax' on the 'kicker' scene (cumulative beats
+ *   0+5+12+3+6+16+10+8=60 at 122bpm/30fps → beatFrame(60)=885). No hold roles.
+ *   Expected: climaxFrame=885, holds=[], rehookSeconds=null, flags='--climax=885'
  */
 
 import { describe, expect, it } from 'vitest';
@@ -107,5 +112,37 @@ describe('loadStructure — golden calibration (relay)', () => {
   it('flag string is --climax=720', async () => {
     const structure = await loadStructure('relay');
     expect(structureToFlags(structure)).toBe('--climax=720');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Golden calibration — granipa via loadStructure (esbuild)
+//
+// granipa timeline: fps=30, bpm=122, 9 scenes. 'kicker' scene starts at the
+// cumulative cut of 'sovereignty' = beatFrame(60).
+// beatFrame(60) = round((60 * 60/122) * 30) = round(885.25) = 885.
+// The 'kicker' scene carries role:'climax', so structure.climaxFrame = 885.
+// No hold roles, no rehookSeconds → flags = '--climax=885'.
+// ---------------------------------------------------------------------------
+
+describe('loadStructure — golden calibration (granipa)', () => {
+  it('climaxFrame is 885 (kicker.from derived from role, not a literal)', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structure.climaxFrame).toBe(885);
+  });
+
+  it('holds is empty (no hold-roled scenes)', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structure.holds).toEqual([]);
+  });
+
+  it('rehookSeconds is null (not declared)', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structure.rehookSeconds).toBeNull();
+  });
+
+  it('flag string is --climax=885', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structureToFlags(structure)).toBe('--climax=885');
   });
 });
