@@ -141,6 +141,24 @@ node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" 
 node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" "$OUT/final.png" \
   | tee "$OUT/metrics.txt" || true
 
+# --- 5. Promise gate ---
+# Renders promise.png at the declared promise frame (if any), evaluates all four
+# promise gates, and merges the result into metrics.json under a 'promise' key.
+# PROMISE_EXIT is non-zero only when a HARD promise gate fails.
+PROMISE_EXIT=0
+node scripts/promise-metrics.mjs "$COMP" --out-dir="$OUT" --json \
+  > "$OUT/promise-block.json" || PROMISE_EXIT=$?
+node -e "
+  const fs = require('fs');
+  try {
+    const m = JSON.parse(fs.readFileSync('$OUT/metrics.json', 'utf8'));
+    const p = JSON.parse(fs.readFileSync('$OUT/promise-block.json', 'utf8'));
+    m.promise = p;
+    fs.writeFileSync('$OUT/metrics.json', JSON.stringify(m, null, 2) + '\n');
+  } catch (e) { process.stderr.write('promise-merge: ' + e.message + '\n'); }
+"
+rm -f "$OUT/promise-block.json"
+
 echo "Hook review — $OUT/"
 echo "  frame0.png"
 echo "  early.png  (frame $EARLY_FRAME)"
@@ -152,13 +170,20 @@ fi
 if [ -f "$OUT/final.png" ]; then
   echo "  final.png"
 fi
+if [ -f "$OUT/promise.png" ]; then
+  echo "  promise.png"
+fi
 echo "  metrics.json"
 echo "  metrics.txt"
 
-if [ "$METRICS_EXIT" -eq 0 ]; then
+COMBINED_EXIT=0
+[ "$METRICS_EXIT" -ne 0 ] && COMBINED_EXIT=1
+[ "$PROMISE_EXIT" -ne 0 ] && COMBINED_EXIT=1
+
+if [ "$COMBINED_EXIT" -eq 0 ]; then
   echo "HARD GATES: PASS"
 else
   echo "HARD GATES: FAIL"
 fi
 
-exit "$METRICS_EXIT"
+exit "$COMBINED_EXIT"
