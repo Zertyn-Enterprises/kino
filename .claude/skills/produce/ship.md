@@ -1,7 +1,7 @@
 # Ship gate — unified verdict
 
 Run `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]`
-to run all seven gates (hook, retention, contrast, motion, legibility, code-craft, musicsync) in sequence and produce:
+to run all ten gates (hook, retention, contrast, motion, legibility, code-craft, musicsync, payoff, remotion-correct, distinct) in sequence and produce:
 - `out/review/<CompId>/ship/report.json` — machine source of truth (single verdict)
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
@@ -27,6 +27,9 @@ scripts/ship-gate.sh <CompId> <slug> \
 - Legibility gate runs automatically (`scripts/legibility.sh <CompId>`, default step=3).
 - Code-craft gate runs automatically (`scripts/code-craft.sh <CompId> <slug>`, no render required).
 - Music-sync gate runs automatically (`scripts/musicsync.sh <CompId> <slug>`); degrades to SKIP when no `public/<slug>/*.analysis.json` is present — SKIP never blocks ship.
+- Payoff gate runs automatically (`scripts/payoff.sh <CompId>`); degrades gracefully when absent — SKIP never blocks ship.
+- Remotion-correct gate runs automatically (`scripts/remotion-correct.sh <CompId> <slug>`); R1/R2 HARD, R3-R5 advisory. Absent metrics = graceful SKIP.
+- Distinct gate runs automatically (`scripts/distinct.sh <slug>`); ≥4-axis anti-template rule (HARD). Absent metrics = graceful SKIP. Advisory drift warnings never block.
 
 Inspect the outputs:
 
@@ -49,13 +52,16 @@ cat out/review/<CompId>/ship/report.txt    # human-readable table
     "motion":     { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
     "legibility": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Reading-budget share"], "justified": false },
     "codeCraft":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["C1-emoji", "C1-font", "C2-hex", "C3-easing"], "justified": false },
-    "musicsync":  { "ran": false, "hardGatesPass": true, "advisoryFailures": [], "justified": true }
+    "musicsync":      { "ran": false, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
+    "payoff":         { "ran": true,  "hardGatesPass": true, "advisoryFailures": [], "justified": true },
+    "remotionCorrect":{ "ran": true,  "hardGatesPass": true, "advisoryFailures": ["R3-interpolate-clamp"], "justified": false },
+    "distinct":       { "ran": true,  "hardGatesPass": true, "advisoryFailures": ["D-drift-luminance-dark-tonal"], "justified": false }
   },
   "blockers": []
 }
 ```
 
-`musicsync.ran=false, hardGatesPass=true` is the expected shape when no audio analysis is present (graceful SKIP — never blocks ship). When analysis is present and MS1/MS2 hard gates pass, `ran=true, hardGatesPass=true`. A real hard-gate failure sets `hardGatesPass=false` and adds `"musicsync hard gates failed"` to `blockers`.
+`musicsync.ran=false, hardGatesPass=true` is the expected shape when no audio analysis is present (graceful SKIP — never blocks ship). `payoff`, `remotionCorrect`, and `distinct` also degrade to graceful SKIP when `metrics.json` is absent (`ran=false, hardGatesPass=true`). A real hard-gate failure sets `hardGatesPass=false` and adds `"<gate> hard gates failed"` to `blockers`.
 
 - `shipReady` — `true` iff every gate ran AND every gate's `hardGatesPass` is `true`.
 - `gates.<name>.ran` — `false` if the gate's `metrics.json` was absent.
@@ -94,6 +100,14 @@ See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, `cod
 | Music-sync MS2 (downbeat lock) | BLOCKING when analysis present; SKIP otherwise | — |
 | Music-sync MS3 (climax on drop) | — | named justification required (skips when no drops/climax) |
 | Music-sync MS4 (cut-on-beat coverage) | — | named justification required (skips when no analysis) |
+| Payoff P1 (payoff presence & dwell) | BLOCKING | — |
+| Payoff P2 (final-frame end-card legibility) | BLOCKING | — |
+| Payoff P3 (closing stability) | — | named justification required |
+| Remotion-correct R1 (sequences-not-series) | BLOCKING | — |
+| Remotion-correct R2 (no-interpolate-outside-useCurrentFrame) | BLOCKING | — |
+| Remotion-correct R3–R5 (various advisory) | — | named justification required |
+| Distinct D1 (≥4 axes distinct from every prior) | BLOCKING | — |
+| Distinct drift (bg-luminance / mono-font / blue-teal accent convergence) | — | named justification required |
 
 Advisory failures appear in `advisoryFailures` and are never hard blockers, but each
 one must have a named, written justification recorded in the review before continuing.

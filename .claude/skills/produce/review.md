@@ -289,6 +289,39 @@ reports `remotionCorrect.ran = false` (not a hard blocker) — re-run to evaluat
 of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 14. Distinctiveness gate (run at treatment time and at ship)
+
+Run `scripts/distinct.sh <slug> [--bg=.. --accent=.. --luminance=.. --arc=.. --bpm=.. --grain=..]`
+to confirm the candidate differs on ≥4 identity axes from every prior `_registry.md` entry.
+The gate is render-free and parses the registry directly.
+
+**At treatment time (stage 2):** supply pre-registry overrides so the gate runs
+before the registry entry is written. Must exit 0 before the treatment is marked APPROVED.
+
+**At ship (stage 7):** `scripts/ship-gate.sh` runs `distinct.sh` automatically as
+the 10th gate; inspect `out/review/<slug>/distinct/metrics.json` for the verdict.
+
+### Blocking vs advisory enforcement
+
+**HARD gate — ≥4 axes distinct from every prior:** A candidate that collides with
+any prior entry on fewer than 4 axes cannot ship. Exit non-zero = blocked. Fix by
+reworking at least (4 − differingCount) axes in the treatment, not the code.
+
+**Advisory — convergence drift:** ≥2 entries share a known default-drift axis
+(dark/tonal bg-luminance family, JetBrains Mono, blue/teal accent) → advisory
+warning in `metrics.json`. Requires a named written justification; never blocks.
+
+**SKIP mode (n < 2):** when the registry has fewer than 2 entries total, nothing
+to compare — the gate exits 0 with `hardGatesPass: true` and `skip: true`. SKIP
+is automatically the state for the FIRST video; adds entries to the registry for
+it to fire. When `distinct=null` in `ship-metrics.mjs` (gate not run), it also
+reports as graceful SKIP — re-run `ship-gate.sh` to evaluate.
+
+**Machine signal**: `out/review/<slug>/distinct/metrics.json` is the artifact of
+record — inspect `hardGatesPass`, `perPrior[].differingCount`, and `gates[]` for
+advisory drift warnings. Human-readable verdict is tee'd to `report.txt`.
+See `distinct.md` for threshold constants and relay+granipa calibration snapshots.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.

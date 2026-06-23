@@ -49,6 +49,11 @@ Read these before any creative decision (all in this folder):
   (both HARD) / R3-interpolate-clamp / R4-spring-fps / R5-wallclock (all advisory).
   `scripts/remotion-correct.sh` usage, calibration rationale, and recorded
   RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at any point.
+- `distinct.md` — distinctiveness gate: ≥4-axis anti-template rule (Hard Rule #3).
+  CIE94 color distance, Jaccard similarity, 9 identity axes. `scripts/distinct.sh`
+  usage, threshold reference, drift-advisory semantics, and relay+granipa calibration
+  snapshots. Run at treatment time (stage 2) with pre-registry overrides, and again
+  at ship (stage 7) after `_registry.md` is updated.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -144,6 +149,9 @@ Run the identity derivation in `direction.md` §3, then write `treatment.md`:
 - Music direction: bpm, energy map, where the drop/impact lands.
 - Scene list: name, intent, beats, one-line visual.
 - Registry diff: which ≥4 axes differ from each prior video, stated.
+  **Before finalizing the draft**, run:
+  `scripts/distinct.sh <slug> --bg=.. --accent=.. --luminance=.. --arc=.. --bpm=.. --grain=..`
+  with the candidate's palette/identity values. The gate must exit 0. See `distinct.md`.
 - `Status: DRAFT`
 
 Present the treatment to the user conversationally (not just the file).
@@ -262,9 +270,13 @@ editing `timeline.ts`, not scenes.
   the full-cut review):
   `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]`
   Must print `SHIP: READY` and exit 0 before the final render. See `ship.md`.
+  The ship gate runs `scripts/distinct.sh <slug>` automatically — inspect
+  `out/review/<slug>/distinct/metrics.json` for the distinctiveness verdict.
 - Final render: `npx remotion render <Comp> out/<slug>.mp4 --crf=16`
   (and `--scale=2` if 4K is wanted). Verify with `npx remotion ffprobe`.
 - Append the video's identity fingerprint to `src/videos/_registry.md`.
+  After appending, re-run `scripts/distinct.sh <slug>` to confirm the final
+  registry state still passes (SKIP upgrades to PASS once n≥2). See `distinct.md`.
 - If any pattern was written twice across videos and survived review, propose
   extracting it to `src/lib/` (do not extract single-use code).
 - Run `npm run lint && npm test` — must be green before calling it done.

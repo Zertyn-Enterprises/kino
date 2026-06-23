@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// Aggregates hook, retention, contrast, motion, legibility, code-craft, musicsync, payoff, and remotion-correct gate verdicts into a single ship verdict.
+// Aggregates hook, retention, contrast, motion, legibility, code-craft, musicsync, payoff, remotion-correct, and distinct gate verdicts into a single ship verdict.
 //
 // Usage:
-//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [<payoff-metrics.json>] [<remotion-correct-metrics.json>] [--json]
+//   node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [<payoff-metrics.json>] [<remotion-correct-metrics.json>] [<distinct-metrics.json>] [--json]
 //   --json  emit structured JSON verdict instead of human-readable table
 //
 // shipReady is true iff every gate ran AND every gate's hardGatesPass is true.
-// A missing/null gate is a hard blocker — except musicsync, payoff, and remotionCorrect, which degrade gracefully
-// to SKIP (musicsync: no analysis.json; payoff/remotionCorrect: absent metrics) and never block ship when null.
+// A missing/null gate is a hard blocker — except musicsync, payoff, remotionCorrect, and distinct, which
+// degrade gracefully to SKIP when null (absent metrics.json) and never block ship when null.
+// Only a real hardGatesPass:false verdict from any gate blocks ship.
 //
 // Exit code: 0 when shipReady; non-zero otherwise.
 
@@ -36,11 +37,12 @@ function extractAdvisoryFailures(metrics) {
 }
 
 /**
- * Pure computation: evaluate the overall ship verdict from the nine gate metrics.
+ * Pure computation: evaluate the overall ship verdict from the ten gate metrics.
  *
- * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null, legibility: object|null, codeCraft: object|null, musicsync: object|null, payoff: object|null, remotionCorrect: object|null }} opts
+ * @param {{ hook: object|null, retention: object|null, contrast: object|null, motion: object|null, legibility: object|null, codeCraft: object|null, musicsync: object|null, payoff: object|null, remotionCorrect: object|null, distinct: object|null }} opts
  *   Each field is the parsed metrics.json for that gate, or null if the gate was not run.
- *   musicsync=null, payoff=null, and remotionCorrect=null are treated as graceful SKIP (not hard blockers); all other null gates block.
+ *   musicsync=null, payoff=null, remotionCorrect=null, and distinct=null are treated as graceful SKIP (not hard blockers).
+ *   All other null gates (hook, retention, contrast, motion, legibility, codeCraft) block ship.
  * @returns {{
  *   shipReady: boolean,
  *   gates: {
@@ -53,11 +55,12 @@ function extractAdvisoryFailures(metrics) {
  *     musicsync:      { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     payoff:         { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *     remotionCorrect:{ ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
+ *     distinct:       { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *   },
  *   blockers: string[],
  * }}
  */
-export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null, musicsync = null, payoff = null, remotionCorrect = null }) {
+export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null, musicsync = null, payoff = null, remotionCorrect = null, distinct = null }) {
   const blockers = [];
 
   function summarize(name, metrics) {
@@ -99,6 +102,12 @@ export function computeShipVerdict({ hook, retention, contrast, motion = null, l
     remotionCorrect: remotionCorrect == null
       ? { ran: false, hardGatesPass: true, advisoryFailures: [], justified: true }
       : summarize('remotionCorrect', remotionCorrect),
+    // distinct=null is graceful SKIP (absent metrics.json — gate not run via direct CLI).
+    // SKIP is also handled internally when n<2 (hardGatesPass:true, skip:true).
+    // Only a real hardGatesPass:false verdict blocks ship.
+    distinct: distinct == null
+      ? { ran: false, hardGatesPass: true, advisoryFailures: [], justified: true }
+      : summarize('distinct', distinct),
   };
 
   const shipReady = blockers.length === 0;
@@ -138,26 +147,27 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args      = process.argv.slice(2);
   const jsonMode  = args.includes('--json');
   const positional = args.filter(a => !a.startsWith('--'));
-  const [hookPath, retentionPath, contrastPath, motionPath, legibilityPath, codeCraftPath, musicSyncPath, payoffPath, remotionCorrectPath] = positional;
+  const [hookPath, retentionPath, contrastPath, motionPath, legibilityPath, codeCraftPath, musicSyncPath, payoffPath, remotionCorrectPath, distinctPath] = positional;
 
   if (!hookPath || !retentionPath || !contrastPath || !motionPath || !legibilityPath || !codeCraftPath) {
     process.stderr.write(
-      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [<payoff-metrics.json>] [<remotion-correct-metrics.json>] [--json]\n',
+      'Usage: node scripts/ship-metrics.mjs <hook-metrics.json> <retention-metrics.json> <contrast-metrics.json> <motion-metrics.json> <legibility-metrics.json> <code-craft-metrics.json> [<musicsync-metrics.json>] [<payoff-metrics.json>] [<remotion-correct-metrics.json>] [<distinct-metrics.json>] [--json]\n',
     );
     process.exit(1);
   }
 
-  const hook           = loadMetrics(hookPath);
-  const retention      = loadMetrics(retentionPath);
-  const contrast       = loadMetrics(contrastPath);
-  const motion         = loadMetrics(motionPath);
-  const legibility     = loadMetrics(legibilityPath);
-  const codeCraft      = loadMetrics(codeCraftPath);
-  const musicsync      = loadMetrics(musicSyncPath);
-  const payoff         = loadMetrics(payoffPath);
+  const hook            = loadMetrics(hookPath);
+  const retention       = loadMetrics(retentionPath);
+  const contrast        = loadMetrics(contrastPath);
+  const motion          = loadMetrics(motionPath);
+  const legibility      = loadMetrics(legibilityPath);
+  const codeCraft       = loadMetrics(codeCraftPath);
+  const musicsync       = loadMetrics(musicSyncPath);
+  const payoff          = loadMetrics(payoffPath);
   const remotionCorrect = loadMetrics(remotionCorrectPath);
+  const distinct        = loadMetrics(distinctPath);
 
-  const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft, musicsync, payoff, remotionCorrect });
+  const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft, musicsync, payoff, remotionCorrect, distinct });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
