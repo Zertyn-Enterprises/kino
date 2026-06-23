@@ -68,7 +68,7 @@
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadTheme, themeToAxes } from './theme-axes.mjs';
 
@@ -459,37 +459,98 @@ export function computeDriftWarnings(allEntries) {
   return warnings;
 }
 
+// ── Registry completeness ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Check that every buildable video folder has a registry entry and every registry entry has a
+ * matching folder. Pure: no filesystem access — callers inject the folder list and registry text.
+ *
+ * @param {object} opts
+ * @param {string}   opts.registryText   - full text of _registry.md
+ * @param {Array}    opts.videoFolders   - [{slug, hasTheme, hasMain}] from src/videos/ listing
+ * @param {string}   [opts.rootTsxContent] - content of src/Root.tsx (reserved; not used in checks)
+ * @returns {{ missing: string[], orphan: string[] }}
+ *   missing = buildable folder slug (has theme.ts + Main.tsx) with no registry entry
+ *   orphan  = registry slug whose src/videos/<slug>/ folder is absent
+ */
+export function checkRegistryCompleteness({ registryText, videoFolders, rootTsxContent }) {
+  // Graceful: empty folder list → nothing to check, no blocker.
+  if (!videoFolders || videoFolders.length === 0) return { missing: [], orphan: [] };
+
+  // Extract slugs present in registry headers: ## N · <slug> / ...
+  const registrySlugs = new Set(
+    [...registryText.matchAll(/^## \d+\s*·\s*([\w-]+)/gm)].map(m => m[1].toLowerCase()),
+  );
+
+  // Buildable = folder contains BOTH theme.ts AND Main.tsx; scaffold-only (no Main.tsx) is skipped.
+  const buildableSlugs = videoFolders
+    .filter(f => f.hasTheme && f.hasMain)
+    .map(f => f.slug.toLowerCase());
+
+  const folderSlugSet = new Set(videoFolders.map(f => f.slug.toLowerCase()));
+
+  const missing = buildableSlugs.filter(s => !registrySlugs.has(s));
+  const orphan  = [...registrySlugs].filter(s => !folderSlugSet.has(s));
+
+  return { missing, orphan };
+}
+
 // ── Main computation ──────────────────────────────────────────────────────────────────────────
 
 /**
  * Compute the distinctiveness verdict for a candidate against all prior registry entries.
  *
  * @param {object} opts
- * @param {string}      opts.registryText   - full text of _registry.md
- * @param {string|null} opts.candidateSlug  - slug to find candidate (null = last entry)
- * @param {object}      [opts.overrides]    - field overrides applied to the candidate's parsed record
+ * @param {string}      opts.registryText     - full text of _registry.md
+ * @param {string|null} opts.candidateSlug    - slug to find candidate (null = last entry)
+ * @param {object}      [opts.overrides]      - field overrides applied to the candidate's parsed record
  *   Supported: bg, accent, luminance, arc, bpmBand, grainBand
- * @param {object|null} [opts.derivedAxes]  - output of themeToAxes() for the candidate's theme.ts;
+ * @param {object|null} [opts.derivedAxes]    - output of themeToAxes() for the candidate's theme.ts;
  *   when provided, replaces registry-parsed values for the 5 code-derivable axes before overrides
  *   are applied. Also triggers registry-axis-drift HARD check when candidate is in the registry.
+ * @param {Array|null}  [opts.videoFolders]   - [{slug, hasTheme, hasMain}] from src/videos/ listing;
+ *   when non-null, enables the registry-completeness HARD check (runs before the <2-entry SKIP rule).
+ * @param {string|null} [opts.rootTsxContent] - content of src/Root.tsx (passed through to
+ *   checkRegistryCompleteness; reserved for future cross-reference).
  * @returns {object} metrics verdict matching ship-metrics gate contract
  */
-export function computeDistinctMetrics({ registryText, candidateSlug = null, overrides = {}, derivedAxes = null }) {
+export function computeDistinctMetrics({
+  registryText, candidateSlug = null, overrides = {}, derivedAxes = null,
+  videoFolders = null, rootTsxContent = null,
+}) {
+  // Registry-completeness HARD check — runs independently of the <2-entry SKIP rule.
+  let completenessGate = null;
+  if (videoFolders !== null) {
+    const { missing, orphan } = checkRegistryCompleteness({ registryText, videoFolders, rootTsxContent });
+    if (missing.length > 0 || orphan.length > 0) {
+      const parts = [];
+      if (missing.length > 0) parts.push(`missing entry: ${missing.join(', ')}`);
+      if (orphan.length > 0)  parts.push(`orphan entry: ${orphan.join(', ')}`);
+      completenessGate = {
+        name: 'HARD: registry-completeness',
+        hard: true, advisory: false, pass: false, skip: false,
+        detail: parts.join('; '),
+      };
+    }
+  }
+
   const allRecords = parseRegistry(registryText);
 
   // SKIP when fewer than 2 entries total — nothing to compare.
   if (allRecords.length < 2) {
+    const skipGate = {
+      name: 'HARD: ≥4 axes distinct from every prior', hard: true, advisory: false,
+      pass: true, skip: true, detail: `n=${allRecords.length} — nothing to compare`,
+    };
     return {
-      hardGatesPass: true,
+      hardGatesPass: completenessGate ? false : true,
       skip: true,
       n: allRecords.length,
       candidateSlug: allRecords[0]?.slug ?? null,
       priorSlugs: [],
       perPrior: [],
       nonDerivableCoverage: Object.fromEntries(NON_DERIVABLE_AXES.map(a => [a, 'skip-na'])),
-      gates: [
-        { name: 'HARD: ≥4 axes distinct from every prior', hard: true, advisory: false, pass: true, skip: true, detail: `n=${allRecords.length} — nothing to compare` },
-      ],
+      gates: completenessGate ? [completenessGate, skipGate] : [skipGate],
     };
   }
 
@@ -565,7 +626,7 @@ export function computeDistinctMetrics({ registryText, candidateSlug = null, ove
 
   const antiTemplatePass = perPrior.every(p => p.hardPass);
   const driftPass = registryDriftGate ? registryDriftGate.pass : true;
-  const hardGatesPass = driftPass && antiTemplatePass;
+  const hardGatesPass = !completenessGate && driftPass && antiTemplatePass;
 
   // Advisory drift check over all entries (candidate + priors).
   const allEntries = [candidateRecord, ...priorRecords];
@@ -583,6 +644,7 @@ export function computeDistinctMetrics({ registryText, candidateSlug = null, ove
         .join('; ');
 
   const gates = [];
+  if (completenessGate)  gates.push(completenessGate);
   if (registryDriftGate) gates.push(registryDriftGate);
   gates.push({
     name: 'HARD: ≥4 axes distinct from every prior',
@@ -740,11 +802,19 @@ function printHumanReadable(verdict) {
 
   console.log('\n── Distinctiveness metrics ─────────────────────────────────────');
 
+  const completenessGate = gates.find(g => g.name === 'HARD: registry-completeness');
+  if (completenessGate) {
+    const label = completenessGate.pass ? 'PASS' : 'FAIL';
+    console.log(`  Registry-completeness: ${label}`);
+    if (!completenessGate.pass) console.log(`    ${completenessGate.detail}`);
+    console.log('');
+  }
+
   if (skip) {
-    const gate = gates[0];
-    console.log(`  SKIP: ${gate.detail}`);
+    const skipGate = gates.find(g => g.skip);
+    console.log(`  SKIP: ${skipGate ? skipGate.detail : 'n<2 — nothing to compare'}`);
     console.log('───────────────────────────────────────────────────────────────');
-    console.log('HARD GATES: PASS (SKIP)\n');
+    console.log(`HARD GATES: ${hardGatesPass ? 'PASS (SKIP)' : 'FAIL'}\n`);
     return;
   }
 
@@ -829,7 +899,32 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }
   }
 
-  const verdict = computeDistinctMetrics({ registryText, candidateSlug, overrides, derivedAxes });
+  // Read src/videos/ folder list for the registry-completeness check.
+  // Graceful: on any FS error, skip the check (videoFolders stays null).
+  let videoFolders = null;
+  let rootTsxContent = null;
+  try {
+    const videosDir = 'src/videos';
+    if (existsSync(videosDir)) {
+      const entries = readdirSync(videosDir).filter(name => {
+        try { return statSync(`${videosDir}/${name}`).isDirectory(); } catch { return false; }
+      });
+      videoFolders = entries.map(slug => ({
+        slug,
+        hasTheme: existsSync(`${videosDir}/${slug}/theme.ts`),
+        hasMain:  existsSync(`${videosDir}/${slug}/Main.tsx`),
+      }));
+    }
+  } catch {
+    // FS unreadable — skip completeness check
+  }
+  try {
+    rootTsxContent = readFileSync('src/Root.tsx', 'utf8');
+  } catch {
+    // optional — skip
+  }
+
+  const verdict = computeDistinctMetrics({ registryText, candidateSlug, overrides, derivedAxes, videoFolders, rootTsxContent });
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');

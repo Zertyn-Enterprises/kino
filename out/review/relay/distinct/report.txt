@@ -2,11 +2,13 @@
 ── Distinctiveness metrics ─────────────────────────────────────
   Candidate: relay  |  Priors: granipa
 
-  vs granipa: PASS (9/9 axes differ)
-    differ:  palette-bg, palette-accent, luminance, type, arc, rhythm+moves, texture, transitions, music-bpm
+  Registry-axis-drift: PASS
+
+  vs granipa: PASS (6/9 axes differ)
+    differ:  palette-accent, type, arc, rhythm+moves, transitions, music-bpm
 
   Convergence drift (advisory):
-    ⚠  bg-luminance drift (2 entries: relay=dark, granipa=tonal)
+    ⚠  bg-luminance drift (2 entries: relay=dark, granipa=dark)
     ⚠  mono-font drift (2 entries use JetBrains Mono: relay, granipa)
 ───────────────────────────────────────────────────────────────
 HARD GATES: PASS

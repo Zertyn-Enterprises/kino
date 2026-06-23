@@ -59,8 +59,8 @@ The 4 non-derivable axes (arc / rhythm+moves / transitions / music-bpm) always c
 
 | Verdict | Meaning | Exit |
 |---|---|---|
-| PASS | registry-axis-drift PASS + ≥4 axes differ from every prior | 0 |
-| BLOCKED | registry-axis-drift FAIL or < 4 axes differ from a prior (HARD) | non-zero |
+| PASS | registry-completeness PASS + registry-axis-drift PASS + ≥4 axes differ from every prior | 0 |
+| BLOCKED | registry-completeness FAIL, registry-axis-drift FAIL, or < 4 axes differ from a prior (HARD) | non-zero |
 | SKIP | fewer than 2 registry entries — nothing to compare | 0 |
 
 ## Registry-axis-drift HARD gate
@@ -75,6 +75,37 @@ BLOCKED output includes the field name plus registry-vs-source values so the
 registry entry can be corrected. SKIP when `theme.ts` is unloadable.
 
 When drift fires, fix the stale registry field to match the source, then re-run.
+
+## Registry completeness (HARD)
+
+Before comparing axes, the gate verifies that `src/videos/_registry.md` is in
+sync with the filesystem — ensuring the registry is actually complete and no
+video silently escapes the anti-template check.
+
+Two failure classes:
+
+| Class | Meaning | Fix |
+|---|---|---|
+| `missing entry` | A buildable video folder (`theme.ts` + `Main.tsx`) has no `_registry.md` entry | Append the missing entry using the registry axes table; run `scripts/distinct.sh` again |
+| `orphan entry` | A registry entry names a slug with no `src/videos/<slug>/` folder | Remove or rename the stale registry entry |
+
+**Buildable = folder contains both `theme.ts` AND `Main.tsx`.** Scaffold-only
+folders (missing `Main.tsx`) are not flagged — they are not yet shippable.
+
+This check runs **before** the `<2 entries → SKIP` rule: a single buildable
+folder missing its entry still HARD-fails. Registry ledger completeness is a
+precondition of the anti-template guarantee, regardless of entry count.
+
+When this gate fires, `report.txt` shows:
+
+```
+  Registry-completeness: FAIL
+    missing entry: aurora
+```
+
+Fix: append the missing video's identity record to `src/videos/_registry.md`
+following the existing `## N · <slug> / <CompId> (date)` heading format and
+axes table, then re-run `scripts/distinct.sh <slug>`.
 
 ## Advisory drift warnings
 

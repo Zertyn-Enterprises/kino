@@ -50,7 +50,8 @@ Read these before any creative decision (all in this folder):
   (both HARD) / R3-interpolate-clamp / R4-spring-fps / R5-wallclock (all advisory).
   `scripts/remotion-correct.sh` usage, calibration rationale, and recorded
   RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at any point.
-- `distinct.md` — distinctiveness gate: ≥4-of-9 identity axes must differ from every
+- `distinct.md` — distinctiveness gate: registry-completeness HARD check (missing/orphan
+  entries block regardless of entry count) + ≥4-of-9 identity axes must differ from every
   prior registry entry (HARD when ≥2 entries present; SKIP otherwise). Advisory drift
   warnings for luminance/mono-font/blue-teal-accent clusters. `scripts/distinct.sh`
   usage, nine-axis table, override flags for pre-registry theme-lock, and recorded
