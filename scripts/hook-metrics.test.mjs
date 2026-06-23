@@ -121,11 +121,22 @@ const negFinal = makeFrame(negPixel); // identical → gate3 delta=0 PASS
 // ---------------------------------------------------------------------------
 // Concentrated-focal-liveness PASS fixtures
 //
-// Gate 5 focal PASS: reuse negFrame0 (row-1 band, stddev=75, maxStddev > FOCAL_STRENGTH_THRESHOLD=20)
+// Gate 5 focal PASS — title-card-band: reuse negFrame0 (row-1 band, 4 cells, stddev=75 > 20)
+//   Models GranipaLaunch: wide text band, cells=3–4, maxStddev=49.3 > FOCAL_STRENGTH_THRESHOLD=20
+// Gate 5 focal PASS — terminal-in-one-row: cols 0–1 of row 1 alternating (stddev=75), rest flat.
+//   Models RelayLaunch: narrow focal region, cells=2, rows=1, maxStddev=75 > FOCAL_STRENGTH_THRESHOLD=20
+//   contentCells.length=2 ≥ LIVENESS_MIN_CELLS=2; passA: rows=1 < 2 → false; passB: 75 > 20 → PASS
 // Gate 4 focal PASS: flat frame0 + mid with single strong-motion cell (delta=15 > FOCAL_MOTION_THRESHOLD=10)
 //   activeCell (1,1): all 16 pixels shift from 100 → 115 → meanDelta=15
 //   passA: active=1, separated=false → false; passB: maxDelta=15>10 → true → PASS
 // ---------------------------------------------------------------------------
+
+const terminalFrame0 = makeFrame((x, y) => {
+  const row = Math.floor(y / 4);
+  const col = Math.floor(x / 4);
+  if (row === 1 && col <= 1) return (x + y) % 2 === 0 ? 200 : 50; // cells (1,0),(1,1) stddev=75
+  return 100;
+});
 
 const focalMotionFrame0 = makeFrame(() => 100);
 const focalMotionMid = makeFrame((x, y) => {
@@ -289,8 +300,9 @@ describe("computeHookMetrics — golden negative control (gate 1 hard-FAIL, gate
 // Tests: concentrated focal liveness — gate 5 (single-row, high-stddev)
 // ---------------------------------------------------------------------------
 
-describe("computeHookMetrics — gate 5 concentrated-focal PASS (terminal-in-one-row pattern)", () => {
-  // negFrame0: row-1 band with stddev=75 in all 4 cells; maxStddev=75 > FOCAL_STRENGTH_THRESHOLD=20
+describe("computeHookMetrics — gate 5 concentrated-focal PASS (title-card-band pattern)", () => {
+  // negFrame0: full row-1 band with stddev=75 in all 4 cells; models GranipaLaunch text band.
+  // contentCells=4, rows=1; passA: rows=1 < 2 → false; passB: maxStddev=75 > 20 → PASS
   const verdict = computeHookMetrics({
     frame0: negFrame0,
     early: makeFrame(() => 255),
@@ -298,12 +310,31 @@ describe("computeHookMetrics — gate 5 concentrated-focal PASS (terminal-in-one
     final: negFrame0,
   });
 
-  it("gate 5 passes — single-row content with maxStddev > FOCAL_STRENGTH_THRESHOLD", () => {
+  it("gate 5 passes — full row-1 band (title-card) passes via focal path", () => {
     const g = verdict.gates.find((g) => g.id === 5);
     expect(g.pass).toBe(true);
     expect(g.advisory).toBe(true);
     expect(g.measured.rows).toBe(1);
     expect(g.measured.cells).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("computeHookMetrics — gate 5 concentrated-focal PASS (terminal-in-one-row pattern)", () => {
+  // terminalFrame0: cells (1,0) and (1,1) alternating (stddev=75), rest flat; models RelayLaunch.
+  // contentCells=2, rows=1; passA: rows=1 < 2 → false; passB: maxStddev=75 > 20, cells=2 ≥ 2 → PASS
+  const verdict = computeHookMetrics({
+    frame0: terminalFrame0,
+    early: makeFrame(() => 255),
+    mid: focalMotionMid,
+    final: terminalFrame0,
+  });
+
+  it("gate 5 passes — 2-cell single-row terminal passes via focal path", () => {
+    const g = verdict.gates.find((g) => g.id === 5);
+    expect(g.pass).toBe(true);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.rows).toBe(1);
+    expect(g.measured.cells).toBe(2);
   });
 });
 
