@@ -43,6 +43,8 @@
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
     "test": "vitest run",
-    "format": "prettier --write src videos"
+    "format": "prettier --write src videos",
+    "dogfood": "node scripts/dogfood.mjs --update",
+    "dogfood:check": "node scripts/dogfood.mjs --check"
   }
 }

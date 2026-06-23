@@ -135,60 +135,39 @@ one must have a named, written justification recorded in the review before conti
 
 ---
 
-**Recorded snapshots — 2026-06-22. Do not hand-edit; re-run the command shown under each
-video to update.**
+**Canonical video verdicts are machine-asserted in `scripts/dogfood.golden.json`.**
+Run `npm run dogfood:check` to verify. The golden is the source of truth; the
+human summaries below are context only.
 
 ### RelayLaunch
 
 ```bash
 scripts/ship-gate.sh RelayLaunch relay \
   --bg='#0A0E0B' --surface='#131A14' --text='#F2F5F0' \
-  --textDim='#8FA098' --accent='#B6F22E' --accentAlt='#E5484D'
+  --textDim='#8FA098' --accent='#B6F22E' --accentAlt='#E5484D' \
+  --audio-not-bundled
 ```
 
-**Recorded snapshot — 2026-06-22. `shipReady: true` · `blockers: []`**
+**Summary: `shipReady: true` · `blockers: []`**
 
-| Gate | Hard gates | Advisory failures |
-|---|---|---|
-| hook 🤖 | PASS | Background activity, Frame-0 liveness |
-| retention 🤖 | PASS | Energy build-to-climax |
-| contrast 🤖 | PASS | — |
-| motion 🤖 | PASS | — |
-| legibility 🤖 | PASS | Reading-budget share |
-
-Motion measured: M1 stutterDetected=false (windows=8, cuts=7) · M2 ratio=17.674 · M3 minWindowMean=0.0627
-
-Legibility measured: L1 intervals=31 eligible=17 violations=0 shortestDwell=15f · L2 share=74.9% · L3 meanCv=0.033
-
-**Named advisory fails:**
-1. **hook / Background activity** — no `AmbientField`; single terminal region (active=1/16, not separated). Intentional airy identity for Relay. Add `AmbientField` to pass on future productions.
-2. **hook / Frame-0 liveness** — terminal in single grid row (cells=2/16, rows=1). Named: narrow terminal at 4×4 resolution; human review confirms mid-action. See `hook.md §2 RelayLaunch`.
-3. **retention / Energy build-to-climax** — sustained-energy (smoothed) peak at f280 (rawPeakFrame=265), before first-third boundary (f318). Named: the opening act front-loads visual intensity (transitions + animated reveals); the narrative climax in the back half has lower luminance delta. True signal — supply `--climax=<narrativeClimaxFrame>` to gate the actual climax frame directly.
-4. **legibility / Reading-budget share** — typing animation in the terminal holds high edge density while remaining temporally stable; algorithm classifies animation pauses as held-text intervals (share 74.9% > 60%). Intentional: the typing IS readable text, not a wall-of-text violation.
+Advisory fails (all named):
+- hook / Background activity — no AmbientField; single terminal region. Intentional airy identity for Relay.
+- hook / Frame-0 liveness — narrow terminal at 4×4 grid; human review confirms mid-action. See `hook.md §2 RelayLaunch`.
+- retention / Energy build-to-climax — opening act front-loads intensity; narrative climax has lower delta. True signal; use `--climax=<narrativeClimaxFrame>` to gate the actual climax directly.
+- legibility / Reading-budget share — typing animation classifies as held-text (74.9%); not a wall-of-text violation.
 
 ### GranipaLaunch
 
 ```bash
 scripts/ship-gate.sh GranipaLaunch granipa \
   --bg='#0A0B0E' --surface='#14161D' --text='#F1F2F6' \
-  --textDim='#8E93A3' --accent='#3D8BFF' --accentAlt='#F4604C'
+  --textDim='#8E93A3' --accent='#3D8BFF' --accentAlt='#F4604C' \
+  --audio-not-bundled
 ```
 
-**Recorded snapshot — 2026-06-22. `shipReady: true` · `blockers: []`**
+**Summary: `shipReady: true` · `blockers: []`**
 
-| Gate | Hard gates | Advisory failures |
-|---|---|---|
-| hook 🤖 | PASS | Frame-0 liveness |
-| retention 🤖 | PASS | Energy build-to-climax |
-| contrast 🤖 | PASS | — |
-| motion 🤖 | PASS | — |
-| legibility 🤖 | PASS | Reading-budget share |
-
-Motion measured: M1 stutterDetected=false (windows=2, cuts=1) · M2 ratio=19.201 · M3 minWindowMean=0.1538
-
-Legibility measured: L1 intervals=21 eligible=15 violations=0 shortestDwell=36f · L2 share=87.7% · L3 meanCv=0.061
-
-**Named advisory fails:**
-1. **hook / Frame-0 liveness** — text confined to single grid row (cells=3/16, rows=1). Named: serif question spans row 1 only; arc F intentionally withholds action until icon stamps at f38–f54. See `hook.md §2 GranipaLaunch`.
-2. **retention / Energy build-to-climax** — sustained-energy (smoothed) peak at f305 (rawPeakFrame=290), before first-third boundary (f373). Named: icon stamp-ins and scene transitions front-load visual intensity in the opening act; the sovereignty reveal in the back half has lower pixel delta. True signal — supply `--climax=<narrativeClimaxFrame>` to gate the actual climax frame directly.
-3. **legibility / Reading-budget share** — icon stamp animations hold high edge density while dipping below the temporal-delta threshold; algorithm classifies these as held-text intervals (share 87.7% > 60%). Intentional: these are visual anchors, not a wall-of-text violation.
+Advisory fails (all named):
+- hook / Frame-0 liveness — serif question spans row 1 only; arc F intentionally withholds action until icon stamps. See `hook.md §2 GranipaLaunch`.
+- retention / Energy build-to-climax — opening act front-loads intensity; sovereignty reveal has lower pixel delta. True signal; use `--climax=<narrativeClimaxFrame>` directly.
+- legibility / Reading-budget share — icon stamp animations inflate held-text share (87.7%); visual anchors, not a violation.
