@@ -18,6 +18,8 @@ Machine-asserted gates (🤖) from `hook.md §1`:
 | 6 | Promise by 2.5s 🤖 | `promise.text` non-empty AND `promise.frame` ≤ round(2.5 × fps); fps derived from timeline.ts | **HARD** |
 | 7 | Text density 🤖 | `promise.wordCount` ≤ 6 | **HARD** |
 
+**Open-loop closure rule:** Gate 6 opens a curiosity gap — that gap MUST close. Declare `payoff: { text }` on the climax/CTA beat in `timeline.ts`; `scripts/payoff.sh` closure gate C1/C2 machine-asserts closure at ship time and HARD-fails when a declared promise has no matching payoff.
+
 **Default `AmbientField` recipe (satisfies gates 4 + 5):**
 
 ```tsx

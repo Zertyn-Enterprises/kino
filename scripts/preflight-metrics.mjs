@@ -280,10 +280,46 @@ function checkP5({ timelineContent }) {
   };
 }
 
+/**
+ * P6 (advisory): when promise is declared, payoff must also be declared.
+ * SKIPs when no promise is present (no open loop to close).
+ * Warns (does NOT block) so the HARD enforcement lives in payoff.sh closure gate at ship time.
+ * @param {{ timelineContent: string|null }} opts
+ * @returns {{ pass: boolean, skip: boolean, detail: string }}
+ */
+function checkP6({ timelineContent }) {
+  if (timelineContent === null) {
+    return {
+      pass: false,
+      skip: true,
+      detail: 'timeline.ts absent — cannot check payoff declaration',
+    };
+  }
+
+  const hasPromise = /\bpromise\s*:/.test(timelineContent);
+  if (!hasPromise) {
+    return {
+      pass: true,
+      skip: true,
+      detail: 'no promise declared — closure check skipped (no open loop to close)',
+    };
+  }
+
+  if (/\bpayoff\s*:/.test(timelineContent)) {
+    return { pass: true, skip: false, detail: 'payoff declared alongside promise in timeline.ts' };
+  }
+
+  return {
+    pass: false,
+    skip: false,
+    detail: 'promise declared but no payoff — add payoff: { text: "..." } to the climax/CTA scene in timeline.ts (HARD closure gate enforced at ship time by payoff.sh)',
+  };
+}
+
 // ── Main pure export ──────────────────────────────────────────────────────────
 
 /**
- * Evaluate the five preflight gates for a video.
+ * Evaluate the six preflight gates for a video.
  *
  * @param {{
  *   compId: string,
@@ -320,6 +356,7 @@ export function computePreflightVerdict({
   const p3 = checkP3({ treatmentContent });
   const p4 = checkP4({ themeContent, manifestExists, storyboardContent });
   const p5 = checkP5({ timelineContent });
+  const p6 = checkP6({ timelineContent });
 
   const gates = [
     { name: 'P1-registration', advisory: false, pass: p1.pass, skip: p1.skip, detail: p1.detail },
@@ -327,6 +364,7 @@ export function computePreflightVerdict({
     { name: 'P3-approved',     advisory: true,  pass: p3.pass, skip: p3.skip, detail: p3.detail },
     { name: 'P4-metadata',     advisory: true,  pass: p4.pass, skip: p4.skip, detail: p4.detail },
     { name: 'P5-promise',      advisory: true,  pass: p5.pass, skip: p5.skip, detail: p5.detail },
+    { name: 'P6-payoff',       advisory: true,  pass: p6.pass, skip: p6.skip, detail: p6.detail },
   ];
 
   const hardGatesPass = gates
