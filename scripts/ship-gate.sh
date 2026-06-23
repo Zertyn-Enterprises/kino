@@ -3,14 +3,16 @@
 #   out/review/<CompId>/ship/report.json  — machine source of truth
 #   out/review/<CompId>/ship/report.txt   — human-readable table
 # Prints SHIP: READY|BLOCKED and exits non-zero when not ship-ready.
-# A gate whose metrics.json is absent is reported as a hard blocker rather than crashing.
+# A gate whose metrics.json is absent is reported as a coverage-gap blocker rather than crashing.
 #
 # Usage:
-#   scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]
-#   <CompId>        Remotion composition ID (e.g. RelayLaunch)
-#   <slug>          Video slug for contrast gate and code-craft gate (e.g. relay)
-#   palette flags   --bg=, --surface=, --text=, --textDim=, --accent=, [--accentAlt=]
-#   -- ret flags    --holds=, --climax=, --rehook= override (auto-derived from timeline when omitted)
+#   scripts/ship-gate.sh <CompId> <slug> [palette flags...] [--audio-not-bundled] [-- retention flags...]
+#   <CompId>           Remotion composition ID (e.g. RelayLaunch)
+#   <slug>             Video slug for contrast gate and code-craft gate (e.g. relay)
+#   palette flags      --bg=, --surface=, --text=, --textDim=, --accent=, [--accentAlt=]
+#   --audio-not-bundled  Acknowledges a musicsync coverage-gap (audio not yet bundled);
+#                      gap is surfaced but does not block ship.
+#   -- ret flags       --holds=, --climax=, --rehook= override (auto-derived from timeline when omitted)
 #
 # e.g. scripts/ship-gate.sh RelayLaunch relay \
 #        --bg='#0A0E0B' --surface='#131A14' --text='#F2F5F0' \
@@ -23,11 +25,15 @@ SLUG="${2:?usage: scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- re
 shift 2
 
 # Split remaining args at -- into palette flags (for contrast) and retention flags.
+# --audio-not-bundled is extracted before the split.
 PALETTE_ARGS=()
 RETENTION_ARGS=()
 FOUND_SEP=0
+AUDIO_NOT_BUNDLED=0
 for arg in "$@"; do
-  if [ "$arg" = "--" ]; then
+  if [ "$arg" = "--audio-not-bundled" ]; then
+    AUDIO_NOT_BUNDLED=1
+  elif [ "$arg" = "--" ]; then
     FOUND_SEP=1
   elif [ "$FOUND_SEP" -eq 1 ]; then
     RETENTION_ARGS+=("$arg")
@@ -38,6 +44,28 @@ done
 
 SHIP_OUT="out/review/$COMP/ship"
 mkdir -p "$SHIP_OUT"
+
+# --- Detect declaresMusic and count registry entries ---
+
+# declaresMusic: video has an <Audio> component or staticFile(...music...) call in Main.tsx.
+DECLARES_MUSIC_FLAG=""
+MAIN_TSX="src/videos/$SLUG/Main.tsx"
+if [ -f "$MAIN_TSX" ] && grep -qE '<Audio|staticFile\([^)]*music' "$MAIN_TSX" 2>/dev/null; then
+  DECLARES_MUSIC_FLAG="--declares-music"
+fi
+
+# Count numbered sections (## 1. / ## 2. etc.) in _registry.md.
+REGISTRY_COUNT=0
+REGISTRY_MD="src/videos/_registry.md"
+if [ -f "$REGISTRY_MD" ]; then
+  REGISTRY_COUNT=$(grep -c '^## [0-9]' "$REGISTRY_MD" 2>/dev/null || echo 0)
+fi
+
+# --audio-not-bundled → pass --audio-acknowledged to ship-metrics.
+AUDIO_ACKNOWLEDGED_FLAG=""
+if [ "$AUDIO_NOT_BUNDLED" -eq 1 ]; then
+  AUDIO_ACKNOWLEDGED_FLAG="--audio-acknowledged"
+fi
 
 HOOK_JSON="out/review/$COMP/hook/metrics.json"
 RETENTION_JSON="out/review/$COMP/retention/metrics.json"
@@ -161,10 +189,14 @@ echo ""
 
 # --- 2. Aggregate via ship-metrics.mjs ---
 
+SHIP_METRICS_FLAGS=("--registry-count=$REGISTRY_COUNT")
+[ -n "$DECLARES_MUSIC_FLAG" ]    && SHIP_METRICS_FLAGS+=("$DECLARES_MUSIC_FLAG")
+[ -n "$AUDIO_ACKNOWLEDGED_FLAG" ] && SHIP_METRICS_FLAGS+=("$AUDIO_ACKNOWLEDGED_FLAG")
+
 SHIP_EXIT=0
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" "$REMOTION_CORRECT_JSON" "$DISTINCT_JSON" --json \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" "$REMOTION_CORRECT_JSON" "$DISTINCT_JSON" "${SHIP_METRICS_FLAGS[@]}" --json \
   > "$SHIP_OUT/report.json" || SHIP_EXIT=$?
-node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" "$REMOTION_CORRECT_JSON" "$DISTINCT_JSON" \
+node scripts/ship-metrics.mjs "$HOOK_JSON" "$RETENTION_JSON" "$CONTRAST_JSON" "$MOTION_JSON" "$LEGIBILITY_JSON" "$CODE_CRAFT_JSON" "$MUSICSYNC_JSON" "$PAYOFF_JSON" "$REMOTION_CORRECT_JSON" "$DISTINCT_JSON" "${SHIP_METRICS_FLAGS[@]}" \
   | tee "$SHIP_OUT/report.txt" || true
 
 echo "Ship review — $SHIP_OUT/"

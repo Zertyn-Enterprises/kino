@@ -6,14 +6,16 @@ to run all ten gates (hook, retention, contrast, motion, legibility, code-craft,
 - `out/review/<CompId>/ship/report.txt` — human-readable table (tee'd output)
 
 The script prints `SHIP: READY` or `SHIP: BLOCKED` and exits non-zero when not
-ship-ready. A gate whose `metrics.json` is absent is a hard blocker rather than
-a crash.
+ship-ready. A gate whose `metrics.json` is absent is a **coverage-gap** (not a
+graceful SKIP) — it blocks ship to prevent silent false-READY verdicts when a
+HARD-gated dimension was skipped rather than verified.
 
 ## Usage
 
 ```bash
 scripts/ship-gate.sh <CompId> <slug> \
   --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..] \
+  [--audio-not-bundled] \
   [-- --holds=S:E,... --climax=F --rehook=N]
 ```
 
@@ -21,6 +23,10 @@ scripts/ship-gate.sh <CompId> <slug> \
 - `<slug>` — video slug for the contrast gate output dir (e.g. `relay`)
 - Palette flags (`--bg=`, `--surface=`, `--text=`, `--textDim=`, `--accent=`,
   `--accentAlt=`) are forwarded to `contrast.sh`.
+- `--audio-not-bundled` — acknowledges the musicsync coverage-gap for videos
+  whose audio track is not yet bundled. The gap is surfaced in the report but
+  does not block ship. Use only when you have verified the music will be
+  bundled before distribution.
 - Retention flags (`--holds=`, `--climax=`, `--rehook=`) are passed after `--`
   as **overrides** — they are auto-derived from `<slug>`'s `timeline.ts` when
   omitted. Declare structure in `timeline.ts` via scene `role` instead of
@@ -29,7 +35,7 @@ scripts/ship-gate.sh <CompId> <slug> \
 - Motion gate runs automatically (`scripts/motion.sh <CompId>`, default step=3).
 - Legibility gate runs automatically (`scripts/legibility.sh <CompId>`, default step=3).
 - Code-craft gate runs automatically (`scripts/code-craft.sh <CompId> <slug>`, no render required).
-- Music-sync gate runs automatically (`scripts/musicsync.sh <CompId> <slug>`); degrades to SKIP when no `public/<slug>/*.analysis.json` is present — SKIP never blocks ship.
+- Music-sync gate: `declaresMusic` is auto-detected by grepping `src/videos/<slug>/Main.tsx` for `<Audio` or `staticFile(...music...)`. See **Coverage integrity** below for the three-state model.
 
 Inspect the outputs:
 
@@ -37,6 +43,32 @@ Inspect the outputs:
 cat out/review/<CompId>/ship/report.json   # machine verdict (shipReady, per-gate)
 cat out/review/<CompId>/ship/report.txt    # human-readable table
 ```
+
+## Coverage integrity — three-state model
+
+Each gate reports one of three coverage states:
+
+| State | Meaning |
+|---|---|
+| `ran` | Gate produced a real verdict (PASS or FAIL). |
+| `skip-na` | Gate is N/A for this video — legitimately not applicable. |
+| `coverage-gap` | Gate needed verification but was not run; blocks ship unless acknowledged. |
+
+**skip-na conditions:**
+- `musicsync`: `declaresMusic=false` (no `<Audio>` / `staticFile(...music...)` in `Main.tsx`).
+- `distinct`: `registryEntryCount < 2` (nothing to compare against).
+
+**coverage-gap conditions:**
+- `musicsync`: video declares music AND no `*.analysis.json` present AND `--audio-not-bundled` not passed.
+- `payoff`: `payoff/metrics.json` absent.
+- `remotionCorrect`: `remotion-correct/metrics.json` absent.
+- `distinct`: `distinct/metrics.json` absent AND `registryEntryCount ≥ 2`.
+- Any other required gate: `metrics.json` absent (treated as `gate not run`).
+
+**Acknowledged coverage-gaps** (musicsync only): pass `--audio-not-bundled` to
+`ship-gate.sh` when audio is intentionally not bundled. The gap appears in
+`report.txt` under `## Acknowledged coverage gaps` but does not appear in
+`coverageGaps` and does not block ship.
 
 ## report.json shape
 
@@ -46,29 +78,33 @@ cat out/review/<CompId>/ship/report.txt    # human-readable table
 {
   "shipReady": true,
   "gates": {
-    "hook":       { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
-    "retention":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Energy build-to-climax"], "justified": false },
-    "contrast":   { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
-    "motion":     { "ran": true, "hardGatesPass": true, "advisoryFailures": [], "justified": true },
-    "legibility": { "ran": true, "hardGatesPass": true, "advisoryFailures": ["Reading-budget share"], "justified": false },
-    "codeCraft":  { "ran": true, "hardGatesPass": true, "advisoryFailures": ["C1-emoji", "C1-font", "C2-hex", "C3-easing"], "justified": false },
-    "musicsync":  { "ran": false, "hardGatesPass": true, "advisoryFailures": [], "justified": true }
+    "hook":            { "ran": true,  "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "ran" },
+    "retention":       { "ran": true,  "hardGatesPass": true,  "advisoryFailures": ["Energy build-to-climax"], "justified": false, "coverage": "ran" },
+    "contrast":        { "ran": true,  "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "ran" },
+    "motion":          { "ran": true,  "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "ran" },
+    "legibility":      { "ran": true,  "hardGatesPass": true,  "advisoryFailures": ["Reading-budget share"], "justified": false, "coverage": "ran" },
+    "codeCraft":       { "ran": true,  "hardGatesPass": true,  "advisoryFailures": ["C2-hex"], "justified": false, "coverage": "ran" },
+    "musicsync":       { "ran": false, "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "skip-na" },
+    "payoff":          { "ran": true,  "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "ran" },
+    "remotionCorrect": { "ran": true,  "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "ran" },
+    "distinct":        { "ran": false, "hardGatesPass": true,  "advisoryFailures": [], "justified": true,  "coverage": "skip-na" }
   },
-  "blockers": []
+  "blockers": [],
+  "coverageGaps": []
 }
 ```
 
-`musicsync.ran=false, hardGatesPass=true` is the expected shape when no audio analysis is present (graceful SKIP — never blocks ship). When analysis is present and MS1/MS2 hard gates pass, `ran=true, hardGatesPass=true`. A real hard-gate failure sets `hardGatesPass=false` and adds `"musicsync hard gates failed"` to `blockers`.
-
-- `shipReady` — `true` iff every gate ran AND every gate's `hardGatesPass` is `true`.
-- `gates.<name>.ran` — `false` if the gate's `metrics.json` was absent.
-- `gates.<name>.hardGatesPass` — mirrors `hardGatesPass` from that gate's `metrics.json`.
+- `shipReady` — `true` iff every gate's `hardGatesPass` is `true` AND `coverageGaps` is empty.
+- `gates.<name>.ran` — `true` when the gate produced a real verdict.
+- `gates.<name>.coverage` — `'ran'` | `'skip-na'` | `'coverage-gap'`.
+- `gates.<name>.hardGatesPass` — mirrors `hardGatesPass` from the gate's `metrics.json`; `false` when gate not run.
 - `gates.<name>.advisoryFailures` — names of failing advisory gates/pairs; never block.
 - `gates.<name>.justified` — `true` when no advisory failures are present.
-- `blockers` — list of hard blockers (missing gates, hard-gate failures); empty when ship-ready.
+- `blockers` — hard blockers (missing gates, hard-gate failures, unacknowledged coverage-gaps).
+- `coverageGaps` — gate names with unacknowledged coverage-gaps (subset of `blockers`).
 
-A missing or unreadable gate `metrics.json` is reported as `ran: false`,
-`hardGatesPass: false`, and the gate name is added to `blockers`.
+A coverage-gap is distinct from a hard-gate failure: the gate dimension was needed but
+never verified, vs. the gate ran and reported a failure. Both appear in `blockers`.
 
 ## Self-repair loop
 

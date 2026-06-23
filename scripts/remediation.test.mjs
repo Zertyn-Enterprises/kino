@@ -43,7 +43,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function allGatesPass({ musicsync = null, payoff = null, remotionCorrect = null, distinct = null } = {}) {
+function allGatesPass({
+  musicsync      = null,
+  payoff         = hookMetrics({ hardGatesPass: true }),
+  remotionCorrect = hookMetrics({ hardGatesPass: true }),
+  distinct       = hookMetrics({ hardGatesPass: true }),
+} = {}) {
   return computeShipVerdict({
     hook:       hookMetrics({ hardGatesPass: true }),
     retention:  hookMetrics({ hardGatesPass: true }),
@@ -61,12 +66,15 @@ function allGatesPass({ musicsync = null, payoff = null, remotionCorrect = null,
 // ── Fixture A: gate-not-run blockers (hook + contrast) ────────────────────────
 
 const verdictGateNotRun = computeShipVerdict({
-  hook:       null,
-  retention:  hookMetrics({ hardGatesPass: true }),
-  contrast:   null,
-  motion:     hookMetrics({ hardGatesPass: true }),
-  legibility: hookMetrics({ hardGatesPass: true }),
-  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  hook:            null,
+  retention:       hookMetrics({ hardGatesPass: true }),
+  contrast:        null,
+  motion:          hookMetrics({ hardGatesPass: true }),
+  legibility:      hookMetrics({ hardGatesPass: true }),
+  codeCraft:       hookMetrics({ hardGatesPass: true }),
+  payoff:          hookMetrics({ hardGatesPass: true }),
+  remotionCorrect: hookMetrics({ hardGatesPass: true }),
+  distinct:        hookMetrics({ hardGatesPass: true }),
 });
 
 describe('buildRemediations — gate-not-run blockers (hook + contrast)', () => {
@@ -104,13 +112,15 @@ describe('buildRemediations — gate-not-run blockers (hook + contrast)', () => 
 // ── Fixture B: hard-gate-failed blockers (retention + payoff) ─────────────────
 
 const verdictHardFail = computeShipVerdict({
-  hook:       hookMetrics({ hardGatesPass: true }),
-  retention:  hookMetrics({ hardGatesPass: false }),
-  contrast:   contrastMetrics({ hardGatesPass: true }),
-  motion:     hookMetrics({ hardGatesPass: true }),
-  legibility: hookMetrics({ hardGatesPass: true }),
-  codeCraft:  hookMetrics({ hardGatesPass: true }),
-  payoff:     hookMetrics({ hardGatesPass: false }),
+  hook:            hookMetrics({ hardGatesPass: true }),
+  retention:       hookMetrics({ hardGatesPass: false }),
+  contrast:        contrastMetrics({ hardGatesPass: true }),
+  motion:          hookMetrics({ hardGatesPass: true }),
+  legibility:      hookMetrics({ hardGatesPass: true }),
+  codeCraft:       hookMetrics({ hardGatesPass: true }),
+  payoff:          hookMetrics({ hardGatesPass: false }),
+  remotionCorrect: hookMetrics({ hardGatesPass: true }),
+  distinct:        hookMetrics({ hardGatesPass: true }),
 });
 
 describe('buildRemediations — hard-gate-failed (retention + payoff)', () => {
@@ -158,6 +168,7 @@ const verdictAdvisory = computeShipVerdict({
     'Advisory: mono-font drift (2 entries: relay=jetbrains-mono, granipa=jetbrains-mono)',
     'Advisory: accent-hue drift (2 entries: relay=green, granipa=blue)',
   ]}),
+  declaresMusic: true,
 });
 
 describe('buildRemediations — advisory failures spanning all 10 gates', () => {
@@ -270,13 +281,15 @@ describe('buildRemediations — advisory failures spanning all 10 gates', () => 
 // ── Fixture D: mixed blockers + advisories; ordering ─────────────────────────
 
 const verdictMixed = computeShipVerdict({
-  hook:       null,                                                              // gate-not-run blocker
-  retention:  hookMetrics({ hardGatesPass: false }),                            // hard-fail blocker
-  contrast:   contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
-  motion:     hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
-  legibility: hookMetrics({ hardGatesPass: true }),
-  codeCraft:  hookMetrics({ hardGatesPass: true, advisoryFails: ['C2-hex'] }),
+  hook:            null,                                                         // gate-not-run blocker
+  retention:       hookMetrics({ hardGatesPass: false }),                       // hard-fail blocker
+  contrast:        contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
+  motion:          hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
+  legibility:      hookMetrics({ hardGatesPass: true }),
+  codeCraft:       hookMetrics({ hardGatesPass: true, advisoryFails: ['C2-hex'] }),
   remotionCorrect: hookMetrics({ hardGatesPass: false }),                       // hard-fail blocker
+  payoff:          hookMetrics({ hardGatesPass: true }),
+  distinct:        hookMetrics({ hardGatesPass: true }),
 });
 
 describe('buildRemediations — ordering: blockers first, then advisories', () => {
@@ -305,8 +318,10 @@ describe('buildRemediations — ship-ready verdict returns []', () => {
     expect(rems).toHaveLength(0);
   });
 
-  it('returns empty array for all-null optional gates', () => {
-    const verdict = allGatesPass({ musicsync: null, payoff: null, remotionCorrect: null, distinct: null });
+  it('returns empty array when musicsync and distinct are null (skip-na, no blockers)', () => {
+    // musicsync=null + declaresMusic=false → skip-na; distinct=null + registryEntryCount=0 → skip-na.
+    // payoff and remotionCorrect default to passing in allGatesPass().
+    const verdict = allGatesPass({ musicsync: null, distinct: null });
     const rems = buildRemediations(verdict);
     expect(rems).toHaveLength(0);
   });
@@ -315,12 +330,15 @@ describe('buildRemediations — ship-ready verdict returns []', () => {
 // ── Fixture F: unknown/unmapped identifier → generic fallback ─────────────────
 
 const unknownAdvisoryVerdict = computeShipVerdict({
-  hook:       hookMetrics({ hardGatesPass: true, advisoryFails: ['Unknown gate X9000'] }),
-  retention:  hookMetrics({ hardGatesPass: true }),
-  contrast:   contrastMetrics({ hardGatesPass: true }),
-  motion:     hookMetrics({ hardGatesPass: true }),
-  legibility: hookMetrics({ hardGatesPass: true }),
-  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  hook:            hookMetrics({ hardGatesPass: true, advisoryFails: ['Unknown gate X9000'] }),
+  retention:       hookMetrics({ hardGatesPass: true }),
+  contrast:        contrastMetrics({ hardGatesPass: true }),
+  motion:          hookMetrics({ hardGatesPass: true }),
+  legibility:      hookMetrics({ hardGatesPass: true }),
+  codeCraft:       hookMetrics({ hardGatesPass: true }),
+  payoff:          hookMetrics({ hardGatesPass: true }),
+  remotionCorrect: hookMetrics({ hardGatesPass: true }),
+  distinct:        hookMetrics({ hardGatesPass: true }),
 });
 
 describe('buildRemediations — unknown identifier → generic fallback', () => {
@@ -359,6 +377,7 @@ describe('buildRemediations — every docRef resolves to an existing file', () =
       'Advisory: mono-font drift (N entries)',
       'Advisory: accent-hue drift (N entries)',
     ]}),
+    declaresMusic: true,
   });
 
   const blockerHardFail = computeShipVerdict({
@@ -376,6 +395,7 @@ describe('buildRemediations — every docRef resolves to an existing file', () =
       'Advisory: mono-font drift (2 entries)',
       'Advisory: accent-hue drift (2 entries)',
     ]}),
+    declaresMusic: true,
   });
 
   const allRems = [
@@ -461,12 +481,15 @@ describe('buildRemediations — every docRef resolves to an existing file', () =
 
 describe('buildRemediations — Fixture H: multi-gate integration (≥4 gates, gate-not-run + hard blocker + advisories)', () => {
   const verdict = computeShipVerdict({
-    hook:       null,
-    retention:  hookMetrics({ hardGatesPass: false }),
-    contrast:   contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
-    motion:     hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
-    legibility: hookMetrics({ hardGatesPass: true }),
-    codeCraft:  hookMetrics({ hardGatesPass: true, advisoryFails: ['C2-hex'] }),
+    hook:            null,
+    retention:       hookMetrics({ hardGatesPass: false }),
+    contrast:        contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
+    motion:          hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
+    legibility:      hookMetrics({ hardGatesPass: true }),
+    codeCraft:       hookMetrics({ hardGatesPass: true, advisoryFails: ['C2-hex'] }),
+    payoff:          hookMetrics({ hardGatesPass: true }),
+    remotionCorrect: hookMetrics({ hardGatesPass: true }),
+    distinct:        hookMetrics({ hardGatesPass: true }),
   });
 
   const rems = buildRemediations(verdict);
