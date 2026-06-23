@@ -49,6 +49,11 @@ Read these before any creative decision (all in this folder):
   (both HARD) / R3-interpolate-clamp / R4-spring-fps / R5-wallclock (all advisory).
   `scripts/remotion-correct.sh` usage, calibration rationale, and recorded
   RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at any point.
+- `distinct.md` — distinctiveness gate: ≥4-of-9 identity axes must differ from every
+  prior registry entry (HARD when ≥2 entries present; SKIP otherwise). Advisory drift
+  warnings for luminance/mono-font/blue-teal-accent clusters. `scripts/distinct.sh`
+  usage, nine-axis table, override flags for pre-registry theme-lock, and recorded
+  relay + granipa PASS snapshots. Render-free; run at stage 2 with overrides.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -143,7 +148,10 @@ Run the identity derivation in `direction.md` §3, then write `treatment.md`:
   each axis in `craft.md` §1.
 - Music direction: bpm, energy map, where the drop/impact lands.
 - Scene list: name, intent, beats, one-line visual.
-- Registry diff: which ≥4 axes differ from each prior video, stated.
+- Registry diff: which ≥4 axes differ from each prior video, stated. Verify by
+  running `scripts/distinct.sh <slug> --bg=.. --accent=.. --luminance=.. --arc=.. --bpm=.. --grain=..`
+  with the proposed theme values. Must print `DISTINCT: PASS` (≥4 axes differ from
+  every entry). Axis diff table goes in this section. See `distinct.md`.
 - `Status: DRAFT`
 
 Present the treatment to the user conversationally (not just the file).
@@ -237,8 +245,8 @@ Commit after each scene passes (small commits = resumable production).
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
 - `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]` — run
-  the unified ship gate (9 gates: hook + retention + contrast + motion + legibility +
-  code-craft + musicsync + payoff + remotion-correct); inspect
+  the unified ship gate (10 gates: hook + retention + contrast + motion + legibility +
+  code-craft + musicsync + payoff + remotion-correct + distinct); inspect
   `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).

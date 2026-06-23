@@ -21,6 +21,8 @@ out
 !out/review/*/musicsync/metrics.json
 !out/review/*/payoff/
 !out/review/*/payoff/metrics.json
+!out/review/*/distinct/
+!out/review/*/distinct/metrics.json
 
 # Generated smoke-test media
 public/smoke
