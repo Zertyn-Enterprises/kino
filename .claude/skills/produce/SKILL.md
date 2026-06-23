@@ -55,6 +55,10 @@ Read these before any creative decision (all in this folder):
   warnings for luminance/mono-font/blue-teal-accent clusters. `scripts/distinct.sh`
   usage, nine-axis table, override flags for pre-registry theme-lock, and recorded
   relay + granipa PASS snapshots. Render-free; run at stage 2 with overrides.
+- `preflight.md` — structural-integrity gate: P1-registration / P2-files (both HARD)
+  / P3-approved / P4-metadata (both advisory). `scripts/preflight.sh` + `node
+  scripts/new-video.mjs` scaffold usage, P1–P4 thresholds, and recorded
+  RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at stage 3 scaffold.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -175,8 +179,24 @@ status table:
 | # | scene id | beats | status |   <!-- pending → built → reviewed -->
 ```
 
-Then scaffold `theme.ts`, `timeline.ts`, `Main.tsx` (scenes as placeholders),
-register the composition, and verify `npm run lint` + a 1-frame still render.
+**Scaffold step:** run `node scripts/new-video.mjs <slug> <CompId>` to generate
+the video skeleton (treatment.md with `Status: DRAFT`, storyboard.md with the
+status table header, taste-free theme.ts with five TODO palette placeholders,
+timeline.ts via `buildTimeline`, Main.tsx, scenes/Placeholder.tsx,
+public/<slug>/MANIFEST.md) and register the Composition in `src/Root.tsx`. The
+scaffold passes preflight P1 and P2 by construction.
+
+Then **immediately run the preflight gate** to confirm the structural wiring before
+any render spend:
+```bash
+scripts/preflight.sh <CompId> <slug>
+```
+P1 (registration) and P2 (required files) must be HARD: PASS before proceeding.
+P3 will warn `Status: DRAFT` — expected; it becomes PASS after treatment approval.
+See `preflight.md` for the full gate rubric and P1–P4 thresholds.
+
+Once the palette is locked in `theme.ts` (replacing the `#TODO` placeholders),
+verify `npm run lint` is green.
 
 **Contrast gate (design-system lock):** immediately after the palette is declared
 in `theme.ts`, run `scripts/contrast.sh <slug> --bg=.. --surface=.. --text=.. --textDim=.. --accent=.. [--accentAlt=..]`
