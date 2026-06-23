@@ -859,6 +859,15 @@ describe('computeRegistryDriftGate', () => {
     expect(gate.pass).toBe(false);
     expect(gate.detail).toContain('palette-accent');
   });
+
+  it('bg drift fires when registry bg is stale (ΔE94 > 5)', () => {
+    // Simulate stale registry with bright-blue bg; derived retains the correct near-black value.
+    // ΔE94(#3D8BFF, #0A0E0B) >> 5 → drift gate fires and names palette-bg.
+    const staleRecord = { ...relayRecord, parsed: { ...relayRecord.parsed, bg: '#3D8BFF' } };
+    const gate = computeRegistryDriftGate(staleRecord, RELAY_DERIVED);
+    expect(gate.pass).toBe(false);
+    expect(gate.detail).toContain('palette-bg');
+  });
 });
 
 // ── Fixture 24: computeNonDerivableCoverage ──────────────────────────────────────────────────
