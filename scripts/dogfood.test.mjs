@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { normalize, diff, METRIC_EPSILON } from './dogfood.mjs';
+import { normalize, diff, METRIC_EPSILON, buildRenderFreeReport } from './dogfood.mjs';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -414,5 +414,90 @@ describe('normalize — divergent-shape synthetic video (light-palette, music-le
   it('no drift vs identical snapshot — divergent shape is stable in diff()', () => {
     const drifts = diff('SerenoLaunch', snap, snap);
     expect(drifts).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture L: render-free clean PASS — all four render-free gates pass
+// ---------------------------------------------------------------------------
+
+describe('render-free diff — clean PASS (all four gates pass)', () => {
+  const rfReport = buildRenderFreeReport(
+    { hardGatesPass: true, gates: [] },              // codeCraft
+    { hardGatesPass: true, gates: [] },              // remotionCorrect
+    { hardGatesPass: true, skip: false, gates: [] }, // distinct
+    { hardGatesPass: true, gates: [] },              // preflight
+  );
+  const snap = normalize(rfReport, {});
+
+  it('shipReady is true', () => {
+    expect(snap.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(snap.blockers).toHaveLength(0);
+  });
+
+  it('codeCraft.hardVerdict is PASS', () => {
+    expect(snap.gates.codeCraft.hardVerdict).toBe('PASS');
+  });
+
+  it('remotionCorrect.hardVerdict is PASS', () => {
+    expect(snap.gates.remotionCorrect.hardVerdict).toBe('PASS');
+  });
+
+  it('distinct.hardVerdict is PASS', () => {
+    expect(snap.gates.distinct.hardVerdict).toBe('PASS');
+  });
+
+  it('preflight.hardVerdict is PASS', () => {
+    expect(snap.gates.preflight.hardVerdict).toBe('PASS');
+  });
+
+  it('no drift vs identical snapshot', () => {
+    const drifts = diff('RelayLaunch', snap, snap);
+    expect(drifts).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture M: render-free regression FAIL — remotionCorrect hard-fails
+// ---------------------------------------------------------------------------
+
+describe('render-free diff — regression FAIL (remotionCorrect hard-fails)', () => {
+  const goldenSnap = normalize(buildRenderFreeReport(
+    { hardGatesPass: true, gates: [] },
+    { hardGatesPass: true, gates: [] },
+    { hardGatesPass: true, skip: false, gates: [] },
+    { hardGatesPass: true, gates: [] },
+  ), {});
+  const currentSnap = normalize(buildRenderFreeReport(
+    { hardGatesPass: true, gates: [] },
+    { hardGatesPass: false, gates: [] }, // <-- regression: R1 or R2 now fails
+    { hardGatesPass: true, skip: false, gates: [] },
+    { hardGatesPass: true, gates: [] },
+  ), {});
+  const drifts = diff('RelayLaunch', goldenSnap, currentSnap);
+
+  it('drift is reported', () => {
+    expect(drifts.length).toBeGreaterThan(0);
+  });
+
+  it('remotionCorrect hardVerdict drift is present', () => {
+    const d = drifts.find(x => x.gate === 'remotionCorrect' && x.field === 'hardVerdict');
+    expect(d).toBeDefined();
+    expect(d.golden).toBe('PASS');
+    expect(d.actual).toBe('FAIL');
+  });
+
+  it('shipReady drift is present', () => {
+    const d = drifts.find(x => x.field === 'shipReady');
+    expect(d).toBeDefined();
+    expect(d.golden).toBe(true);
+    expect(d.actual).toBe(false);
+  });
+
+  it('video field is set correctly', () => {
+    expect(drifts[0].video).toBe('RelayLaunch');
   });
 });

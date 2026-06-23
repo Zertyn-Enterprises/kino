@@ -45,6 +45,7 @@ jobs:
             npm run lint --if-present
             if [ -f "tsconfig.json" ]; then npx tsc --noEmit; fi
             npm test --if-present
+            npm run dogfood:check:rf --if-present
             npm audit --audit-level=high || true
             popd > /dev/null
           done

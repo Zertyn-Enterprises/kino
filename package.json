@@ -46,6 +46,8 @@
     "format": "prettier --write src videos",
     "check:agents": "node scripts/agents-sync-metrics.mjs",
     "dogfood": "node scripts/dogfood.mjs --update",
-    "dogfood:check": "node scripts/dogfood.mjs --check"
+    "dogfood:check": "node scripts/dogfood.mjs --check",
+    "dogfood:rf": "node scripts/dogfood.mjs --render-free --update",
+    "dogfood:check:rf": "node scripts/dogfood.mjs --render-free --check"
   }
 }
