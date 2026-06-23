@@ -206,3 +206,55 @@ describe('loadStructure — promise golden (granipa)', () => {
     expect(structure.promise.wordCount).toBe(8);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Golden calibration — payoff field via loadStructure (relay)
+//
+// relay climax scene: cumulative 56 beats @ 120bpm/30fps.
+// cutFrame = beatFrame(56) = round((56*60/120)*30) = 840.
+// Declared: payoff.text = "14,203 deploys today", no byFrame.
+// Resolved: frame = cutFrame = 840.
+// ---------------------------------------------------------------------------
+
+describe('loadStructure — payoff golden (relay)', () => {
+  it('payoff is non-null', async () => {
+    const structure = await loadStructure('relay');
+    expect(structure.payoff).not.toBeNull();
+  });
+
+  it('payoff.text matches climax deploy-counter copy', async () => {
+    const structure = await loadStructure('relay');
+    expect(structure.payoff.text).toBe('14,203 deploys today');
+  });
+
+  it('payoff.frame falls back to climax cutFrame=840 (no byFrame supplied)', async () => {
+    const structure = await loadStructure('relay');
+    expect(structure.payoff.frame).toBe(840);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Golden calibration — payoff field via loadStructure (granipa)
+//
+// granipa kicker scene: cumulative 69 beats @ 122bpm/30fps.
+// cutFrame = beatFrame(69) = round((69*60/122)*30) = round(1018.03) = 1018.
+// Declared: payoff.text = "$0", no byFrame.
+// Resolved: frame = cutFrame = 1018.
+// ---------------------------------------------------------------------------
+
+describe('loadStructure — payoff golden (granipa)', () => {
+  it('payoff is non-null', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structure.payoff).not.toBeNull();
+  });
+
+  it('payoff.text matches kicker $0 slam copy', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structure.payoff.text).toBe('$0');
+  });
+
+  it('payoff.frame falls back to kicker cutFrame=1018 (no byFrame supplied)', async () => {
+    const structure = await loadStructure('granipa');
+    expect(structure.payoff.frame).toBe(1018);
+  });
+});

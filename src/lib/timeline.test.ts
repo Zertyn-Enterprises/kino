@@ -125,6 +125,7 @@ describe("structure derivation", () => {
       holds: [],
       rehookSeconds: null,
       promise: null,
+      payoff: null,
     });
   });
 
@@ -172,6 +173,54 @@ describe("structure derivation", () => {
     expect(t.structure.climaxFrame).toBe(180);
     expect(t.structure.holds).toEqual([[120, 180]]);
     expect(t.structure.rehookSeconds).toBe(6);
+  });
+});
+
+describe("payoff derivation", () => {
+  it("returns null when no payoff is declared", () => {
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "hook", beats: 8, promise: { text: "Will it work?" } },
+      { id: "cta", beats: 8 },
+    ]);
+    expect(t.structure.payoff).toBeNull();
+  });
+
+  it("resolves frame to cutFrame when byFrame is omitted", () => {
+    // cta: beats 8–16 at 120bpm/30fps → cutFrame = beatFrame(16) = 240
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "hook", beats: 8, promise: { text: "Test promise" } },
+      { id: "cta", beats: 8, payoff: { text: "Done" } },
+    ]);
+    expect(t.structure.payoff).toEqual({ text: "Done", frame: 240 });
+  });
+
+  it("resolves frame to byFrame when provided", () => {
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "hook", beats: 8, promise: { text: "Test promise" } },
+      { id: "cta", beats: 8, payoff: { text: "Done", byFrame: 200 } },
+    ]);
+    expect(t.structure.payoff).toEqual({ text: "Done", frame: 200 });
+  });
+
+  it("text is null when not provided in payoff declaration", () => {
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "hook", beats: 8 },
+      { id: "cta", beats: 8, payoff: {} },
+    ]);
+    expect(t.structure.payoff).not.toBeNull();
+    expect(t.structure.payoff!.text).toBeNull();
+  });
+
+  it("picks the LAST scene that declares payoff", () => {
+    // Two scenes have payoff; the last one should win.
+    // climax: cumulative 8 beats → cutFrame=120; cta: cumulative 16 → cutFrame=240.
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "hook", beats: 8 },
+      { id: "climax", beats: 8, payoff: { text: "First payoff" } },
+      { id: "cta", beats: 8, payoff: { text: "Last payoff" } },
+    ]);
+    expect(t.structure.payoff!.text).toBe("Last payoff");
+    expect(t.structure.payoff!.frame).toBe(360);
   });
 });
 
