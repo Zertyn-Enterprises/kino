@@ -1,10 +1,15 @@
 /**
  * Regression tests for computeHookMetrics.
  *
- * Three fixture sets:
+ * Fixture sets:
  *   - Golden positive:   16×16 synthetic frame engineered to PASS all 5 gates.
- *   - Golden negative:   16×16 synthetic frame engineered to FAIL gates 1, 4, 5
+ *   - Golden negative:   16×16 synthetic frame engineered to FAIL gates 1 and 4;
+ *                        gate 5 now PASSES via concentrated-focal path (row-1 cells stddev=75).
  *                        (gates 2 and 3 pass; hardGatesPass=false via gate-1 FAIL).
+ *   - Focal-liveness PASS: concentrated single-row/single-region fixtures that
+ *                        pass via the focal path (gates 4 and 5 independently).
+ *   - Regression guards: anti-static-card (flat frame → gate 5 FAIL) and
+ *                        anti-frozen-bg (weak single region → gate 4 FAIL).
  *   - Reference videos:  loadFrame from out/review/<CompId>/hook/; tests are
  *                        skipped if those files are not present — run
  *                        `scripts/hook.sh <CompId>` to populate them.
@@ -86,7 +91,7 @@ const posMid = makeFrame((x, y) => {
 const posFinal = makeFrame(posPixel); // identical to frame0 → seam delta=0
 
 // ---------------------------------------------------------------------------
-// Golden negative fixture — gate 1 hard-FAIL; gates 4 and 5 advisory-FAIL
+// Golden negative fixture — gate 1 hard-FAIL; gate 4 advisory-FAIL
 //
 // Layout:
 //   Row 0: flat 100
@@ -94,11 +99,11 @@ const posFinal = makeFrame(posPixel); // identical to frame0 → seam delta=0
 //   Row 2: flat 100
 //   Row 3: flat 100
 //
-// Gate 1 (motion >0.1):  early=frame0; delta=0                          FAIL (hard)
-// Gate 2 (contrast >5):  overall stddev ≈ 39 > 5                        PASS (hard)
-// Gate 3 (seam <60):     final=frame0; delta=0 < 60                     PASS (hard)
-// Gate 4 (advisory):     mid=frame0; all cell deltas=0; active=0        FAIL
-// Gate 5 (advisory):     4 content cells all in row 1; rowSpread=1 < 2  FAIL
+// Gate 1 (motion >0.1):  early=frame0; delta=0                              FAIL (hard)
+// Gate 2 (contrast >5):  overall stddev ≈ 39 > 5                            PASS (hard)
+// Gate 3 (seam <60):     final=frame0; delta=0 < 60                         PASS (hard)
+// Gate 4 (advisory):     mid=frame0; all cell deltas=0; active=0            FAIL
+// Gate 5 (advisory):     4 content cells in row 1; maxStddev=75 > 20.0      PASS (focal path)
 // hardGatesPass = false (gate 1 fails)
 // ---------------------------------------------------------------------------
 
@@ -112,6 +117,49 @@ const negFrame0 = makeFrame(negPixel);
 const negEarly = makeFrame(negPixel); // identical → gate1 delta=0 FAIL
 const negMid = makeFrame(negPixel); // identical → gate4 no active cells FAIL
 const negFinal = makeFrame(negPixel); // identical → gate3 delta=0 PASS
+
+// ---------------------------------------------------------------------------
+// Concentrated-focal-liveness PASS fixtures
+//
+// Gate 5 focal PASS — title-card-band: reuse negFrame0 (row-1 band, 4 cells, stddev=75 > 20)
+//   Models GranipaLaunch: wide text band, cells=3–4, maxStddev=49.3 > FOCAL_STRENGTH_THRESHOLD=20
+// Gate 5 focal PASS — terminal-in-one-row: cols 0–1 of row 1 alternating (stddev=75), rest flat.
+//   Models RelayLaunch: narrow focal region, cells=2, rows=1, maxStddev=75 > FOCAL_STRENGTH_THRESHOLD=20
+//   contentCells.length=2 ≥ LIVENESS_MIN_CELLS=2; passA: rows=1 < 2 → false; passB: 75 > 20 → PASS
+// Gate 4 focal PASS: flat frame0 + mid with single strong-motion cell (delta=15 > FOCAL_MOTION_THRESHOLD=10)
+//   activeCell (1,1): all 16 pixels shift from 100 → 115 → meanDelta=15
+//   passA: active=1, separated=false → false; passB: maxDelta=15>10 → true → PASS
+// ---------------------------------------------------------------------------
+
+const terminalFrame0 = makeFrame((x, y) => {
+  const row = Math.floor(y / 4);
+  const col = Math.floor(x / 4);
+  if (row === 1 && col <= 1) return (x + y) % 2 === 0 ? 200 : 50; // cells (1,0),(1,1) stddev=75
+  return 100;
+});
+
+const focalMotionFrame0 = makeFrame(() => 100);
+const focalMotionMid = makeFrame((x, y) => {
+  const row = Math.floor(y / 4);
+  const col = Math.floor(x / 4);
+  return row === 1 && col === 1 ? 115 : 100; // delta=15 in cell (1,1)
+});
+
+// ---------------------------------------------------------------------------
+// Regression guard fixtures (anti-static-card / anti-frozen-bg)
+//
+// Gate 5 FAIL (anti-static-card): flat uniform frame → 0 content cells → both paths fail
+// Gate 4 FAIL (anti-frozen-bg):   single weak-motion cell (delta=7); 7 > GRID_MOTION_THRESHOLD=5
+//   but 7 < FOCAL_MOTION_THRESHOLD=10; passA: active=1,separated=false → false;
+//   passB: maxDelta=7 < 10 → false → FAIL
+// ---------------------------------------------------------------------------
+
+const flatFrame = makeFrame(() => 100);
+const weakRegionMid = makeFrame((x, y) => {
+  const row = Math.floor(y / 4);
+  const col = Math.floor(x / 4);
+  return row === 1 && col === 1 ? 107 : 100; // delta=7 in cell (1,1)
+});
 
 // ---------------------------------------------------------------------------
 // Reference video frames — loaded now; null when not yet rendered
@@ -201,7 +249,7 @@ describe("computeHookMetrics — golden positive control (all 5 gates pass)", ()
 // Tests: golden negative
 // ---------------------------------------------------------------------------
 
-describe("computeHookMetrics — golden negative control (expected FAILs)", () => {
+describe("computeHookMetrics — golden negative control (gate 1 hard-FAIL, gate 4 advisory-FAIL)", () => {
   const verdict = computeHookMetrics({
     frame0: negFrame0,
     early: negEarly,
@@ -239,9 +287,9 @@ describe("computeHookMetrics — golden negative control (expected FAILs)", () =
     expect(g.measured.active).toBe(0);
   });
 
-  it("gate 5 (advisory) fails — all content cells confined to row 1", () => {
+  it("gate 5 (advisory) passes via focal path — row-1 cells stddev=75 > FOCAL_STRENGTH_THRESHOLD=20", () => {
     const g = verdict.gates.find((g) => g.id === 5);
-    expect(g.pass).toBe(false);
+    expect(g.pass).toBe(true);
     expect(g.advisory).toBe(true);
     expect(g.measured.rows).toBe(1);
     expect(g.measured.cells).toBeGreaterThanOrEqual(2);
@@ -249,14 +297,116 @@ describe("computeHookMetrics — golden negative control (expected FAILs)", () =
 });
 
 // ---------------------------------------------------------------------------
+// Tests: concentrated focal liveness — gate 5 (single-row, high-stddev)
+// ---------------------------------------------------------------------------
+
+describe("computeHookMetrics — gate 5 concentrated-focal PASS (title-card-band pattern)", () => {
+  // negFrame0: full row-1 band with stddev=75 in all 4 cells; models GranipaLaunch text band.
+  // contentCells=4, rows=1; passA: rows=1 < 2 → false; passB: maxStddev=75 > 20 → PASS
+  const verdict = computeHookMetrics({
+    frame0: negFrame0,
+    early: makeFrame(() => 255),
+    mid: focalMotionMid,
+    final: negFrame0,
+  });
+
+  it("gate 5 passes — full row-1 band (title-card) passes via focal path", () => {
+    const g = verdict.gates.find((g) => g.id === 5);
+    expect(g.pass).toBe(true);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.rows).toBe(1);
+    expect(g.measured.cells).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("computeHookMetrics — gate 5 concentrated-focal PASS (terminal-in-one-row pattern)", () => {
+  // terminalFrame0: cells (1,0) and (1,1) alternating (stddev=75), rest flat; models RelayLaunch.
+  // contentCells=2, rows=1; passA: rows=1 < 2 → false; passB: maxStddev=75 > 20, cells=2 ≥ 2 → PASS
+  const verdict = computeHookMetrics({
+    frame0: terminalFrame0,
+    early: makeFrame(() => 255),
+    mid: focalMotionMid,
+    final: terminalFrame0,
+  });
+
+  it("gate 5 passes — 2-cell single-row terminal passes via focal path", () => {
+    const g = verdict.gates.find((g) => g.id === 5);
+    expect(g.pass).toBe(true);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.rows).toBe(1);
+    expect(g.measured.cells).toBe(2);
+  });
+});
+
+describe("computeHookMetrics — gate 4 concentrated-focal PASS (single-strong-region pattern)", () => {
+  // focalMotionMid: cell(1,1) delta=15 > FOCAL_MOTION_THRESHOLD=10; only 1 active cell (not separated)
+  const verdict = computeHookMetrics({
+    frame0: focalMotionFrame0,
+    early: makeFrame(() => 255),
+    mid: focalMotionMid,
+    final: focalMotionFrame0,
+  });
+
+  it("gate 4 passes — single active cell with maxDelta > FOCAL_MOTION_THRESHOLD", () => {
+    const g = verdict.gates.find((g) => g.id === 4);
+    expect(g.pass).toBe(true);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.active).toBe(1);
+    expect(g.measured.separated).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: regression guards — anti-static-card (gate 5) and anti-frozen-bg (gate 4)
+// ---------------------------------------------------------------------------
+
+describe("computeHookMetrics — gate 5 regression guard: flat frame-0 fails (anti-static-card)", () => {
+  // flatFrame: all pixels=100, stddev=0 in every cell → 0 content cells → both paths fail
+  const verdict = computeHookMetrics({
+    frame0: flatFrame,
+    early: makeFrame(() => 255),
+    mid: flatFrame,
+    final: flatFrame,
+  });
+
+  it("gate 5 fails — all cells flat, 0 content cells, focal path also fails", () => {
+    const g = verdict.gates.find((g) => g.id === 5);
+    expect(g.pass).toBe(false);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.cells).toBe(0);
+  });
+});
+
+describe("computeHookMetrics — gate 4 regression guard: single weak region fails (anti-frozen-bg)", () => {
+  // weakRegionMid: cell(1,1) delta=7; 7 > GRID_MOTION_THRESHOLD=5 but 7 < FOCAL_MOTION_THRESHOLD=10
+  // passA: active=1, separated=false → false; passB: maxDelta=7 < 10 → false → FAIL
+  const verdict = computeHookMetrics({
+    frame0: flatFrame,
+    early: makeFrame(() => 255),
+    mid: weakRegionMid,
+    final: flatFrame,
+  });
+
+  it("gate 4 fails — single active region with delta below FOCAL_MOTION_THRESHOLD", () => {
+    const g = verdict.gates.find((g) => g.id === 4);
+    expect(g.pass).toBe(false);
+    expect(g.advisory).toBe(true);
+    expect(g.measured.active).toBe(1);
+    expect(g.measured.separated).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tests: reference videos (skip if frames not yet rendered)
 //
-// Documented verdicts from hook.md §2 (recorded 2026-06-20):
+// Updated verdicts after focal-liveness recalibration:
 //   RelayLaunch:   g1=PASS(δ=0.29) g2=PASS(σ=7.45) g3=PASS(δ=6.56)
-//                  g4=FAIL(active=1,separated=false) g5=FAIL(cells=2,rows=1)
+//                  g4=PASS(active=1,separated=false,maxDelta=12.2 > FOCAL_MOTION_THRESHOLD=10)
+//                  g5=PASS(cells=2,rows=1,maxStddev=23.4 > FOCAL_STRENGTH_THRESHOLD=20)
 //   GranipaLaunch: g1=PASS(δ=1.40) g2=PASS(σ=20.64) g3=PASS(δ=9.46)
-//                  g4=PASS(active=3,separated=true)   g5=FAIL(cells=3,rows=1)
-// Both: hardGatesPass=true (gates 1–3 hard; 4–5 advisory).
+//                  g4=PASS(active=3,separated=true — spread path unchanged)
+//                  g5=PASS(cells=3,rows=1,maxStddev=49.3 > FOCAL_STRENGTH_THRESHOLD=20)
+// All 5 gates now PASS for both reference videos. hardGatesPass=true.
 // ---------------------------------------------------------------------------
 
 describe(
@@ -275,20 +425,20 @@ describe(
     );
 
     it.skipIf(!relayAvailable)(
-      "gate 4 (advisory) fails — single terminal region (active=1, separated=false)",
+      "gate 4 (advisory) passes — single terminal region passes focal path (maxDelta=12.2 > 10.0)",
       () => {
         const g = verdict.gates.find((g) => g.id === 4);
-        expect(g.pass).toBe(false);
+        expect(g.pass).toBe(true);
         expect(g.measured.separated).toBe(false);
         expect(g.measured.active).toBe(1);
       },
     );
 
     it.skipIf(!relayAvailable)(
-      "gate 5 (advisory) fails — terminal in single grid row (rows=1)",
+      "gate 5 (advisory) passes — terminal in single row passes focal path (maxStddev=23.4 > 20.0)",
       () => {
         const g = verdict.gates.find((g) => g.id === 5);
-        expect(g.pass).toBe(false);
+        expect(g.pass).toBe(true);
         expect(g.measured.rows).toBe(1);
       },
     );
@@ -311,7 +461,7 @@ describe(
     );
 
     it.skipIf(!granipaAvailable)(
-      "gate 4 (advisory) passes — text settle spans separated cells",
+      "gate 4 (advisory) passes — text settle spans separated cells (spread path unchanged)",
       () => {
         const g = verdict.gates.find((g) => g.id === 4);
         expect(g.pass).toBe(true);
@@ -320,10 +470,10 @@ describe(
     );
 
     it.skipIf(!granipaAvailable)(
-      "gate 5 (advisory) fails — title-card text band (rows=1)",
+      "gate 5 (advisory) passes — title-card text band passes focal path (maxStddev=49.3 > 20.0)",
       () => {
         const g = verdict.gates.find((g) => g.id === 5);
-        expect(g.pass).toBe(false);
+        expect(g.pass).toBe(true);
         expect(g.measured.rows).toBe(1);
       },
     );
