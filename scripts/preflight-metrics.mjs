@@ -5,6 +5,7 @@
 //   P2 (HARD): required files present in src/videos/<slug>/
 //   P3 (advisory): treatment.md contains Status: APPROVED
 //   P4 (advisory): theme tokens present; public/<slug>/MANIFEST.md present; storyboard status table present
+//   P5 (advisory): hook scene in timeline.ts declares a promise field (promise: { text, byFrame? })
 //
 // Usage:
 //   node scripts/preflight-metrics.mjs <CompId> <slug> [--json]
@@ -252,10 +253,37 @@ function checkP4({ themeContent, manifestExists, storyboardContent }) {
   };
 }
 
+/**
+ * P5 (advisory): hook scene in timeline.ts declares a promise field.
+ * Checks for `promise:` in the timeline source — ensures Promise-by-2.5s and
+ * Text-density gates are machine-assertable when hook.sh runs.
+ * @param {{ timelineContent: string|null }} opts
+ * @returns {{ pass: boolean, skip: boolean, detail: string }}
+ */
+function checkP5({ timelineContent }) {
+  if (timelineContent === null) {
+    return {
+      pass: false,
+      skip: false,
+      detail: 'timeline.ts absent — cannot check promise declaration',
+    };
+  }
+
+  if (/\bpromise\s*:/.test(timelineContent)) {
+    return { pass: true, skip: false, detail: 'hook scene declares promise field in timeline.ts' };
+  }
+
+  return {
+    pass: false,
+    skip: false,
+    detail: 'hook scene missing promise declaration — add promise: { text: "..." } to the hook beat in timeline.ts',
+  };
+}
+
 // ── Main pure export ──────────────────────────────────────────────────────────
 
 /**
- * Evaluate the four preflight gates for a video.
+ * Evaluate the five preflight gates for a video.
  *
  * @param {{
  *   compId: string,
@@ -264,6 +292,7 @@ function checkP4({ themeContent, manifestExists, storyboardContent }) {
  *   storyboardContent: string|null,
  *   themeContent: string|null,
  *   timelineExists: boolean,
+ *   timelineContent?: string|null,
  *   mainExists: boolean,
  *   scenesNonEmpty: boolean,
  *   manifestExists: boolean,
@@ -281,6 +310,7 @@ export function computePreflightVerdict({
   storyboardContent,
   themeContent,
   timelineExists,
+  timelineContent = null,
   mainExists,
   scenesNonEmpty,
   manifestExists,
@@ -289,12 +319,14 @@ export function computePreflightVerdict({
   const p2 = checkP2({ treatmentContent, storyboardContent, themeContent, timelineExists, mainExists, scenesNonEmpty });
   const p3 = checkP3({ treatmentContent });
   const p4 = checkP4({ themeContent, manifestExists, storyboardContent });
+  const p5 = checkP5({ timelineContent });
 
   const gates = [
     { name: 'P1-registration', advisory: false, pass: p1.pass, skip: p1.skip, detail: p1.detail },
     { name: 'P2-files',        advisory: false, pass: p2.pass, skip: p2.skip, detail: p2.detail },
     { name: 'P3-approved',     advisory: true,  pass: p3.pass, skip: p3.skip, detail: p3.detail },
     { name: 'P4-metadata',     advisory: true,  pass: p4.pass, skip: p4.skip, detail: p4.detail },
+    { name: 'P5-promise',      advisory: true,  pass: p5.pass, skip: p5.skip, detail: p5.detail },
   ];
 
   const hardGatesPass = gates
@@ -339,6 +371,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const storyboardContent = read(join(videoDir, 'storyboard.md'));
   const themeContent      = read(join(videoDir, 'theme.ts'));
   const timelineExists    = existsSync(join(videoDir, 'timeline.ts'));
+  const timelineContent   = read(join(videoDir, 'timeline.ts'));
   const mainExists        = existsSync(join(videoDir, 'Main.tsx'));
 
   const scenesDir    = join(videoDir, 'scenes');
@@ -354,6 +387,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     storyboardContent,
     themeContent,
     timelineExists,
+    timelineContent,
     mainExists,
     scenesNonEmpty,
     manifestExists,

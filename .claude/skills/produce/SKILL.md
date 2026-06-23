@@ -238,7 +238,7 @@ For each scene, in storyboard order:
    `scripts/hook-tournament.sh <Comp> 3 -- '<propsA>' '<propsB>'`
    Adopt a **decisive** winner; on a **contested** near-tie the director decides between the tied variants on the human-judged substance gates (promise-by-2.5s, hook-pattern-committed, frame-0 thumbnail focal) and records the chosen variant + one-line rationale (see `hook.md §3` for ranking key + RelayLaunch A/B worked example — decisive run, B wins by composite delta 0.4675).
    Then run `scripts/hook.sh <Comp>` on the winning variant and assert every
-   gate in `hook.md` (see `review.md §6`). Speed tradeoff: authoring the hook
+   gate in `hook.md` (see `review.md §6`). Declare `promise: { text, byFrame? }` on the hook beat in `timeline.ts` before running — Promise-by-2.5s and Text-density-≤6-words are now machine-asserted (🤖 in `hook.md §1` and `hooks.md` gate table); HARD failures exit non-zero and block ship. Speed tradeoff: authoring the hook
    twice costs ~15% of total production time; the hook determines whether anyone
    watches the other 85% — this investment is always justified.
 5. After the last scene is built: `scripts/code-craft.sh <Comp> <slug>` —

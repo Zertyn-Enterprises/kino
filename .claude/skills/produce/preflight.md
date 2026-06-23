@@ -30,6 +30,7 @@ function — safe to call from unit tests without any filesystem dependency.
 | P2-files | **HARD** | `src/videos/<slug>/` contains all six required items: `treatment.md`, `storyboard.md`, `theme.ts`, `timeline.ts`, `Main.tsx`, and a non-empty `scenes/` directory (at least one non-dotfile). |
 | P3-approved | Advisory | `treatment.md` contains `Status: APPROVED`. Warns (does NOT block) when `Status: DRAFT` — preflight can and should run early in the storyboard phase. |
 | P4-metadata | Advisory | `theme.ts` exports all five palette tokens (`bg`, `surface`, `text`, `textDim`, `accent`); `public/<slug>/MANIFEST.md` exists; `storyboard.md` contains the per-scene status table header (`\| #`). |
+| P5-promise | Advisory | `timeline.ts` contains a `promise:` field on the hook scene. Warns (does NOT block) when absent — `hook.sh` Promise-by-2.5s and Text-density gates will HARD FAIL if undeclared. |
 
 **P1 and P2 are HARD gates.** Any P1 or P2 failure means `hardGatesPass: false`
 and `scripts/preflight.sh` exits non-zero.
@@ -53,6 +54,8 @@ expected during the storyboard phase (status is `DRAFT`). P3 PASS (status:
 - `MANIFEST.md` absent: required for any bundled asset; create the stub early.
 - Storyboard status table absent: the resume mechanism relies on it.
 
+**P5 (advisory):** Warns when `timeline.ts` has no `promise:` field on any scene. Without this declaration, `scripts/hook.sh` cannot machine-assert the Promise-by-2.5s and Text-density gates (gates 6 and 7 in `hooks.md`), and they will HARD FAIL. The scaffold from `scripts/new-video.mjs` includes a TODO placeholder by construction.
+
 **Machine signal:** `out/review/<CompId>/preflight/metrics.json` is the artifact
 of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip`.
 
@@ -70,6 +73,7 @@ All checks are textual/regex with the following rules:
 | P3 approved | `/^Status:\s*APPROVED/m` or `/^##\s*Status:\s*APPROVED/m` |
 | P4 tokens | each of `bg`, `surface`, `text`, `textDim`, `accent` appears as `\b<token>\s*:` in `theme.ts` |
 | P4 storyboard table | `/^\|[\s]*#/m` matches a row header in `storyboard.md` |
+| P5 promise | `/\bpromise\s*:/` matches anywhere in `timeline.ts` |
 
 ---
 
@@ -87,6 +91,7 @@ P1-registration    PASS  Composition "RelayLaunch" registered: 1920×1080, fps 3
 P2-files           PASS  all required files present (treatment.md, storyboard.md, theme.ts, timeline.ts, Main.tsx, scenes/) (HARD)
 P3-approved        FAIL  treatment.md Status: DRAFT — get director approval before scene work (advisory) (advisory)
 P4-metadata        PASS  theme tokens present (bg/surface/text/textDim/accent); MANIFEST.md present; storyboard status table present (advisory)
+P5-promise         PASS  hook scene declares promise field in timeline.ts (advisory)
 ─────────────────────────────────────────────────────────────
 
 Preflight review — out/review/RelayLaunch/preflight/
@@ -109,6 +114,7 @@ P1-registration    PASS  Composition "GranipaLaunch" registered: 1920×1080, fps
 P2-files           PASS  all required files present (treatment.md, storyboard.md, theme.ts, timeline.ts, Main.tsx, scenes/) (HARD)
 P3-approved        FAIL  treatment.md has no Status: APPROVED marker — add "Status: APPROVED" when ready (advisory)
 P4-metadata        PASS  theme tokens present (bg/surface/text/textDim/accent); MANIFEST.md present; storyboard status table present (advisory)
+P5-promise         PASS  hook scene declares promise field in timeline.ts (advisory)
 ─────────────────────────────────────────────────────────────
 
 Preflight review — out/review/GranipaLaunch/preflight/
