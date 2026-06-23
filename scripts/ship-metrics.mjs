@@ -13,6 +13,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { buildRemediations } from './remediation.mjs';
 
 /**
  * Extract advisory failure names from a gate's metrics.json object.
@@ -121,7 +122,7 @@ function loadMetrics(path) {
   }
 }
 
-function printHumanReadable(verdict) {
+function printHumanReadable(verdict, remediations) {
   const { shipReady, gates, blockers } = verdict;
   console.log('\n── Ship verdict ────────────────────────────────────────────');
   for (const [name, g] of Object.entries(gates)) {
@@ -137,6 +138,20 @@ function printHumanReadable(verdict) {
   }
   console.log('───────────────────────────────────────────────────────────');
   console.log(`SHIP: ${shipReady ? 'READY' : 'BLOCKED'}\n`);
+
+  if (remediations && remediations.length > 0) {
+    console.log('## How to fix\n');
+    for (const r of remediations) {
+      console.log(`[${r.gate}] ${r.symptom}`);
+      console.log(`  → ${r.fix}`);
+      console.log(`  ref: ${r.docRef}`);
+      console.log(`  inspect: ${r.inspect}`);
+      console.log('');
+    }
+    if (!shipReady) {
+      console.log('Fix the items above and re-run `scripts/ship-gate.sh` to clear blockers.\n');
+    }
+  }
 }
 
 // CLI — only runs when this file is the entry point, not when imported.
@@ -165,11 +180,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const distinct       = loadMetrics(distinctPath);
 
   const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft, musicsync, payoff, remotionCorrect, distinct });
+  const remediations = buildRemediations(verdict);
 
   if (jsonMode) {
-    process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ ...verdict, remediations }, null, 2) + '\n');
   } else {
-    printHumanReadable(verdict);
+    printHumanReadable(verdict, remediations);
   }
 
   process.exit(verdict.shipReady ? 0 : 1);
