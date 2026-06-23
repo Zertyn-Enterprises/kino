@@ -57,6 +57,9 @@ const TREATMENT_APPROVED = `# Treatment\n\n## Status: APPROVED\n`;
 const TREATMENT_DRAFT    = `# Treatment\n\n## Status: DRAFT\n`;
 const TREATMENT_NONE     = `# Treatment\n\nNo status marker here.\n`;
 
+const TIMELINE_WITH_PROMISE    = `export const t = buildTimeline({ fps: 30, bpm: 120 }, [{ id: "hook", beats: 10, promise: { text: "Done." } }] as const);`;
+const TIMELINE_WITHOUT_PROMISE = `export const t = buildTimeline({ fps: 30, bpm: 120 }, [{ id: "hook", beats: 10 }] as const);`;
+
 const STORYBOARD_WITH_TABLE = `# Storyboard\n\n## Scene status\n\n| # | scene | status |\n|---|-------|--------|\n| 1 | hook  | done   |\n`;
 const STORYBOARD_NO_TABLE   = `# Storyboard\n\nNo status table here.\n`;
 
@@ -92,6 +95,7 @@ function passingOpts(compId = 'TestComp') {
     storyboardContent: STORYBOARD_WITH_TABLE,
     themeContent:      THEME_FULL,
     timelineExists:    true,
+    timelineContent:   TIMELINE_WITH_PROMISE,
     mainExists:        true,
     scenesNonEmpty:    true,
     manifestExists:    true,
@@ -108,16 +112,17 @@ describe('computePreflightVerdict — contract (metrics.json shape)', () => {
     expect(Array.isArray(verdict.gates)).toBe(true);
   });
 
-  it('has exactly 4 gates', () => {
-    expect(verdict.gates).toHaveLength(4);
+  it('has exactly 5 gates', () => {
+    expect(verdict.gates).toHaveLength(5);
   });
 
-  it('gate names are P1-registration, P2-files, P3-approved, P4-metadata in order', () => {
+  it('gate names are P1-registration, P2-files, P3-approved, P4-metadata, P5-promise in order', () => {
     expect(verdict.gates.map(g => g.name)).toEqual([
       'P1-registration',
       'P2-files',
       'P3-approved',
       'P4-metadata',
+      'P5-promise',
     ]);
   });
 
@@ -136,9 +141,10 @@ describe('computePreflightVerdict — contract (metrics.json shape)', () => {
     expect(verdict.gates.find(g => g.name === 'P2-files').advisory).toBe(false);
   });
 
-  it('P3 and P4 are advisory gates (advisory:true)', () => {
+  it('P3, P4, and P5 are advisory gates (advisory:true)', () => {
     expect(verdict.gates.find(g => g.name === 'P3-approved').advisory).toBe(true);
     expect(verdict.gates.find(g => g.name === 'P4-metadata').advisory).toBe(true);
+    expect(verdict.gates.find(g => g.name === 'P5-promise').advisory).toBe(true);
   });
 });
 
@@ -151,7 +157,7 @@ describe('computePreflightVerdict — all gates pass', () => {
     expect(verdict.hardGatesPass).toBe(true);
   });
 
-  it('all 4 gates pass', () => {
+  it('all 5 gates pass', () => {
     expect(verdict.gates.every(g => g.pass)).toBe(true);
   });
 });
@@ -445,13 +451,57 @@ describe('computePreflightVerdict — P4 advisory FAIL: storyboard missing statu
   });
 });
 
+// ── P5: promise declaration ───────────────────────────────────────────────────
+
+describe('computePreflightVerdict — P5 PASS: timeline.ts has promise field', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: TIMELINE_WITH_PROMISE });
+
+  it('hardGatesPass is true (P5 advisory)', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P5-promise passes', () => {
+    expect(verdict.gates.find(g => g.name === 'P5-promise').pass).toBe(true);
+  });
+});
+
+describe('computePreflightVerdict — P5 advisory FAIL: no promise in timeline.ts', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: TIMELINE_WITHOUT_PROMISE });
+
+  it('hardGatesPass is still true — P5 is advisory', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P5-promise fails with missing-declaration message', () => {
+    const g = verdict.gates.find(g => g.name === 'P5-promise');
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(false);
+    expect(g.detail).toMatch(/promise declaration/);
+  });
+});
+
+describe('computePreflightVerdict — P5 advisory FAIL: timelineContent null', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: null });
+
+  it('hardGatesPass is still true — P5 is advisory', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P5-promise fails with absent message', () => {
+    const g = verdict.gates.find(g => g.name === 'P5-promise');
+    expect(g.pass).toBe(false);
+    expect(g.detail).toMatch(/absent/);
+  });
+});
+
 // ── HARD gates block, advisory do not ────────────────────────────────────────
 
 describe('computePreflightVerdict — advisory failures do not block', () => {
   const verdict = computePreflightVerdict({
     ...passingOpts(),
-    treatmentContent:  TREATMENT_DRAFT,  // P3 advisory fail
-    manifestExists:    false,            // P4 advisory fail
+    treatmentContent:  TREATMENT_DRAFT,      // P3 advisory fail
+    manifestExists:    false,                // P4 advisory fail
+    timelineContent:   TIMELINE_WITHOUT_PROMISE, // P5 advisory fail
   });
 
   it('hardGatesPass is true even with advisory failures', () => {
@@ -464,6 +514,10 @@ describe('computePreflightVerdict — advisory failures do not block', () => {
 
   it('P4 fails (advisory)', () => {
     expect(verdict.gates.find(g => g.name === 'P4-metadata').pass).toBe(false);
+  });
+
+  it('P5 fails (advisory)', () => {
+    expect(verdict.gates.find(g => g.name === 'P5-promise').pass).toBe(false);
   });
 });
 
@@ -492,13 +546,14 @@ function loadSlugOpts(compId, slug) {
   const storyboardContent = read(join(videoDir, 'storyboard.md'));
   const themeContent      = read(join(videoDir, 'theme.ts'));
   const timelineExists    = existsSync(join(videoDir, 'timeline.ts'));
+  const timelineContent   = read(join(videoDir, 'timeline.ts'));
   const mainExists        = existsSync(join(videoDir, 'Main.tsx'));
   const scenesNonEmpty    = existsSync(scenesDir) &&
     readdirSync(scenesDir).some(f => !f.startsWith('.'));
   const manifestExists    = existsSync(join(PROJECT_ROOT, 'public', slug, 'MANIFEST.md'));
 
   return { compId, rootTsxContent, treatmentContent, storyboardContent, themeContent,
-           timelineExists, mainExists, scenesNonEmpty, manifestExists };
+           timelineExists, timelineContent, mainExists, scenesNonEmpty, manifestExists };
 }
 
 describe('computePreflightVerdict — golden calibration (relay)', () => {
@@ -516,8 +571,12 @@ describe('computePreflightVerdict — golden calibration (relay)', () => {
     expect(verdict.gates.find(g => g.name === 'P2-files').pass).toBe(true);
   });
 
-  it('relay: 4 gates returned', () => {
-    expect(verdict.gates).toHaveLength(4);
+  it('relay: P5-promise passes (promise declared in timeline.ts)', () => {
+    expect(verdict.gates.find(g => g.name === 'P5-promise').pass).toBe(true);
+  });
+
+  it('relay: 5 gates returned', () => {
+    expect(verdict.gates).toHaveLength(5);
   });
 });
 
@@ -536,7 +595,11 @@ describe('computePreflightVerdict — golden calibration (granipa)', () => {
     expect(verdict.gates.find(g => g.name === 'P2-files').pass).toBe(true);
   });
 
-  it('granipa: 4 gates returned', () => {
-    expect(verdict.gates).toHaveLength(4);
+  it('granipa: P5-promise passes (promise declared in timeline.ts)', () => {
+    expect(verdict.gates.find(g => g.name === 'P5-promise').pass).toBe(true);
+  });
+
+  it('granipa: 5 gates returned', () => {
+    expect(verdict.gates).toHaveLength(5);
   });
 });
