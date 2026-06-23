@@ -6,9 +6,12 @@
 //   slug     video slug: src/videos/<slug>/ (e.g. myproduct)
 //   CompId   Remotion composition ID: PascalCase (e.g. MyProductLaunch)
 //
-// Generates a P1/P2-passing scaffold by construction:
+// Generates a hook-gate-green scaffold by construction:
 //   P1: Root.tsx Composition registered with 1920×1080, fps 30, timeline binding
 //   P2: all required files present + non-empty scenes/
+//   Hook gates 4+5: AmbientField living-background (PASS from frame 0)
+//   Hook gates 1+2: valid starter palette (all 5 slots are real 7-char hex)
+//                   Hook scene renders promise.text as frame-0 focal element
 
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -100,18 +103,18 @@ TODO: beat grid, scene boundaries, and per-scene shot specs.
 TODO: expand per storyboard spec — intent, copy, visual description, camera/motion, SFX cues.
 `);
 
-// Five palette token placeholders; SPRING from lib (mechanics, no taste).
+// Neutral starter palette — all 7-char hex (renderable from frame 0); TODO-commented for director.
 writeFileSync(join(videoDir, 'theme.ts'), `import { SPRING } from "../../lib/springs";
 import { defineTheme } from "../../lib/theme";
 
 export const ${themeVar} = defineTheme({
   name: "${slug}",
   palette: {
-    bg: "#TODO",
-    surface: "#TODO",
-    text: "#TODO",
-    textDim: "#TODO",
-    accent: "#TODO",
+    bg: "#0a0a0f",      // TODO: set video background color
+    surface: "#16161e", // TODO: set surface/card color
+    text: "#e8e8f0",    // TODO: set primary text color
+    textDim: "#6b6b80", // TODO: set secondary/muted text color
+    accent: "#7effc9",  // TODO: set accent/brand color
   },
   fonts: {
     display: { family: "TODO", weight: 700 },
@@ -137,22 +140,32 @@ writeFileSync(join(videoDir, 'timeline.ts'), `import { buildTimeline } from "../
 
 // TODO: update bpm + scenes to match your treatment.
 export const ${timelineVar} = buildTimeline({ fps: 30, bpm: 120 }, [
-  { id: "hook", beats: 10, promise: { text: "TODO: ≤6-word outcome/number by frame 75" } },
+  { id: "hook", beats: 10, promise: { text: "TODO: ≤6-word outcome/number by frame 75", byFrame: 60 } },
   { id: "cta", beats: 8, payoff: { text: "TODO: one-line resolution of the hook promise" } },
 ] as const);
 `);
 
-// Main.tsx: ThemeProvider + AbsoluteFill + DebugGrid last; no scene imports yet.
+// Main.tsx: AmbientField living-background + Hook scene + DebugGrid last (hook-gate-green).
 writeFileSync(join(videoDir, 'Main.tsx'), `import { AbsoluteFill } from "remotion";
+import { AmbientField } from "../../lib/fx";
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
 import { ${themeVar} } from "./theme";
+import { ${timelineVar} } from "./timeline";
+import { Hook } from "./scenes/Hook";
 
 export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
   return (
     <ThemeProvider value={${themeVar}}>
       <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
-        {/* TODO: add scene components here */}
+        <AmbientField
+          color={${themeVar}.palette.accent}
+          colorDim={${themeVar}.palette.textDim}
+          density={80}
+          energy={1.5}
+          itemH={8}
+        />
+        <Hook promise={${timelineVar}.structure?.promise?.text} />
         <DebugGrid enabled={debug} />
       </AbsoluteFill>
     </ThemeProvider>
@@ -160,11 +173,30 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
 };
 `);
 
-// Placeholder.tsx: non-dotfile so P2's scenesNonEmpty check passes.
-writeFileSync(join(videoDir, 'scenes', 'Placeholder.tsx'), `import { AbsoluteFill } from "remotion";
+// Hook.tsx: minimal focal scene — renders promise.text centered; director replaces with archetype.
+writeFileSync(join(videoDir, 'scenes', 'Hook.tsx'), `import { AbsoluteFill } from "remotion";
+import { useTheme } from "../../../lib/theme";
 
-export function Placeholder() {
-  return <AbsoluteFill />;
+export function Hook({ promise }: { promise?: string }) {
+  const theme = useTheme();
+  return (
+    <AbsoluteFill
+      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <div
+        style={{
+          color: theme.palette.text,
+          fontFamily: theme.fonts.display.family,
+          fontWeight: theme.fonts.display.weight,
+          fontSize: 64,
+          textAlign: "center",
+          padding: "0 80px",
+        }}
+      >
+        {promise}
+      </div>
+    </AbsoluteFill>
+  );
 }
 `);
 
@@ -220,15 +252,16 @@ writeFileSync(rootTsxPath, updatedRoot);
 
 // ── Done ──────────────────────────────────────────────────────────────────────
 
-process.stdout.write(`Scaffolded ${CompId} (${slug}):
+process.stdout.write(`Scaffolded ${CompId} (${slug}) — hook-gate-green by construction:
   src/videos/${slug}/treatment.md
   src/videos/${slug}/storyboard.md
-  src/videos/${slug}/theme.ts
+  src/videos/${slug}/theme.ts        (valid 7-char hex palette — TODO-commented for director)
   src/videos/${slug}/timeline.ts
-  src/videos/${slug}/Main.tsx
-  src/videos/${slug}/scenes/Placeholder.tsx
+  src/videos/${slug}/Main.tsx        (AmbientField + Hook scene; hook gates 4+5 PASS from frame 0)
+  src/videos/${slug}/scenes/Hook.tsx (renders promise.text as focal element)
   public/${slug}/MANIFEST.md
   src/Root.tsx  — ${CompId} registered
 
-Next: scripts/preflight.sh ${CompId} ${slug}
+Next: scripts/hook.sh ${CompId}
+      scripts/preflight.sh ${CompId} ${slug}
 `);

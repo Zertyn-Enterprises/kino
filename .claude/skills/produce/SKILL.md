@@ -191,10 +191,14 @@ status table:
 
 **Scaffold step:** run `node scripts/new-video.mjs <slug> <CompId>` to generate
 the video skeleton (treatment.md with `Status: DRAFT`, storyboard.md with the
-status table header, taste-free theme.ts with five TODO palette placeholders,
-timeline.ts via `buildTimeline`, Main.tsx, scenes/Placeholder.tsx,
-public/<slug>/MANIFEST.md) and register the Composition in `src/Root.tsx`. The
-scaffold passes preflight P1 and P2 by construction.
+status table header, theme.ts with a neutral valid-hex starter palette (all 5
+slots are real 7-char hex, TODO-commented for the director), timeline.ts via
+`buildTimeline` with promise+payoff declared, Main.tsx composing `AmbientField`
+as a living-background layer + `Hook` scene that renders `promise.text`,
+scenes/Hook.tsx, public/<slug>/MANIFEST.md) and register the Composition in
+`src/Root.tsx`. The scaffold is **hook-gate-green by construction**: preflight
+P1 + P2 pass, and hook advisory gates 4 + 5 (background-activity, frame-0
+liveness) PASS from frame 0 via `AmbientField`.
 
 Then **immediately run the preflight gate** to confirm the structural wiring before
 any render spend:
