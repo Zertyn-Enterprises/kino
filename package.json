@@ -41,9 +41,10 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc",
+    "lint": "eslint src && tsc && npm run check:agents",
     "test": "vitest run",
     "format": "prettier --write src videos",
+    "check:agents": "node scripts/agents-sync-metrics.mjs",
     "dogfood": "node scripts/dogfood.mjs --update",
     "dogfood:check": "node scripts/dogfood.mjs --check"
   }

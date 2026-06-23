@@ -10,7 +10,8 @@ review gates. Remotion API correctness: `remotion-best-practices` skill.
 
 ```bash
 npm run dev                                  # Remotion Studio (preview)
-npm run lint                                 # eslint + tsc (must be green)
+npm run lint                                 # eslint + tsc + agents-sync gate (must be green)
+npm run check:agents                         # AGENTS.md/CLAUDE.md CLI-parity sync gate (wired into lint)
 npm test                                     # vitest (timeline math)
 npx remotion render <CompId> out/<name>.mp4  # render (--crf=16 for final)
 scripts/stills.sh <CompId> <frames...> --props='{"debug":true}'   # review stills
@@ -56,6 +57,9 @@ public/<slug>/  per-video assets — every asset needs a MANIFEST.md entry
 5. Components in `src/lib/` carry no taste — colors/curves/durations come from
    the video's theme. Don't add to lib until a pattern is written twice.
 6. Hook design: pick an archetype from `.claude/skills/produce/hooks.md` — eight gate-aligned, buildable specs; do not invent hook patterns ad-hoc.
+7. To pass the background-activity and frame-0 liveness hook gates, compose
+   `AmbientField` from `src/lib/fx.tsx` as a living-background layer.
+   See `src/smoke/AmbientCheck.tsx` for the reference gate-PASS fixture.
 
 30fps, 1920×1080, 16:9 only. WebGL effects need the angle backend (already in
 `remotion.config.ts`). Remotion is free ≤3 employees; larger needs a company
