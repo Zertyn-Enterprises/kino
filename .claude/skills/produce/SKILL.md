@@ -45,6 +45,10 @@ Read these before any creative decision (all in this folder):
   end-card legibility (both HARD) / P3 closing-stability (advisory). `scripts/payoff.sh`
   usage, threshold constants + calibration rationale, SKIP/graceful-degradation note,
   and recorded RelayLaunch + GranipaLaunch PASS snapshots.
+- `remotion-correct.md` — Remotion-correctness source gate: R1-determinism / R2-media
+  (both HARD) / R3-interpolate-clamp / R4-spring-fps / R5-wallclock (all advisory).
+  `scripts/remotion-correct.sh` usage, calibration rationale, and recorded
+  RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at any point.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
 to it for HOW to write Remotion code. This skill owns WHAT to make.
@@ -203,7 +207,10 @@ For each scene, in storyboard order:
 5. After the last scene is built: `scripts/code-craft.sh <Comp> <slug>` —
    assert `hardGatesPass: true` in `out/review/<Comp>/code-craft/metrics.json`
    and document any advisory fails per `code-craft.md` (see `review.md §10`).
-6. Mark `built` → after gates pass, `reviewed` in the storyboard table.
+6. `scripts/remotion-correct.sh <Comp> <slug>` — assert the Remotion-correctness
+   source gate per `remotion-correct.md` (`review.md §13`). R1/R2 are HARD (must pass
+   before any further render); R3–R5 are advisory. Render-free — runs instantly.
+7. Mark `built` → after gates pass, `reviewed` in the storyboard table.
 
 Commit after each scene passes (small commits = resumable production).
 
@@ -224,11 +231,15 @@ Commit after each scene passes (small commits = resumable production).
 - `scripts/code-craft.sh <Comp> <slug>` — assert the code-craft source gate per
   `code-craft.md` (`review.md §10`). All gates are advisory; record any fails with
   named justification. No render required — runs instantly.
+- `scripts/remotion-correct.sh <Comp> <slug>` — assert the Remotion-correctness source
+  gate per `remotion-correct.md` (`review.md §13`). R1/R2 are HARD; R3–R5 are advisory.
+  Render-free — runs instantly.
 - `scripts/hook.sh <Comp>` — re-assert the hook gate per `hook.md` (`review.md` §6)
   before the rough-cut listen.
 - `scripts/ship-gate.sh <Comp> <slug> [palette flags] [-- retention flags]` — run
-  the unified ship gate (composes hook + retention + contrast + motion + legibility + code-craft);
-  inspect `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
+  the unified ship gate (9 gates: hook + retention + contrast + motion + legibility +
+  code-craft + musicsync + payoff + remotion-correct); inspect
+  `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
 - Fix at the timeline level if pacing is off (that's why it's one file).
 

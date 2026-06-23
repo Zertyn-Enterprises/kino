@@ -1,7 +1,7 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Fourteen fixture sets:
+ * Seventeen fixture sets:
  *   - Ship-ready:                  all six gates hardGatesPass true, advisory fails present
  *                                  → shipReady true, blockers empty.
  *   - Blocked:                     one gate hardGatesPass false → shipReady false, gate named in blockers.
@@ -936,5 +936,137 @@ describe('computeShipVerdict — payoff advisory-only (P3 advisory fail, all oth
   it('payoff advisory failure listed — Closing stability', () => {
     expect(payoffAdvisoryOnlyVerdict.gates.payoff.advisoryFailures).toContain('Closing stability');
     expect(payoffAdvisoryOnlyVerdict.gates.payoff.justified).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 18: remotionCorrect null — gate not run → does NOT block
+//             (same graceful SKIP semantics as musicsync/payoff: absent metrics ≠ hard fail)
+//
+// All eight base gates: hardGatesPass=true
+// remotionCorrect: null (no metrics.json — graceful SKIP)
+//
+// Expected: shipReady=true, blockers=[], remotionCorrect.ran=false, remotionCorrect.hardGatesPass=true
+// ---------------------------------------------------------------------------
+
+const remotionCorrectNullVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+});
+
+describe('computeShipVerdict — remotionCorrect null (gate not run — graceful SKIP, not a hard blocker)', () => {
+  it('shipReady is true — null remotionCorrect does not block', () => {
+    expect(remotionCorrectNullVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(remotionCorrectNullVerdict.blockers).toHaveLength(0);
+  });
+
+  it('remotionCorrect gate ran=false but hardGatesPass=true (graceful SKIP)', () => {
+    expect(remotionCorrectNullVerdict.gates.remotionCorrect.ran).toBe(false);
+    expect(remotionCorrectNullVerdict.gates.remotionCorrect.hardGatesPass).toBe(true);
+  });
+
+  it('remotionCorrect advisory failures is empty', () => {
+    expect(remotionCorrectNullVerdict.gates.remotionCorrect.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 19: remotionCorrect hard fail — R1/R2 blocked → shipReady=false
+//
+// All eight base gates: hardGatesPass=true
+// remotionCorrect: hardGatesPass=false (R1 Math.random detected)
+//
+// Expected: shipReady=false, blockers=['remotionCorrect hard gates failed']
+// ---------------------------------------------------------------------------
+
+const remotionCorrectHardFailVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: hookMetrics({ hardGatesPass: false }),
+});
+
+describe('computeShipVerdict — remotionCorrect hard fail (R1/R2 failed)', () => {
+  it('shipReady is false', () => {
+    expect(remotionCorrectHardFailVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "remotionCorrect hard gates failed"', () => {
+    expect(remotionCorrectHardFailVerdict.blockers).toContain('remotionCorrect hard gates failed');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(remotionCorrectHardFailVerdict.blockers).toHaveLength(1);
+  });
+
+  it('remotionCorrect gate ran but hardGatesPass false', () => {
+    expect(remotionCorrectHardFailVerdict.gates.remotionCorrect.ran).toBe(true);
+    expect(remotionCorrectHardFailVerdict.gates.remotionCorrect.hardGatesPass).toBe(false);
+  });
+
+  it('all eight base gates are not blockers', () => {
+    expect(remotionCorrectHardFailVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(remotionCorrectHardFailVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(remotionCorrectHardFailVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(remotionCorrectHardFailVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(remotionCorrectHardFailVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(remotionCorrectHardFailVerdict.gates.codeCraft.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 20: remotionCorrect advisory-only — R3/R4/R5 advisory fail only,
+//             all other gates clean → still ships.
+//
+// All eight base gates: hardGatesPass=true
+// remotionCorrect: hardGatesPass=true, advisory fail: 'R3-interpolate-clamp'
+//
+// Expected: shipReady=true, blockers=[], remotionCorrect.justified=false
+// ---------------------------------------------------------------------------
+
+const remotionCorrectAdvisoryOnlyVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: hookMetrics({ hardGatesPass: true, advisoryFails: ['R3-interpolate-clamp'] }),
+});
+
+describe('computeShipVerdict — remotionCorrect advisory-only (R3/R4/R5 advisory fail, all others clean)', () => {
+  it('shipReady is true — advisory fails never block', () => {
+    expect(remotionCorrectAdvisoryOnlyVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(remotionCorrectAdvisoryOnlyVerdict.blockers).toHaveLength(0);
+  });
+
+  it('remotionCorrect gate ran and hardGatesPass true', () => {
+    expect(remotionCorrectAdvisoryOnlyVerdict.gates.remotionCorrect.ran).toBe(true);
+    expect(remotionCorrectAdvisoryOnlyVerdict.gates.remotionCorrect.hardGatesPass).toBe(true);
+  });
+
+  it('remotionCorrect advisory failure listed — R3-interpolate-clamp', () => {
+    expect(remotionCorrectAdvisoryOnlyVerdict.gates.remotionCorrect.advisoryFailures).toContain('R3-interpolate-clamp');
+    expect(remotionCorrectAdvisoryOnlyVerdict.gates.remotionCorrect.justified).toBe(false);
   });
 });
