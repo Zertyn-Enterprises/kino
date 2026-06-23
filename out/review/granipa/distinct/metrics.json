@@ -1,10 +1,11 @@
 {
   "hardGatesPass": true,
   "skip": false,
-  "n": 2,
+  "n": 3,
   "candidateSlug": "granipa",
   "priorSlugs": [
-    "relay"
+    "relay",
+    "sereno"
   ],
   "perPrior": [
     {
@@ -18,6 +19,22 @@
         "music-bpm"
       ],
       "differingCount": 6,
+      "hardPass": true,
+      "collidingAxes": []
+    },
+    {
+      "priorSlug": "sereno",
+      "differingAxes": [
+        "palette-bg",
+        "palette-accent",
+        "luminance",
+        "type",
+        "arc",
+        "rhythm+moves",
+        "texture",
+        "transitions"
+      ],
+      "differingCount": 8,
       "hardPass": true,
       "collidingAxes": []
     }
@@ -43,7 +60,7 @@
       "advisory": false,
       "pass": true,
       "skip": false,
-      "detail": "all 1 prior(s) satisfied ≥4 axes"
+      "detail": "all 2 prior(s) satisfied ≥4 axes"
     },
     {
       "name": "Advisory: bg-luminance drift (2 entries: granipa=dark, relay=dark)",
