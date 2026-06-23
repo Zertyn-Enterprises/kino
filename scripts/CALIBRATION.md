@@ -212,3 +212,37 @@ correctly via the existing skip paths. **Robust, zero mis-fires.**
 | **Total** | **345** | **414** | **+59** |
 
 All 1096 tests pass (1085 passed + 11 skipped pre-existing). `npm run lint` green.
+
+---
+
+## Lock (Task 2 — plan-3i2law)
+
+**Status:** Confirmed. All 59 divergent-shape fixtures from Task 1 are permanent
+regression tests in `npm test`. Zero gate-source files were modified (zero
+mis-fires found, so no threshold or parser changes were needed).
+
+### Spine guard: coverage beyond relay + granipa
+
+`npm test` now validates the gate spine against **>2 shapes**:
+- **relay** + **granipa** — original canonical dark, music-driven shapes
+- **59 divergent-synthetic fixtures** across all 9 metric modules, covering:
+  - light-luminance palette (retention, payoff, payoff-closure, preflight, code-craft, remotion-correct)
+  - music-less (distinct, musicsync, preflight)
+  - alternate arc / role naming (structure, payoff-closure, distinct, musicsync)
+  - restrained motion (retention, remotion-correct, code-craft)
+
+`dogfood.test.mjs` **Fixture K** wires a divergent-shape synthetic video report
+through `normalize()` and `diff()` — any gate-spine edit that accidentally
+false-blocks a light-palette, music-less, or restrained-motion shape will
+flip a PASS verdict to FAIL in this fixture and fail `npm test`.
+
+### Pre-merge checklist for gate-spine changes
+
+Before merging any edit to `scripts/*-metrics.mjs`, `ship-metrics.mjs`, or `structure.mjs`:
+
+1. **`npm test`** — validates all 9 metric modules including divergent-shape regression
+   fixtures; also validates the dogfood normalize/diff logic against a divergent synthetic shape (Fixture K)
+2. **`npm run dogfood:check`** — validates relay+granipa full-render verdicts against
+   the committed golden (`scripts/dogfood.golden.json`)
+
+Both must exit 0.

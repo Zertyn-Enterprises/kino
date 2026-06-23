@@ -310,5 +310,10 @@ editing `timeline.ts`, not scenes.
 - If you modified any gate-spine script (`scripts/*-metrics.mjs`, `ship-metrics.mjs`,
   `structure.mjs`) or anything in `src/lib/`, also run `npm run dogfood:check` — this
   machine-asserts RelayLaunch and GranipaLaunch verdicts against the committed golden
-  in `scripts/dogfood.golden.json`. LOCAL pre-merge command only; intentionally NOT
-  wired into `.github/workflows/checks.yml` (full renders are too heavy/flaky for PR CI).
+  in `scripts/dogfood.golden.json`. `npm test` complements this: it covers all 9 metric
+  modules with divergent-shape regression fixtures (light-palette, music-less, alternate
+  arc, restrained motion) so spine regressions that only affect non-dark/non-music shapes
+  are caught without a full render. Both must be green. LOCAL pre-merge commands only;
+  intentionally NOT wired into `.github/workflows/checks.yml` (full renders are too
+  heavy/flaky for PR CI). See `scripts/CALIBRATION.md` for the full divergent-shape
+  coverage map and pre-merge checklist.
