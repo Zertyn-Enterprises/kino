@@ -137,4 +137,19 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
       expect(src).toMatch(/promise/);
     });
   });
+
+  describe('TypeScript typecheck', () => {
+    it('generated scaffold typechecks clean (tsc --noEmit)', { timeout: 15000 }, () => {
+      try {
+        execSync('npx tsc --noEmit', {
+          cwd: PROJECT_ROOT,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      } catch (err) {
+        const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
+        throw new Error(`tsc --noEmit failed:\n${out}`);
+      }
+    });
+  });
 });
