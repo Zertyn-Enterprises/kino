@@ -124,6 +124,7 @@ describe("structure derivation", () => {
       climaxFrame: null,
       holds: [],
       rehookSeconds: null,
+      promise: null,
     });
   });
 

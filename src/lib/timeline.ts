@@ -26,6 +26,16 @@ export type SceneDef<Id extends string = string> = {
    * carry role 'climax'.
    */
   role?: "climax" | "hold";
+  /**
+   * Hook promise declaration (hook beat only). The specific on-screen
+   * promise/tension copy and the frame it first appears. Ignored by the
+   * renderer; consumed by the promise-metrics gate in Task 2.
+   *
+   * - text:    the verbatim on-screen copy that crystallises the hook tension.
+   * - byFrame: composition frame at which the text first appears. When omitted,
+   *            the gate uses this scene's cut (end) frame as the fallback.
+   */
+  promise?: { text: string; byFrame?: number };
 };
 
 export type SceneTiming = {
@@ -65,11 +75,15 @@ export type TimelineConfig = {
  * - holds:         [from, from+durationInFrames] ranges of 'hold'-roled scenes,
  *                  used to exclude static sections from the dead-air gate.
  * - rehookSeconds: passthrough of TimelineConfig.rehookSeconds, or null.
+ * - promise:       resolved hook promise declaration, or null when not declared.
+ *                  frame is SceneDef.promise.byFrame when provided, else the
+ *                  scene's cut (end) frame. wordCount is whitespace-split length.
  */
 export type TimelineStructure = {
   climaxFrame: number | null;
   holds: Array<[number, number]>;
   rehookSeconds: number | null;
+  promise: { text: string; frame: number; wordCount: number } | null;
 };
 
 export type Timeline<Id extends string = string> = {
@@ -176,6 +190,7 @@ export const buildTimeline = <Id extends string>(
 
   const climaxDef = sceneDefs.find((s) => s.role === "climax");
   const holdDefs = sceneDefs.filter((s) => s.role === "hold");
+  const promiseDef = sceneDefs.find((s) => s.promise != null);
   const structure: TimelineStructure = {
     climaxFrame: climaxDef != null ? scenes[climaxDef.id].from : null,
     holds: holdDefs.map((s) => [
@@ -183,6 +198,15 @@ export const buildTimeline = <Id extends string>(
       scenes[s.id].from + scenes[s.id].durationInFrames,
     ]),
     rehookSeconds: config.rehookSeconds ?? null,
+    promise:
+      promiseDef != null
+        ? {
+            text: promiseDef.promise!.text,
+            frame:
+              promiseDef.promise!.byFrame ?? scenes[promiseDef.id].cutFrame,
+            wordCount: promiseDef.promise!.text.trim().split(/\s+/).filter(Boolean).length,
+          }
+        : null,
   };
 
   return {
