@@ -119,7 +119,7 @@ else
   rmdir public/review-tmp 2>/dev/null || true
 fi
 
-# --- Pixel metrics ---
+# --- Pixel metrics (P1/P2/P3) ---
 METRICS_ARGS=("${METRICS_FRAMES[@]}" --step="$STEP" --fps=30 "${METRICS_OPTS[@]}")
 
 METRICS_EXIT=0
@@ -128,15 +128,42 @@ node scripts/payoff-metrics.mjs "${METRICS_ARGS[@]}" --json \
 node scripts/payoff-metrics.mjs "${METRICS_ARGS[@]}" \
   | tee "$OUT/metrics.txt" || true
 
+# --- Closure gate (C1/C2/C3) ---
+# Evaluates whether the hook's open loop is closed by a declared payoff scene.
+# Skips entirely when no promise is declared. HARD fail when promise exists but
+# payoff is missing or lands before the closing region.
+CLOSURE_EXIT=0
+node scripts/payoff-closure-metrics.mjs "$COMP" --out-dir="$OUT" --json \
+  > "$OUT/closure-block.json" || CLOSURE_EXIT=$?
+node -e "
+const [,, m, c] = process.argv;
+const fs = require('fs');
+try {
+  const metrics = JSON.parse(fs.readFileSync(m, 'utf8'));
+  metrics.closure = JSON.parse(fs.readFileSync(c, 'utf8'));
+  fs.writeFileSync(m, JSON.stringify(metrics, null, 2) + '\n');
+} catch (e) {
+  process.stderr.write('payoff.sh: closure merge failed: ' + e.message + '\n');
+}
+" "$OUT/metrics.json" "$OUT/closure-block.json"
+rm -f "$OUT/closure-block.json"
+
 echo "Payoff review — $OUT/"
 echo "  final.png"
 echo "  metrics.json  ($SAMPLE_COUNT frames at step $STEP, window ${WIN_START}:${WIN_END})"
 echo "  metrics.txt"
+if [ -f "$OUT/payoff-closure.png" ]; then
+  echo "  payoff-closure.png"
+fi
 
-if [ "$METRICS_EXIT" -eq 0 ]; then
+COMBINED_EXIT=0
+[ "$METRICS_EXIT" -ne 0 ] && COMBINED_EXIT=1
+[ "$CLOSURE_EXIT" -ne 0 ] && COMBINED_EXIT=1
+
+if [ "$COMBINED_EXIT" -eq 0 ]; then
   echo "HARD GATES: PASS"
 else
   echo "HARD GATES: FAIL"
 fi
 
-exit "$METRICS_EXIT"
+exit "$COMBINED_EXIT"
