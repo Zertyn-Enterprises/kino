@@ -9,26 +9,51 @@
 # Usage: scripts/retention.sh <CompId> [step=5] [propsJson] [--holds=S:E,...] [--climax=F] [--rehook=8]
 #   step        sampling step in frames (default 5); lower = more samples, slower
 #   propsJson   JSON props string passed to remotion
-#   --holds=    exclude declared holds from dead-air gate (S:E,... frame ranges)
-#   --climax=   climax frame number for energy-build-to-climax gate
-#   --rehook=   max seconds between re-hook punches (default 8)
+#   --holds=    holds override (auto-derived from role:'hold' scenes when --slug provided)
+#   --climax=   climax frame override (auto-derived from role:'climax' scene when --slug provided)
+#   --rehook=   rehook cadence override (auto-derived from rehookSeconds when --slug provided)
+#   --slug=     video slug (e.g. relay); enables structure auto-load from timeline.ts
 #   CORPUS_MANIFEST  env var: if set to a valid manifest path, consume corpus frames
 #                    instead of self-rendering (fallback: self-render if absent).
 #
-# e.g. scripts/retention.sh RelayLaunch
-#      scripts/retention.sh GranipaLaunch 5 '' --climax=720 --rehook=7
+# e.g. scripts/retention.sh RelayLaunch 5 '' --slug=relay
+#      scripts/retention.sh GranipaLaunch 5 '' --slug=granipa
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMP="${1:?usage: scripts/retention.sh <CompId> [step=5] [propsJson] [--holds=...] [--climax=F] [--rehook=N]}"
+COMP="${1:?usage: scripts/retention.sh <CompId> [step=5] [propsJson] [--holds=...] [--climax=F] [--rehook=N] [--slug=<slug>]}"
 STEP="${2:-5}"
 PROPS="${3:-}"
 
-# Pass --holds/--climax/--rehook through to retention-metrics.mjs.
+# Parse --slug/--holds/--climax/--rehook from args 4+; pass the rest through.
+SLUG=""
+EXPLICIT_CLIMAX=0
+EXPLICIT_HOLDS=0
+EXPLICIT_REHOOK=0
 METRICS_OPTS=()
 for arg in "${@:4}"; do
-  METRICS_OPTS+=("$arg")
+  case "$arg" in
+    --slug=*)   SLUG="${arg#--slug=}" ;;
+    --climax=*) EXPLICIT_CLIMAX=1; METRICS_OPTS+=("$arg") ;;
+    --holds=*)  EXPLICIT_HOLDS=1;  METRICS_OPTS+=("$arg") ;;
+    --rehook=*) EXPLICIT_REHOOK=1; METRICS_OPTS+=("$arg") ;;
+    *)          METRICS_OPTS+=("$arg") ;;
+  esac
 done
+
+# Auto-load structure flags from timeline when slug provided and flag not explicit.
+# Explicit CLI flags always override (they appear after STRUCTURE_OPTS in METRICS_ARGS).
+STRUCTURE_OPTS=()
+if [ -n "$SLUG" ]; then
+  STRUCTURE_FLAGS=$(node scripts/structure.mjs "$SLUG" 2>/dev/null | tail -1) || STRUCTURE_FLAGS=""
+  for sflag in $STRUCTURE_FLAGS; do
+    case "$sflag" in
+      --climax=*) [ "$EXPLICIT_CLIMAX" -eq 0 ] && STRUCTURE_OPTS+=("$sflag") ;;
+      --holds=*)  [ "$EXPLICIT_HOLDS"  -eq 0 ] && STRUCTURE_OPTS+=("$sflag") ;;
+      --rehook=*) [ "$EXPLICIT_REHOOK" -eq 0 ] && STRUCTURE_OPTS+=("$sflag") ;;
+    esac
+  done
+fi
 
 # Corpus handshake: if CORPUS_MANIFEST env var points to a valid manifest,
 # consume corpus frames instead of self-rendering.
@@ -103,7 +128,8 @@ else
 fi
 
 # --- Pixel metrics (reuse the same PNG sequence) ---
-METRICS_ARGS=("${METRICS_FRAMES[@]}" --step="$STEP" --fps=30 "${METRICS_OPTS[@]}")
+# STRUCTURE_OPTS come first so explicit METRICS_OPTS override when both supply the same flag.
+METRICS_ARGS=("${METRICS_FRAMES[@]}" --step="$STEP" --fps=30 "${STRUCTURE_OPTS[@]}" "${METRICS_OPTS[@]}")
 
 METRICS_EXIT=0
 node scripts/retention-metrics.mjs "${METRICS_ARGS[@]}" --json \

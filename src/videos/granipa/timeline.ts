@@ -22,7 +22,7 @@ export const granipaTimeline = buildTimeline(
     { id: "features", beats: 16 },
     { id: "architecture", beats: 10 },
     { id: "sovereignty", beats: 8 },
-    { id: "kicker", beats: 9 },
+    { id: "kicker", beats: 9, role: "climax" },
     { id: "cta", beats: 7 },
   ] as const,
 );

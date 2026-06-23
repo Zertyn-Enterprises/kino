@@ -58,15 +58,20 @@ the metrics and convert the SKIP to an evaluated PASS or FAIL.
 ## Usage
 
 ```bash
-# Default closing window (final 90 frames / 3 s)
+# Default closing window (final 90 frames / 3 s); --slug passed by ship-gate.sh for consistency
 scripts/payoff.sh RelayLaunch
 
 # Custom closing window
 scripts/payoff.sh GranipaLaunch 3 '' --window=870:959
 
 # With a custom sampling step
-scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]
+scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E] [--slug=<slug>]
 ```
+
+`--slug=<slug>` is accepted but produces no structural auto-loading — the payoff gate's
+closing window (duration-derived default or explicit `--window`) has no timeline-role
+equivalent. The flag is accepted for API symmetry with `retention.sh` and for
+forward compatibility.
 
 The gate is also invoked automatically by `scripts/ship-gate.sh` using the default
 closing window. To gate a custom window in the unified ship run, run `payoff.sh`

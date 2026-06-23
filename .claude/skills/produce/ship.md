@@ -22,7 +22,10 @@ scripts/ship-gate.sh <CompId> <slug> \
 - Palette flags (`--bg=`, `--surface=`, `--text=`, `--textDim=`, `--accent=`,
   `--accentAlt=`) are forwarded to `contrast.sh`.
 - Retention flags (`--holds=`, `--climax=`, `--rehook=`) are passed after `--`
-  and forwarded to `retention.sh`.
+  as **overrides** — they are auto-derived from `<slug>`'s `timeline.ts` when
+  omitted. Declare structure in `timeline.ts` via scene `role` instead of
+  hand-typing frame numbers here; auto-derive keeps every gate in sync when beats
+  or bpm change.
 - Motion gate runs automatically (`scripts/motion.sh <CompId>`, default step=3).
 - Legibility gate runs automatically (`scripts/legibility.sh <CompId>`, default step=3).
 - Code-craft gate runs automatically (`scripts/code-craft.sh <CompId> <slug>`, no render required).

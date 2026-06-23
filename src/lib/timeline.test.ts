@@ -114,6 +114,66 @@ describe("toLocal", () => {
   });
 });
 
+describe("structure derivation", () => {
+  it("returns null/empty when no roles are declared (back-compat)", () => {
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "a", beats: 8 },
+      { id: "b", beats: 4 },
+    ]);
+    expect(t.structure).toEqual({
+      climaxFrame: null,
+      holds: [],
+      rehookSeconds: null,
+    });
+  });
+
+  it("derives climaxFrame as the start frame of the climax-roled scene", () => {
+    // At 120bpm/30fps: framesPerBeat=15; beat 8 → frame 120.
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "intro", beats: 8 },
+      { id: "peak", beats: 8, role: "climax" },
+      { id: "outro", beats: 4 },
+    ]);
+    expect(t.structure.climaxFrame).toBe(t.scenes.peak.from);
+    expect(t.structure.climaxFrame).toBe(120);
+  });
+
+  it("derives holds as [from, from+duration] for each hold-roled scene", () => {
+    // hold1: beats 8–12, from=120, dur=60 → [120, 180]
+    // hold2: beats 20–24, from=300, dur=60 → [300, 360]
+    const t = buildTimeline({ fps: 30, bpm: 120 }, [
+      { id: "action", beats: 8 },
+      { id: "hold1", beats: 4, role: "hold" },
+      { id: "action2", beats: 8 },
+      { id: "hold2", beats: 4, role: "hold" },
+    ]);
+    expect(t.structure.holds).toEqual([
+      [120, 180],
+      [300, 360],
+    ]);
+  });
+
+  it("passes rehookSeconds through from config", () => {
+    const t = buildTimeline({ fps: 30, bpm: 120, rehookSeconds: 7 }, [
+      { id: "a", beats: 8 },
+    ]);
+    expect(t.structure.rehookSeconds).toBe(7);
+  });
+
+  it("handles mixed roles + rehookSeconds together", () => {
+    // hook: 0–120, pause/hold: 120–180, peak/climax: 180–300, cta: 300–360
+    const t = buildTimeline({ fps: 30, bpm: 120, rehookSeconds: 6 }, [
+      { id: "hook", beats: 8 },
+      { id: "pause", beats: 4, role: "hold" },
+      { id: "peak", beats: 8, role: "climax" },
+      { id: "cta", beats: 4 },
+    ]);
+    expect(t.structure.climaxFrame).toBe(180);
+    expect(t.structure.holds).toEqual([[120, 180]]);
+    expect(t.structure.rehookSeconds).toBe(6);
+  });
+});
+
 describe("validation", () => {
   it("rejects empty timelines", () => {
     expect(() => buildTimeline({ fps: 30, bpm: 120 }, [])).toThrow(
