@@ -148,15 +148,7 @@ node scripts/hook-metrics.mjs "$OUT/frame0.png" "$OUT/early.png" "$OUT/mid.png" 
 PROMISE_EXIT=0
 node scripts/promise-metrics.mjs "$COMP" --out-dir="$OUT" --json \
   > "$OUT/promise-block.json" || PROMISE_EXIT=$?
-node -e "
-  const fs = require('fs');
-  try {
-    const m = JSON.parse(fs.readFileSync('$OUT/metrics.json', 'utf8'));
-    const p = JSON.parse(fs.readFileSync('$OUT/promise-block.json', 'utf8'));
-    m.promise = p;
-    fs.writeFileSync('$OUT/metrics.json', JSON.stringify(m, null, 2) + '\n');
-  } catch (e) { process.stderr.write('promise-merge: ' + e.message + '\n'); }
-"
+node scripts/promise-merge.mjs "$OUT/metrics.json" "$OUT/promise-block.json"
 rm -f "$OUT/promise-block.json"
 
 echo "Hook review — $OUT/"
