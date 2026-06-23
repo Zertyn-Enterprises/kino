@@ -59,6 +59,7 @@ const TREATMENT_NONE     = `# Treatment\n\nNo status marker here.\n`;
 
 const TIMELINE_WITH_PROMISE    = `export const t = buildTimeline({ fps: 30, bpm: 120 }, [{ id: "hook", beats: 10, promise: { text: "Done." } }] as const);`;
 const TIMELINE_WITHOUT_PROMISE = `export const t = buildTimeline({ fps: 30, bpm: 120 }, [{ id: "hook", beats: 10 }] as const);`;
+const TIMELINE_WITH_PROMISE_AND_PAYOFF = `export const t = buildTimeline({ fps: 30, bpm: 120 }, [{ id: "hook", beats: 10, promise: { text: "Done." } }, { id: "cta", beats: 8, payoff: { text: "It worked." } }] as const);`;
 
 const STORYBOARD_WITH_TABLE = `# Storyboard\n\n## Scene status\n\n| # | scene | status |\n|---|-------|--------|\n| 1 | hook  | done   |\n`;
 const STORYBOARD_NO_TABLE   = `# Storyboard\n\nNo status table here.\n`;
@@ -95,7 +96,7 @@ function passingOpts(compId = 'TestComp') {
     storyboardContent: STORYBOARD_WITH_TABLE,
     themeContent:      THEME_FULL,
     timelineExists:    true,
-    timelineContent:   TIMELINE_WITH_PROMISE,
+    timelineContent:   TIMELINE_WITH_PROMISE_AND_PAYOFF,
     mainExists:        true,
     scenesNonEmpty:    true,
     manifestExists:    true,
@@ -112,17 +113,18 @@ describe('computePreflightVerdict — contract (metrics.json shape)', () => {
     expect(Array.isArray(verdict.gates)).toBe(true);
   });
 
-  it('has exactly 5 gates', () => {
-    expect(verdict.gates).toHaveLength(5);
+  it('has exactly 6 gates', () => {
+    expect(verdict.gates).toHaveLength(6);
   });
 
-  it('gate names are P1-registration, P2-files, P3-approved, P4-metadata, P5-promise in order', () => {
+  it('gate names are P1-registration through P6-payoff in order', () => {
     expect(verdict.gates.map(g => g.name)).toEqual([
       'P1-registration',
       'P2-files',
       'P3-approved',
       'P4-metadata',
       'P5-promise',
+      'P6-payoff',
     ]);
   });
 
@@ -141,10 +143,11 @@ describe('computePreflightVerdict — contract (metrics.json shape)', () => {
     expect(verdict.gates.find(g => g.name === 'P2-files').advisory).toBe(false);
   });
 
-  it('P3, P4, and P5 are advisory gates (advisory:true)', () => {
+  it('P3, P4, P5, and P6 are advisory gates (advisory:true)', () => {
     expect(verdict.gates.find(g => g.name === 'P3-approved').advisory).toBe(true);
     expect(verdict.gates.find(g => g.name === 'P4-metadata').advisory).toBe(true);
     expect(verdict.gates.find(g => g.name === 'P5-promise').advisory).toBe(true);
+    expect(verdict.gates.find(g => g.name === 'P6-payoff').advisory).toBe(true);
   });
 });
 
@@ -157,7 +160,7 @@ describe('computePreflightVerdict — all gates pass', () => {
     expect(verdict.hardGatesPass).toBe(true);
   });
 
-  it('all 5 gates pass', () => {
+  it('all 6 gates pass', () => {
     expect(verdict.gates.every(g => g.pass)).toBe(true);
   });
 });
@@ -494,6 +497,63 @@ describe('computePreflightVerdict — P5 advisory FAIL: timelineContent null', (
   });
 });
 
+// ── P6: payoff declaration (open-loop closure) ────────────────────────────────
+
+describe('computePreflightVerdict — P6 PASS: promise + payoff both declared', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: TIMELINE_WITH_PROMISE_AND_PAYOFF });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P6-payoff passes', () => {
+    expect(verdict.gates.find(g => g.name === 'P6-payoff').pass).toBe(true);
+    expect(verdict.gates.find(g => g.name === 'P6-payoff').skip).toBe(false);
+  });
+});
+
+describe('computePreflightVerdict — P6 advisory FAIL: promise declared but no payoff', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: TIMELINE_WITH_PROMISE });
+
+  it('hardGatesPass is still true — P6 is advisory', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P6-payoff fails with no-payoff message', () => {
+    const g = verdict.gates.find(g => g.name === 'P6-payoff');
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(false);
+    expect(g.skip).toBe(false);
+    expect(g.detail).toMatch(/payoff/);
+  });
+});
+
+describe('computePreflightVerdict — P6 SKIP: no promise (no open loop to close)', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: TIMELINE_WITHOUT_PROMISE });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P6-payoff skips when no promise declared', () => {
+    const g = verdict.gates.find(g => g.name === 'P6-payoff');
+    expect(g.skip).toBe(true);
+  });
+});
+
+describe('computePreflightVerdict — P6 SKIP: timelineContent null', () => {
+  const verdict = computePreflightVerdict({ ...passingOpts(), timelineContent: null });
+
+  it('hardGatesPass is still true — P6 is advisory', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('P6-payoff skips when timeline absent', () => {
+    const g = verdict.gates.find(g => g.name === 'P6-payoff');
+    expect(g.skip).toBe(true);
+  });
+});
+
 // ── HARD gates block, advisory do not ────────────────────────────────────────
 
 describe('computePreflightVerdict — advisory failures do not block', () => {
@@ -575,8 +635,12 @@ describe('computePreflightVerdict — golden calibration (relay)', () => {
     expect(verdict.gates.find(g => g.name === 'P5-promise').pass).toBe(true);
   });
 
-  it('relay: 5 gates returned', () => {
-    expect(verdict.gates).toHaveLength(5);
+  it('relay: P6-payoff passes (payoff declared alongside promise)', () => {
+    expect(verdict.gates.find(g => g.name === 'P6-payoff').pass).toBe(true);
+  });
+
+  it('relay: 6 gates returned', () => {
+    expect(verdict.gates).toHaveLength(6);
   });
 });
 
@@ -599,7 +663,11 @@ describe('computePreflightVerdict — golden calibration (granipa)', () => {
     expect(verdict.gates.find(g => g.name === 'P5-promise').pass).toBe(true);
   });
 
-  it('granipa: 5 gates returned', () => {
-    expect(verdict.gates).toHaveLength(5);
+  it('granipa: P6-payoff passes (payoff declared alongside promise)', () => {
+    expect(verdict.gates.find(g => g.name === 'P6-payoff').pass).toBe(true);
+  });
+
+  it('granipa: 6 gates returned', () => {
+    expect(verdict.gates).toHaveLength(6);
   });
 });

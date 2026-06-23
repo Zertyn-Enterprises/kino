@@ -43,9 +43,11 @@ Read these before any creative decision (all in this folder):
   (advisory). `scripts/musicsync.sh` usage, thresholds + calibration rationale,
   degraded/SKIP-mode note, and recorded RelayLaunch + GranipaLaunch snapshots.
 - `payoff.md` — payoff/CTA gate: P1 payoff-presence-&-dwell / P2 final-frame
-  end-card legibility (both HARD) / P3 closing-stability (advisory). `scripts/payoff.sh`
-  usage, threshold constants + calibration rationale, SKIP/graceful-degradation note,
-  and recorded RelayLaunch + GranipaLaunch PASS snapshots.
+  end-card legibility (both HARD) / P3 closing-stability (advisory); plus closure gate
+  C1 payoffDeclared / C2 payoffLandsLate (both HARD) / C3 payoffRendered (advisory) —
+  asserts the hook's open loop actually closes. `scripts/payoff.sh` usage, threshold
+  constants + calibration rationale, SKIP/graceful-degradation note, and recorded
+  RelayLaunch + GranipaLaunch PASS snapshots.
 - `remotion-correct.md` — Remotion-correctness source gate: R1-determinism / R2-media
   (both HARD) / R3-interpolate-clamp / R4-spring-fps / R5-wallclock (all advisory).
   `scripts/remotion-correct.sh` usage, calibration rationale, and recorded
@@ -57,8 +59,8 @@ Read these before any creative decision (all in this folder):
   usage, nine-axis table, override flags for pre-registry theme-lock, and recorded
   relay + granipa PASS snapshots. Render-free; run at stage 2 with overrides.
 - `preflight.md` — structural-integrity gate: P1-registration / P2-files (both HARD)
-  / P3-approved / P4-metadata (both advisory). `scripts/preflight.sh` + `node
-  scripts/new-video.mjs` scaffold usage, P1–P4 thresholds, and recorded
+  / P3-approved / P4-metadata / P5-promise / P6-payoff (all advisory). `scripts/preflight.sh`
+  + `node scripts/new-video.mjs` scaffold usage, P1–P6 thresholds, and recorded
   RelayLaunch + GranipaLaunch PASS snapshots. Render-free; run at stage 3 scaffold.
 
 Remotion API correctness lives in the `remotion-best-practices` skill — defer
@@ -238,7 +240,7 @@ For each scene, in storyboard order:
    `scripts/hook-tournament.sh <Comp> 3 -- '<propsA>' '<propsB>'`
    Adopt a **decisive** winner; on a **contested** near-tie the director decides between the tied variants on the human-judged substance gates (promise-by-2.5s, hook-pattern-committed, frame-0 thumbnail focal) and records the chosen variant + one-line rationale (see `hook.md §3` for ranking key + RelayLaunch A/B worked example — decisive run, B wins by composite delta 0.4675).
    Then run `scripts/hook.sh <Comp>` on the winning variant and assert every
-   gate in `hook.md` (see `review.md §6`). Declare `promise: { text, byFrame? }` on the hook beat in `timeline.ts` before running — Promise-by-2.5s and Text-density-≤6-words are now machine-asserted (🤖 in `hook.md §1` and `hooks.md` gate table); HARD failures exit non-zero and block ship. Speed tradeoff: authoring the hook
+   gate in `hook.md` (see `review.md §6`). Declare `promise: { text, byFrame? }` on the hook beat in `timeline.ts` before running — Promise-by-2.5s and Text-density-≤6-words are now machine-asserted (🤖 in `hook.md §1` and `hooks.md` gate table); HARD failures exit non-zero and block ship. Also declare `payoff: { text }` on the climax/CTA beat — the open loop you opened in the hook MUST close; the closure gate (C1/C2 in `payoff.sh`) machine-asserts this at ship time and HARD-fails if missing. Speed tradeoff: authoring the hook
    twice costs ~15% of total production time; the hook determines whether anyone
    watches the other 85% — this investment is always justified.
 5. After the last scene is built: `scripts/code-craft.sh <Comp> <slug>` —

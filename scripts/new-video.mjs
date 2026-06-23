@@ -138,7 +138,7 @@ writeFileSync(join(videoDir, 'timeline.ts'), `import { buildTimeline } from "../
 // TODO: update bpm + scenes to match your treatment.
 export const ${timelineVar} = buildTimeline({ fps: 30, bpm: 120 }, [
   { id: "hook", beats: 10, promise: { text: "TODO: ≤6-word outcome/number by frame 75" } },
-  { id: "cta", beats: 8 },
+  { id: "cta", beats: 8, payoff: { text: "TODO: one-line resolution of the hook promise" } },
 ] as const);
 `);
 
