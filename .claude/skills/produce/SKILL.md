@@ -304,3 +304,8 @@ editing `timeline.ts`, not scenes.
 - If any pattern was written twice across videos and survived review, propose
   extracting it to `src/lib/` (do not extract single-use code).
 - Run `npm run lint && npm test` — must be green before calling it done.
+- If you modified any gate-spine script (`scripts/*-metrics.mjs`, `ship-metrics.mjs`,
+  `structure.mjs`) or anything in `src/lib/`, also run `npm run dogfood:check` — this
+  machine-asserts RelayLaunch and GranipaLaunch verdicts against the committed golden
+  in `scripts/dogfood.golden.json`. LOCAL pre-merge command only; intentionally NOT
+  wired into `.github/workflows/checks.yml` (full renders are too heavy/flaky for PR CI).
