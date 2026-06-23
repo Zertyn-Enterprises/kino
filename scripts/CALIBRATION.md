@@ -238,9 +238,9 @@ through `normalize()` and `diff()` — any gate-spine edit that accidentally
 false-blocks a light-palette, music-less, or restrained-motion shape will
 flip a PASS verdict to FAIL in this fixture and fail `npm test`.
 
-### Pre-merge checklist for gate-spine changes
+### Pre-merge checklist for gate-spine or src/lib changes
 
-Before merging any edit to `scripts/*-metrics.mjs`, `ship-metrics.mjs`, or `structure.mjs`:
+Before merging any edit to `scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structure.mjs`, or any file under `src/lib/`:
 
 1. **`npm test`** — validates all 9 metric modules including divergent-shape regression
    fixtures; also validates the dogfood normalize/diff logic against a divergent synthetic shape (Fixture K)
