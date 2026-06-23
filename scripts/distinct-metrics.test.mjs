@@ -27,6 +27,7 @@ import {
   computeAxisDivergences,
   computeRegistryDriftGate,
   computeNonDerivableCoverage,
+  checkRegistryCompleteness,
   grainPctToBand,
   parseRegistry,
   parseHex,
@@ -940,5 +941,189 @@ describe('golden calibration — granipa loadTheme + real registry (derived-axes
     const verdict = computeDistinctMetrics({ registryText, candidateSlug: 'granipa', derivedAxes });
     expect(verdict.perPrior[0].differingCount).toBeGreaterThanOrEqual(4);
     expect(verdict.perPrior[0].hardPass).toBe(true);
+  });
+});
+
+// ── Registry-completeness fixtures ───────────────────────────────────────────────────────────
+//
+// videoFolders shape: [{ slug, hasTheme, hasMain }]
+//
+// Fixture 26: relay+granipa complete registry → PASS (no missing, no orphan).
+// Fixture 27: third buildable folder 'aurora' (theme.ts+Main.tsx) with no entry → HARD fail.
+// Fixture 28: registry entry 'ghost' with no matching folder → HARD fail.
+// Fixture 29: folder with theme.ts but NO Main.tsx (scaffold-only) → NOT flagged.
+
+const TWO_BUILDABLE_FOLDERS = [
+  { slug: 'relay',   hasTheme: true, hasMain: true },
+  { slug: 'granipa', hasTheme: true, hasMain: true },
+];
+
+// Minimal ghost registry entry — valid heading + table so parseRegistry would pick it up.
+const GHOST_ENTRY = `
+## 3 · ghost / GhostLaunch (2026-07-01)
+
+| field     | value                     |
+| --------- | ------------------------- |
+| product   | Ghost — an orphan video   |
+| arc       | C · build-in-public       |
+| rhythm    | slow pulse                |
+| luminance | dark (#0D0D0D)            |
+| palette   | bg #0D0D0D · accent gold #FFD700 |
+| type      | Neue Haas Grotesk body    |
+| signature moves | single lock reveal  |
+| texture   | clean                     |
+| transitions | cross-dissolve          |
+| music     | 95bpm ambient             |
+`;
+
+// ── Fixture 26: complete registry (relay+granipa) → PASS ─────────────────────────────────────
+
+describe('registry-completeness — relay+granipa complete → PASS', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,
+    candidateSlug: 'relay',
+    videoFolders:  TWO_BUILDABLE_FOLDERS,
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('no registry-completeness gate in output (all complete)', () => {
+    const cg = verdict.gates.find(g => g.name === 'HARD: registry-completeness');
+    expect(cg).toBeUndefined();
+  });
+});
+
+// ── Fixture 27: buildable folder 'aurora' missing a registry entry → HARD fail ──────────────
+
+describe('registry-completeness — aurora buildable with no entry → HARD fail', () => {
+  const foldersWithAurora = [
+    ...TWO_BUILDABLE_FOLDERS,
+    { slug: 'aurora', hasTheme: true, hasMain: true },
+  ];
+
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,   // relay + granipa only — no aurora entry
+    candidateSlug: 'relay',
+    videoFolders:  foldersWithAurora,
+  });
+
+  it('hardGatesPass is false', () => {
+    expect(verdict.hardGatesPass).toBe(false);
+  });
+
+  it('registry-completeness gate is present and fails', () => {
+    const cg = verdict.gates.find(g => g.name === 'HARD: registry-completeness');
+    expect(cg).toBeDefined();
+    expect(cg.hard).toBe(true);
+    expect(cg.pass).toBe(false);
+  });
+
+  it('gate detail names aurora as missing', () => {
+    const cg = verdict.gates.find(g => g.name === 'HARD: registry-completeness');
+    expect(cg.detail).toMatch(/aurora/);
+    expect(cg.detail).toMatch(/missing entry/);
+  });
+});
+
+// ── Fixture 28: registry entry 'ghost' with no folder → HARD fail ─────────────────────────
+
+describe('registry-completeness — ghost registry entry with no folder → HARD fail', () => {
+  const registryWithGhost = REGISTRY_TWO + GHOST_ENTRY;
+
+  const verdict = computeDistinctMetrics({
+    registryText:  registryWithGhost,  // relay + granipa + ghost
+    candidateSlug: 'relay',
+    videoFolders:  TWO_BUILDABLE_FOLDERS,  // no ghost folder
+  });
+
+  it('hardGatesPass is false', () => {
+    expect(verdict.hardGatesPass).toBe(false);
+  });
+
+  it('registry-completeness gate is present and fails', () => {
+    const cg = verdict.gates.find(g => g.name === 'HARD: registry-completeness');
+    expect(cg).toBeDefined();
+    expect(cg.hard).toBe(true);
+    expect(cg.pass).toBe(false);
+  });
+
+  it('gate detail names ghost as orphan', () => {
+    const cg = verdict.gates.find(g => g.name === 'HARD: registry-completeness');
+    expect(cg.detail).toMatch(/ghost/);
+    expect(cg.detail).toMatch(/orphan entry/);
+  });
+});
+
+// ── Fixture 29: scaffold-only folder (theme.ts but NO Main.tsx) → not flagged ───────────────
+
+describe('registry-completeness — scaffold-only folder (theme.ts, no Main.tsx) → NOT flagged', () => {
+  const foldersWithDraft = [
+    ...TWO_BUILDABLE_FOLDERS,
+    { slug: 'draft', hasTheme: true, hasMain: false },  // scaffold-only: not buildable
+  ];
+
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,   // relay + granipa only — no draft entry
+    candidateSlug: 'relay',
+    videoFolders:  foldersWithDraft,
+  });
+
+  it('hardGatesPass is true (draft scaffold-only folder is not flagged)', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('no registry-completeness gate (scaffold-only folder is not buildable)', () => {
+    const cg = verdict.gates.find(g => g.name === 'HARD: registry-completeness');
+    expect(cg).toBeUndefined();
+  });
+});
+
+// ── checkRegistryCompleteness pure unit tests ─────────────────────────────────────────────────
+
+describe('checkRegistryCompleteness — pure function', () => {
+  it('complete registry → no missing, no orphan', () => {
+    const result = checkRegistryCompleteness({
+      registryText: REGISTRY_TWO,
+      videoFolders: TWO_BUILDABLE_FOLDERS,
+    });
+    expect(result.missing).toEqual([]);
+    expect(result.orphan).toEqual([]);
+  });
+
+  it('aurora buildable, no entry → missing=[aurora]', () => {
+    const result = checkRegistryCompleteness({
+      registryText: REGISTRY_TWO,
+      videoFolders: [...TWO_BUILDABLE_FOLDERS, { slug: 'aurora', hasTheme: true, hasMain: true }],
+    });
+    expect(result.missing).toContain('aurora');
+    expect(result.orphan).toEqual([]);
+  });
+
+  it('ghost registry entry, no folder → orphan=[ghost]', () => {
+    const result = checkRegistryCompleteness({
+      registryText: REGISTRY_TWO + GHOST_ENTRY,
+      videoFolders: TWO_BUILDABLE_FOLDERS,
+    });
+    expect(result.missing).toEqual([]);
+    expect(result.orphan).toContain('ghost');
+  });
+
+  it('theme.ts only (no Main.tsx) → not in missing', () => {
+    const result = checkRegistryCompleteness({
+      registryText: REGISTRY_TWO,
+      videoFolders: [...TWO_BUILDABLE_FOLDERS, { slug: 'draft', hasTheme: true, hasMain: false }],
+    });
+    expect(result.missing).not.toContain('draft');
+  });
+
+  it('empty videoFolders → no missing, no orphan', () => {
+    const result = checkRegistryCompleteness({
+      registryText: REGISTRY_TWO,
+      videoFolders: [],
+    });
+    expect(result.missing).toEqual([]);
+    expect(result.orphan).toEqual([]);
   });
 });
