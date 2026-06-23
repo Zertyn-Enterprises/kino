@@ -12,6 +12,8 @@
  *  - Every fix is non-empty
  *  - Multi-gate integration: ≥4 gates, ≥1 gate-not-run, ≥1 hard blocker, ≥1 advisory
  *    → each entry has non-empty fix + docRef resolves to file+heading (Fixture H)
+ *  - Source-level: every `docRef: '...'` literal in remediation.mjs resolves to
+ *    file+heading, independent of which test fixtures exercise the code path
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -562,5 +564,58 @@ describe('buildRemediations — Fixture H: multi-gate integration (≥4 gates, g
   it('clean gate (legibility) emits no entry', () => {
     const legibilityEntries = rems.filter(r => r.gate === 'legibility');
     expect(legibilityEntries).toHaveLength(0);
+  });
+});
+
+// ── Source-level docRef validation ────────────────────────────────────────────
+// Extracts every `docRef: '...'` literal directly from remediation.mjs source
+// and validates file+heading, independent of which test fixtures exercise them.
+// This catches dangling references even when a new map entry lacks a test fixture.
+
+describe('remediation.mjs — source-level docRef literal validation', () => {
+  const remediationSrc = readFileSync(join(ROOT, 'scripts/remediation.mjs'), 'utf8');
+  // Match `docRef: '...'` literal values (single-quoted; all map entries use single quotes).
+  const DOCREFS_RE = /docRef:\s+'([^']+)'/g;
+  const docRefs = [];
+  let m;
+  while ((m = DOCREFS_RE.exec(remediationSrc)) !== null) {
+    docRefs.push(m[1]);
+  }
+
+  it('finds ≥39 docRef literal values (16 BLOCKER_MAP + 20 ADVISORY_MAP + 3 DISTINCT_DRIFT_MAP)', () => {
+    expect(docRefs.length).toBeGreaterThanOrEqual(39);
+  });
+
+  it('every source docRef file exists on disk', () => {
+    const failures = [];
+    for (const docRef of docRefs) {
+      const filePart = docRef.split(' §')[0];
+      const absPath = join(ROOT, filePart);
+      if (!existsSync(absPath)) {
+        failures.push(`${docRef} → ${absPath}`);
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error(`docRef file(s) not found:\n${failures.map(f => `  ${f}`).join('\n')}`);
+    }
+  });
+
+  it('every source docRef §heading exists in the file', () => {
+    const failures = [];
+    for (const docRef of docRefs) {
+      const parts = docRef.split(' §');
+      if (parts.length < 2) continue;
+      const [filePart, section] = parts;
+      const absPath = join(ROOT, filePart);
+      if (!existsSync(absPath)) continue;
+      const content = readFileSync(absPath, 'utf8');
+      const headingRe = new RegExp(`^#{1,6}\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm');
+      if (!headingRe.test(content)) {
+        failures.push(`§${section} not found in ${filePart}`);
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error(`docRef §heading(s) not found:\n${failures.map(f => `  ${f}`).join('\n')}`);
+    }
   });
 });
