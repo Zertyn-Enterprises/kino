@@ -217,31 +217,41 @@ correctly via the existing skip paths. **Robust, zero mis-fires.**
 | **Total** | **345** | **414** | **+59** |
 
 Task 2 (plan-3i2law) added 7 further tests (`dogfood.test.mjs` Fixture K — see §Lock below).
+Plan-ncmex3 added 17 further tests (`scripts/new-video.test.mjs`). Plan-9upjnl task 1 wired
+the real SerenoLaunch composition into the dogfood corpus at n=3 (no new `npm test` fixtures,
+but pixel-level gate behavior is now permanently locked by the full-render golden).
 
-All 1103 tests pass (all-suite, includes Fixture K). `npm run lint` green.
+All 1129 tests pass (1131 total; 2 intentionally skipped). `npm run lint` green.
 
 ---
 
-## Lock (Task 2 — plan-3i2law)
+## Lock (plan-9upjnl task 3 — final calibration record)
 
-**Status:** Confirmed. All 59 divergent-shape fixtures from Task 1 are permanent
-regression tests in `npm test`. Zero gate-source files were modified (zero
-mis-fires found, so no threshold or parser changes were needed).
+**Status:** Complete. All 59 divergent-shape fixtures from plan-3i2law/Task 1 are permanent
+regression tests in `npm test`. The Fixture K synthetic report is backed by the real
+SerenoLaunch composition (plan-9upjnl task 1). Zero gate-source files were modified across
+all plan-9upjnl tasks — zero mis-fires confirmed against real rendered frames (§Executed-Proof).
 
-### Spine guard: coverage beyond relay + granipa
+### Spine guard: n=3 corpus coverage
 
-`npm test` now validates the gate spine against **>2 shapes**:
-- **relay** + **granipa** — original canonical dark, music-driven shapes
+`npm test` + dogfood corpus now validates the gate spine against **n=3 shapes**:
+- **relay** + **granipa** — original canonical dark, music-driven shapes (n=2 prior art)
 - **59 divergent-synthetic fixtures** across all 9 metric modules, covering:
   - light-luminance palette (retention, payoff, payoff-closure, preflight, code-craft, remotion-correct)
   - music-less (distinct, musicsync, preflight)
   - alternate arc / role naming (structure, payoff-closure, distinct, musicsync)
   - restrained motion (retention, remotion-correct, code-craft)
+- **SerenoLaunch (sereno)** — real composition in `scripts/dogfood.mjs` (n=3); light-luminance
+  (#F7F5F0), music-less, arc-C, Playfair Display, no grain, restrained motion. All 10 HARD gates
+  PASS on real rendered frames (see §Executed-Proof). `dogfood.golden.json` locks pixel-level
+  coverage; `dogfood.renderfree.golden.json` locks source-level coverage (CI-enforced).
 
 `dogfood.test.mjs` **Fixture K** wires a divergent-shape synthetic video report
 through `normalize()` and `diff()` — any gate-spine edit that accidentally
 false-blocks a light-palette, music-less, or restrained-motion shape will
 flip a PASS verdict to FAIL in this fixture and fail `npm test`.
+Plan-9upjnl task 1 updated the Fixture K comment to reference the real SerenoLaunch
+composition; it is no longer a fictional placeholder.
 
 ### Pre-merge checklist for gate-spine or src/lib changes
 
