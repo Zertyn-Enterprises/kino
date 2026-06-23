@@ -27,6 +27,8 @@ scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]           # payof
 scripts/remotion-correct.sh <CompId> <slug>                              # Remotion-correctness source gate (R1/R2 HARD, R3-R5 advisory, no render) → out/review/<CompId>/remotion-correct/
 scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]  # distinctiveness gate (≥4-axis anti-template, no render) → out/review/<slug>/distinct/
 scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate → out/review/<CompId>/ship/ (report.txt §How-to-fix + report.json.remediations list every fix recipe)
+scripts/preflight.sh <CompId> <slug>                                         # structural-integrity gate (no render; P1/P2 HARD, P3/P4 advisory) → out/review/<CompId>/preflight/
+node scripts/new-video.mjs <slug> <CompId>                                   # scaffold new video skeleton (P1/P2-passing by construction)
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
 ```
