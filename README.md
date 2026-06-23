@@ -100,6 +100,7 @@ in `.claude/skills/produce/` (start with `SKILL.md`) and `CLAUDE.md` /
 | `scripts/ship-gate.sh <CompId> <slug> [palette flags...] [-- retention flags...]` | unified ship gate: hook + retention + contrast + motion + legibility + code-craft → `out/review/<CompId>/ship/` |
 | `scripts/preflight.sh <CompId> <slug>` | structural-integrity gate (no render; P1/P2 HARD, P3/P4 advisory) → `out/review/<CompId>/preflight/` |
 | `node scripts/new-video.mjs <slug> <CompId>` | scaffold a new video skeleton (P1/P2-passing by construction) |
+| `npm run dogfood:check` | machine-assert relay+granipa ship-gate verdicts vs golden — run before merging gate-spine or `src/lib` changes |
 
 More helpers (music generation, analysis) live in `scripts/` and are documented in `CLAUDE.md`.
 

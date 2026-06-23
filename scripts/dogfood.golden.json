@@ -1,0 +1,230 @@
+{
+  "RelayLaunch": {
+    "shipReady": true,
+    "gates": {
+      "hook": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "retention": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "contrast": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "motion": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "legibility": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "codeCraft": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "musicsync": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "payoff": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "remotionCorrect": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "distinct": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      }
+    },
+    "blockers": [],
+    "metrics": {
+      "hook": {
+        "Background activity.active": 1,
+        "Background activity.total": 16,
+        "Frame-0 contrast": 7.449658918631183,
+        "Frame-0 liveness.cells": 2,
+        "Frame-0 liveness.rows": 1,
+        "Frame-0 liveness.total": 16,
+        "Loop seam": 6.557888736238266,
+        "Motion by frame 10": 0.28608764796069375
+      },
+      "retention": {
+        "Dead-air.endFrame": 485,
+        "Dead-air.longestStaticSec": 0.167,
+        "Dead-air.startFrame": 480,
+        "Ending hold / no-limp-tail.endingMaxEnergy": 0.15,
+        "Ending hold / no-limp-tail.endingMeanEnergy": 0.093,
+        "Ending hold / no-limp-tail.windowPairs": 9,
+        "Ending hold / no-limp-tail.windowStartFrame": 910,
+        "Energy build-to-climax.boundaryFrame": 720,
+        "Energy build-to-climax.peakEnergy": 23.798,
+        "Energy build-to-climax.peakFrame": 280,
+        "Energy build-to-climax.rawPeakFrame": 265,
+        "Energy build-to-climax.resolveRatio": 0.194,
+        "Full-video loop seam.finalFrameIdx": 955,
+        "Full-video loop seam.frame0Idx": 0,
+        "Full-video loop seam.loopSeamDelta": 6.532,
+        "Re-hook cadence.longestFlatSec": 5,
+        "Re-hook cadence.longestFlatStartFrame": 0
+      },
+      "contrast": {
+        "accent-on-bg": 14.56,
+        "accentAlt-on-bg": 4.97,
+        "text-on-bg": 17.67,
+        "text-on-surface": 16.11,
+        "textDim-on-bg": 7.08,
+        "textDim-on-surface": 6.45
+      },
+      "motion": {
+        "Easing presence.meanDelta": 0.717,
+        "Easing presence.peakDelta": 12.685,
+        "Easing presence.ratio": 17.681,
+        "Stutter/jank.cutsDetected": 7,
+        "Stutter/jank.windows": 8,
+        "Sustained life.minWindowMean": 0.0627,
+        "Sustained life.minWindowStartPair": 181
+      },
+      "legibility": {
+        "Detail stability.intervals": 31,
+        "Detail stability.meanCv": 0.033,
+        "Reading-budget share.share": 0.749,
+        "Reading-budget share.totalFrames": 957,
+        "Reading-budget share.totalHeldFrames": 717,
+        "Text-flash floor.flashViolations": 0,
+        "Text-flash floor.l1EligibleIntervals": 17,
+        "Text-flash floor.shortestDwellFrames": 15,
+        "Text-flash floor.textHoldIntervals": 31
+      },
+      "payoff": {
+        "Closing stability.maxTailDelta": 0.0757,
+        "Closing stability.tailPairsChecked": 2,
+        "Final-frame legibility.contrast": 19.85,
+        "Final-frame legibility.edgeDensity": 1.0416,
+        "Payoff presence & dwell.holdRuns": 1,
+        "Payoff presence & dwell.longestRunStart": 0,
+        "Payoff presence & dwell.maxDwellFrames": 90
+      }
+    }
+  },
+  "GranipaLaunch": {
+    "shipReady": true,
+    "gates": {
+      "hook": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "retention": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "contrast": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "motion": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "legibility": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "codeCraft": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "musicsync": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "payoff": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "remotionCorrect": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "distinct": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      }
+    },
+    "blockers": [],
+    "metrics": {
+      "hook": {
+        "Background activity.active": 3,
+        "Background activity.total": 16,
+        "Frame-0 contrast": 20.641495547957717,
+        "Frame-0 liveness.cells": 3,
+        "Frame-0 liveness.rows": 1,
+        "Frame-0 liveness.total": 16,
+        "Loop seam": 9.461797336073014,
+        "Motion by frame 10": 1.3990004910657434
+      },
+      "retention": {
+        "Dead-air.endFrame": 0,
+        "Dead-air.longestStaticSec": 0,
+        "Dead-air.startFrame": 0,
+        "Ending hold / no-limp-tail.endingMaxEnergy": 0.2,
+        "Ending hold / no-limp-tail.endingMeanEnergy": 0.163,
+        "Ending hold / no-limp-tail.windowPairs": 9,
+        "Ending hold / no-limp-tail.windowStartFrame": 1075,
+        "Energy build-to-climax.boundaryFrame": 885,
+        "Energy build-to-climax.peakEnergy": 7.268,
+        "Energy build-to-climax.peakFrame": 305,
+        "Energy build-to-climax.rawPeakFrame": 290,
+        "Energy build-to-climax.resolveRatio": 0.12,
+        "Full-video loop seam.finalFrameIdx": 1120,
+        "Full-video loop seam.frame0Idx": 0,
+        "Full-video loop seam.loopSeamDelta": 9.488,
+        "Re-hook cadence.longestFlatSec": 7.667,
+        "Re-hook cadence.longestFlatStartFrame": 390
+      },
+      "contrast": {
+        "accent-on-bg": 5.94,
+        "accentAlt-on-bg": 6.21,
+        "text-on-bg": 17.59,
+        "text-on-surface": 16.15,
+        "textDim-on-bg": 6.42,
+        "textDim-on-surface": 5.9
+      },
+      "motion": {
+        "Easing presence.meanDelta": 0.538,
+        "Easing presence.peakDelta": 10.397,
+        "Easing presence.ratio": 19.338,
+        "Stutter/jank.cutsDetected": 1,
+        "Stutter/jank.windows": 2,
+        "Sustained life.minWindowMean": 0.1513,
+        "Sustained life.minWindowStartPair": 159
+      },
+      "legibility": {
+        "Detail stability.intervals": 21,
+        "Detail stability.meanCv": 0.061,
+        "Reading-budget share.share": 0.877,
+        "Reading-budget share.totalFrames": 1119,
+        "Reading-budget share.totalHeldFrames": 981,
+        "Text-flash floor.flashViolations": 0,
+        "Text-flash floor.l1EligibleIntervals": 15,
+        "Text-flash floor.shortestDwellFrames": 36,
+        "Text-flash floor.textHoldIntervals": 21
+      },
+      "payoff": {
+        "Closing stability.maxTailDelta": 0.1592,
+        "Closing stability.tailPairsChecked": 2,
+        "Final-frame legibility.contrast": 20.96,
+        "Final-frame legibility.edgeDensity": 1.6644,
+        "Payoff presence & dwell.holdRuns": 1,
+        "Payoff presence & dwell.longestRunStart": 0,
+        "Payoff presence & dwell.maxDwellFrames": 90
+      }
+    }
+  }
+}

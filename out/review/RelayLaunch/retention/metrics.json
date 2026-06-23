@@ -27,7 +27,7 @@
       "measured": {
         "peakFrame": 280,
         "peakEnergy": 23.798,
-        "boundaryFrame": 318,
+        "boundaryFrame": 720,
         "peakAfterBoundary": false,
         "resolveRatio": 0.194,
         "rawPeakFrame": 265
