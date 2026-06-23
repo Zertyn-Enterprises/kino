@@ -14,6 +14,8 @@ import { granipaTimeline } from "./videos/granipa/timeline";
 import { RelayLaunch } from "./videos/relay/Main";
 import { relayTimeline } from "./videos/relay/timeline";
 import { AmbientCheck } from "./smoke/AmbientCheck";
+import { Hook01MidActionDemo } from "./smoke/hooks/Hook01MidActionDemo";
+import { Hook02BoldClaim } from "./smoke/hooks/Hook02BoldClaim";
 import { SmokeClip } from "./smoke/SmokeClip";
 import { SmokeTest } from "./smoke/SmokeTest";
 
@@ -95,6 +97,22 @@ export const RemotionRoot: React.FC = () => {
         id="AmbientCheck"
         component={AmbientCheck}
         durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook01MidActionDemo"
+        component={Hook01MidActionDemo}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook02BoldClaim"
+        component={Hook02BoldClaim}
+        durationInFrames={75}
         fps={30}
         width={1920}
         height={1080}
