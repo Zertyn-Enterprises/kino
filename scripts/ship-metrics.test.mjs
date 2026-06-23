@@ -1,28 +1,41 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Seventeen fixture sets:
- *   - Ship-ready:                  all six gates hardGatesPass true, advisory fails present
- *                                  → shipReady true, blockers empty.
- *   - Blocked:                     one gate hardGatesPass false → shipReady false, gate named in blockers.
- *   - Missing gate:                contrast null → shipReady false, 'contrast gate not run' blocker.
- *   - Motion blocked:              motion hardGatesPass false → shipReady false, motion in blockers.
- *   - Missing motion:              motion null → shipReady false, 'motion gate not run' blocker.
- *   - Legibility blocked:          legibility hardGatesPass false → shipReady false, legibility in blockers.
- *   - Missing legibility:          legibility null → shipReady false, 'legibility gate not run' blocker.
- *   - Legibility advisory-only:    legibility has advisory fail only, all other gates clean
- *                                  → shipReady true (advisory fails never block).
- *   - CodeCraft blocked:           codeCraft hardGatesPass false → shipReady false, codeCraft in blockers.
- *   - Missing codeCraft:           codeCraft null → shipReady false, 'codeCraft gate not run' blocker.
- *   - CodeCraft advisory-only:     codeCraft has advisory fail only, all other gates clean
- *                                  → shipReady true (advisory fails never block).
+ * Twenty-three fixture sets:
+ *   - Ship-ready:                     all gates hardGatesPass true, advisory fails present
+ *                                     → shipReady true, blockers empty.
+ *   - Blocked:                        hook hardGatesPass false → shipReady false, gate named in blockers.
+ *   - Missing gate:                   contrast null → shipReady false, 'contrast gate not run' blocker.
+ *   - Motion blocked:                 motion hardGatesPass false → shipReady false, motion in blockers.
+ *   - Missing motion:                 motion null → shipReady false, 'motion gate not run' blocker.
+ *   - Legibility blocked:             legibility hardGatesPass false → shipReady false, legibility in blockers.
+ *   - Missing legibility:             legibility null → shipReady false, 'legibility gate not run' blocker.
+ *   - Legibility advisory-only:       legibility has advisory fail only, all other gates clean
+ *                                     → shipReady true (advisory fails never block).
+ *   - CodeCraft blocked:              codeCraft hardGatesPass false → shipReady false, codeCraft in blockers.
+ *   - Missing codeCraft:              codeCraft null → shipReady false, 'codeCraft gate not run' blocker.
+ *   - CodeCraft advisory-only:        codeCraft has advisory fail only, all other gates clean
+ *                                     → shipReady true (advisory fails never block).
+ *   - Musicsync skip-mode:            musicsync all gates SKIP (no audio analysis) → shipReady true.
+ *   - Musicsync hard fail:            musicsync hardGatesPass false → shipReady false.
+ *   - Musicsync null:                 musicsync=null → graceful SKIP, does NOT block ship.
+ *   - Payoff null:                    payoff=null → graceful SKIP, does NOT block ship.
+ *   - Payoff hard fail:               payoff hardGatesPass false → shipReady false.
+ *   - Payoff advisory-only:           payoff has P3 advisory fail only → shipReady true.
+ *   - RemotionCorrect null:           remotionCorrect=null → graceful SKIP, does NOT block ship.
+ *   - RemotionCorrect hard fail:      remotionCorrect hardGatesPass false → shipReady false.
+ *   - RemotionCorrect advisory-only:  remotionCorrect has R3/R4/R5 advisory fail only → shipReady true.
+ *   - Distinct null:                  distinct=null → graceful SKIP, does NOT block ship.
+ *   - Distinct hard fail:             distinct hardGatesPass false (<4 axes differ) → shipReady false.
+ *   - Distinct advisory-only:         distinct has drift advisory fail only → shipReady true.
  *
  * All inputs are plain objects matching the shape of each gate's metrics.json;
  * no file I/O is exercised — pure computeShipVerdict path only.
  *
  * Advisory failures:
- *   hook/retention/motion/legibility/codeCraft: metrics.gates entries with advisory=true, pass=false, skip=false
- *   contrast:                                   metrics.pairs entries with hard=false, pass=false
+ *   hook/retention/motion/legibility/codeCraft/musicsync/payoff/remotionCorrect/distinct:
+ *                                   metrics.gates entries with advisory=true, pass=false, skip=false
+ *   contrast:                       metrics.pairs entries with hard=false, pass=false
  */
 
 import { describe, expect, it } from 'vitest';
