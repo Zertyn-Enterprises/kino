@@ -36,6 +36,17 @@ export type SceneDef<Id extends string = string> = {
    *            the gate uses this scene's cut (end) frame as the fallback.
    */
   promise?: { text: string; byFrame?: number };
+  /**
+   * Hook payoff declaration — the scene that RESOLVES the hook's open loop.
+   * Ignored by the renderer (same as `promise`). Consumed by the closure gate
+   * in scripts/payoff-closure-metrics.mjs.
+   *
+   * - text:    the verbatim on-screen copy that crystallises the resolution.
+   *            When omitted, the gate checks structural closure only.
+   * - byFrame: composition frame at which the resolution moment lands.
+   *            When omitted, the gate uses this scene's cut (end) frame.
+   */
+  payoff?: { text?: string; byFrame?: number };
 };
 
 export type SceneTiming = {
@@ -78,12 +89,18 @@ export type TimelineConfig = {
  * - promise:       resolved hook promise declaration, or null when not declared.
  *                  frame is SceneDef.promise.byFrame when provided, else the
  *                  scene's cut (end) frame. wordCount is whitespace-split length.
+ * - payoff:        resolved hook payoff declaration, or null when not declared.
+ *                  frame is SceneDef.payoff.byFrame when provided, else the
+ *                  scene's cut (end) frame. text is null when not provided.
+ *                  Picks the LAST scene that declares a payoff (symmetry with
+ *                  promise which picks the first scene).
  */
 export type TimelineStructure = {
   climaxFrame: number | null;
   holds: Array<[number, number]>;
   rehookSeconds: number | null;
   promise: { text: string; frame: number; wordCount: number } | null;
+  payoff: { text: string | null; frame: number } | null;
 };
 
 export type Timeline<Id extends string = string> = {
@@ -191,6 +208,7 @@ export const buildTimeline = <Id extends string>(
   const climaxDef = sceneDefs.find((s) => s.role === "climax");
   const holdDefs = sceneDefs.filter((s) => s.role === "hold");
   const promiseDef = sceneDefs.find((s) => s.promise != null);
+  const payoffDef = [...sceneDefs].reverse().find((s) => s.payoff != null);
   const structure: TimelineStructure = {
     climaxFrame: climaxDef != null ? scenes[climaxDef.id].from : null,
     holds: holdDefs.map((s) => [
@@ -205,6 +223,13 @@ export const buildTimeline = <Id extends string>(
             frame:
               promiseDef.promise!.byFrame ?? scenes[promiseDef.id].cutFrame,
             wordCount: promiseDef.promise!.text.trim().split(/\s+/).filter(Boolean).length,
+          }
+        : null,
+    payoff:
+      payoffDef != null
+        ? {
+            text: payoffDef.payoff!.text ?? null,
+            frame: payoffDef.payoff!.byFrame ?? scenes[payoffDef.id].cutFrame,
           }
         : null,
   };
