@@ -157,6 +157,39 @@ const BLOCKER_MAP = {
     docRef: '.claude/skills/produce/distinct.md §Nine identity axes',
     inspect: 'out/review/<slug>/distinct/metrics.json → perPrior[].collidingAxes for each failing prior',
   },
+  // ── Coverage-gap blockers ───────────────────────────────────────────────────
+  'musicsync coverage-gap': {
+    gate: 'musicsync',
+    symptom: 'musicsync coverage-gap — video declares music but sync was never verified (no audio analysis)',
+    likelyCause: 'Main.tsx contains an <Audio>/staticFile("<slug>/music...") layer but node scripts/analyze-music.mjs has not been run (open-source videos ship without bundled audio)',
+    fix: 'Run `node scripts/analyze-music.mjs <slug>` then re-run `scripts/musicsync.sh <CompId> <slug>`. If audio cannot be bundled yet, pass `--audio-not-bundled` to `scripts/ship-gate.sh` to acknowledge the gap (non-blocking; still surfaced)',
+    docRef: '.claude/skills/produce/musicsync.md §Coverage integrity',
+    inspect: 'public/<slug>/ — check for *.analysis.json; src/videos/<slug>/Main.tsx — confirm <Audio>/staticFile ref',
+  },
+  'payoff coverage-gap': {
+    gate: 'payoff',
+    symptom: 'payoff coverage-gap — closing-payoff gate (P1/P2 HARD) not verified; metrics absent',
+    likelyCause: 'scripts/payoff.sh was not run, the gate crashed before writing metrics.json, or ship-gate.sh was invoked without a corpus render',
+    fix: 'Run `scripts/payoff.sh <CompId>` (or re-run `scripts/ship-gate.sh`) to render the closing window and produce metrics.json',
+    docRef: '.claude/skills/produce/payoff.md §Gates',
+    inspect: 'out/review/<CompId>/payoff/ — metrics.json absent; re-run payoff.sh',
+  },
+  'remotionCorrect coverage-gap': {
+    gate: 'remotionCorrect',
+    symptom: 'remotionCorrect coverage-gap — Remotion-correctness gate (R1/R2 HARD) not verified; metrics absent',
+    likelyCause: 'scripts/remotion-correct.sh was not run, or the gate crashed before writing metrics.json',
+    fix: 'Run `scripts/remotion-correct.sh <CompId> <slug>` (no render required) to scan source files and produce metrics.json',
+    docRef: '.claude/skills/produce/remotion-correct.md §Gates',
+    inspect: 'out/review/<CompId>/remotion-correct/ — metrics.json absent; re-run remotion-correct.sh',
+  },
+  'distinct coverage-gap': {
+    gate: 'distinct',
+    symptom: 'distinct coverage-gap — distinctiveness gate (≥4-axis Hard Rule #3) not verified; metrics absent',
+    likelyCause: 'scripts/distinct.sh was not run, or the gate crashed before writing metrics.json',
+    fix: 'Run `scripts/distinct.sh <slug>` (no render required) to compare against the registry and produce metrics.json',
+    docRef: '.claude/skills/produce/distinct.md §Nine identity axes',
+    inspect: 'out/review/<slug>/distinct/ — metrics.json absent; re-run distinct.sh',
+  },
 };
 
 // ── Advisory failure → remediation map ────────────────────────────────────────
@@ -407,7 +440,7 @@ function genericFallback(identifier, gateName) {
 
 // ── Gate name extractor for blocker strings ───────────────────────────────────
 
-const BLOCKER_GATE_RE = /^(.+?) (gate not run|hard gates failed)$/;
+const BLOCKER_GATE_RE = /^(.+?) (gate not run|hard gates failed|coverage-gap)$/;
 
 function gateFromBlocker(blocker) {
   const m = blocker.match(BLOCKER_GATE_RE);

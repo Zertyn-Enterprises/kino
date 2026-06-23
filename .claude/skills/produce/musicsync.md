@@ -36,19 +36,35 @@ and prints `HARD GATES: PASS|FAIL`.
 | MS3 — Climax on drop | Advisory (SKIP when no drops / no climax declared) | Declared climax cut frame lands within ±3 frames of the nearest detected `drop`. |
 | MS4 — Cut-on-beat coverage | Advisory (SKIP when no analysis / no cut frames) | Share of scene-boundary cut frames within ±1 frame of the detected beat grid ≥ 90%. |
 
-## Graceful SKIP mode
+## Coverage integrity
 
-When no `public/<slug>/*.analysis.json` exists — the normal state for the
-open-source example videos, which ship no bundled audio — all four gates report
-`skip: true` (not `fail`). The gate exits 0 and never blocks ship. This mirrors
-the "no preview URL → skip" and "no palette flags → skip" conventions on other gates.
-
-SKIP is also triggered gate-by-gate:
+When no `public/<slug>/*.analysis.json` exists, all four gates report `skip: true`
+(not `fail`). The gate exits 0. Per-gate SKIP is also triggered:
 - MS3 skips when analysis has no `drops` array, or when `--climax=F` is not supplied.
 - MS4 skips when no cut frames are found in the timeline (degenerate case).
 
-**SKIP must never block ship.** A `musicsync.ran = false` entry in `ship/report.json`
-is the expected steady-state for any video whose `analyze-music.mjs` has not been run.
+**Coverage-gap model (ship-gate integration):** Whether a missing analysis blocks
+ship depends on whether the video declares music:
+
+| Condition | `coverage` in report.json | Blocks? |
+|---|---|---|
+| `declaresMusic=false` (no `<Audio>`/`staticFile(...music...)` in Main.tsx) | `skip-na` | No |
+| `declaresMusic=true` + no analysis + `--audio-not-bundled` NOT passed | `coverage-gap` | **Yes** |
+| `declaresMusic=true` + no analysis + `--audio-not-bundled` passed | `coverage-gap` (acknowledged) | No — surfaced only |
+| `declaresMusic=true` + analysis present + MS1/MS2 pass | `ran` | No |
+| `declaresMusic=true` + analysis present + MS1/MS2 fail | `ran` | **Yes** |
+
+`declaresMusic` is auto-detected by `scripts/ship-gate.sh` — no manual flag needed.
+To acknowledge an intentionally unbundled audio track, pass `--audio-not-bundled` to
+`ship-gate.sh`. See `ship.md §Coverage integrity` for the full three-state model.
+
+**Self-repair recipe for `musicsync coverage-gap`:**
+1. Run `node scripts/analyze-music.mjs <slug>` to produce `public/<slug>/*.analysis.json`.
+2. Re-run `scripts/musicsync.sh <CompId> <slug>` and verify HARD GATES: PASS.
+3. Re-run `scripts/ship-gate.sh` — the coverage-gap clears automatically.
+4. If audio cannot be bundled yet: pass `--audio-not-bundled` to `ship-gate.sh`
+   to acknowledge the gap as non-blocking.
+   Inspect: `public/<slug>/` — check for `*.analysis.json`.
 
 ## Usage
 
