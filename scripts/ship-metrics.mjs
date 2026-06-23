@@ -13,6 +13,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { buildRemediations } from './remediation.mjs';
 
 /**
  * Extract advisory failure names from a gate's metrics.json object.
@@ -56,6 +57,7 @@ function extractAdvisoryFailures(metrics) {
  *     distinct:       { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *   },
  *   blockers: string[],
+ *   remediations: Array<{ gate: string, symptom: string, severity: string, likelyCause: string, fix: string, docRef: string, inspect: string }>,
  * }}
  */
 export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null, musicsync = null, payoff = null, remotionCorrect = null, distinct = null }) {
@@ -108,7 +110,8 @@ export function computeShipVerdict({ hook, retention, contrast, motion = null, l
   };
 
   const shipReady = blockers.length === 0;
-  return { shipReady, gates, blockers };
+  const base = { shipReady, gates, blockers };
+  return { ...base, remediations: buildRemediations(base) };
 }
 
 /** Load and parse a JSON file; returns null if the path is absent or unreadable. */
@@ -122,7 +125,7 @@ function loadMetrics(path) {
 }
 
 function printHumanReadable(verdict) {
-  const { shipReady, gates, blockers } = verdict;
+  const { shipReady, gates, blockers, remediations } = verdict;
   console.log('\n── Ship verdict ────────────────────────────────────────────');
   for (const [name, g] of Object.entries(gates)) {
     const status = !g.ran ? 'NOT RUN' : (g.hardGatesPass ? 'PASS' : 'FAIL');
@@ -136,7 +139,24 @@ function printHumanReadable(verdict) {
     for (const b of blockers) console.log(`  • ${b}`);
   }
   console.log('───────────────────────────────────────────────────────────');
-  console.log(`SHIP: ${shipReady ? 'READY' : 'BLOCKED'}\n`);
+  const blockedPointer = !shipReady && remediations && remediations.length > 0
+    ? ' — see ## How to fix below'
+    : '';
+  console.log(`SHIP: ${shipReady ? 'READY' : 'BLOCKED'}${blockedPointer}\n`);
+
+  if (remediations && remediations.length > 0) {
+    console.log('## How to fix\n');
+    for (const r of remediations) {
+      console.log(`[${r.gate}] ${r.symptom}`);
+      console.log(`  → ${r.fix}`);
+      console.log(`  ref: ${r.docRef}`);
+      console.log(`  inspect: ${r.inspect}`);
+      console.log('');
+    }
+    if (!shipReady) {
+      console.log('Fix the items above and re-run `scripts/ship-gate.sh` to clear blockers.\n');
+    }
+  }
 }
 
 // CLI — only runs when this file is the entry point, not when imported.
