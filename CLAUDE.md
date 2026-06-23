@@ -10,7 +10,8 @@ review gates. Remotion API correctness: `remotion-best-practices` skill.
 
 ```bash
 npm run dev                                  # Remotion Studio (preview)
-npm run lint                                 # eslint + tsc (must be green)
+npm run lint                                 # eslint + tsc + agents-sync gate (must be green)
+npm run check:agents                         # AGENTS.md/CLAUDE.md CLI-parity sync gate (wired into lint)
 npm test                                     # vitest (timeline math)
 npx remotion render <CompId> out/<name>.mp4  # render (--crf=16 for final)
 scripts/stills.sh <CompId> <frames...> --props='{"debug":true}'   # review stills
