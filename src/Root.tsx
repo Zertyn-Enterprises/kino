@@ -16,6 +16,8 @@ import { relayTimeline } from "./videos/relay/timeline";
 import { AmbientCheck } from "./smoke/AmbientCheck";
 import { Hook01MidActionDemo } from "./smoke/hooks/Hook01MidActionDemo";
 import { Hook02BoldClaim } from "./smoke/hooks/Hook02BoldClaim";
+import { Hook04PatternInterrupt } from "./smoke/hooks/Hook04PatternInterrupt";
+import { Hook05NumberCounting } from "./smoke/hooks/Hook05NumberCounting";
 import { SmokeClip } from "./smoke/SmokeClip";
 import { SmokeTest } from "./smoke/SmokeTest";
 
@@ -112,6 +114,22 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="Hook02BoldClaim"
         component={Hook02BoldClaim}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook04PatternInterrupt"
+        component={Hook04PatternInterrupt}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook05NumberCounting"
+        component={Hook05NumberCounting}
         durationInFrames={75}
         fps={30}
         width={1920}
