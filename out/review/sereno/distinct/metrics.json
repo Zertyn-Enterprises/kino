@@ -1,0 +1,83 @@
+{
+  "hardGatesPass": true,
+  "skip": false,
+  "n": 3,
+  "candidateSlug": "sereno",
+  "priorSlugs": [
+    "relay",
+    "granipa"
+  ],
+  "perPrior": [
+    {
+      "priorSlug": "relay",
+      "differingAxes": [
+        "palette-bg",
+        "palette-accent",
+        "luminance",
+        "type",
+        "arc",
+        "rhythm+moves",
+        "texture"
+      ],
+      "differingCount": 7,
+      "hardPass": true,
+      "collidingAxes": []
+    },
+    {
+      "priorSlug": "granipa",
+      "differingAxes": [
+        "palette-bg",
+        "palette-accent",
+        "luminance",
+        "type",
+        "arc",
+        "rhythm+moves",
+        "texture",
+        "transitions"
+      ],
+      "differingCount": 8,
+      "hardPass": true,
+      "collidingAxes": []
+    }
+  ],
+  "nonDerivableCoverage": {
+    "arc": "ran",
+    "rhythm+moves": "ran",
+    "transitions": "ran",
+    "music-bpm": "coverage-gap"
+  },
+  "gates": [
+    {
+      "name": "HARD: registry-axis-drift",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "detail": "registry matches source on all derivable axes"
+    },
+    {
+      "name": "HARD: ≥4 axes distinct from every prior",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "detail": "all 2 prior(s) satisfied ≥4 axes"
+    },
+    {
+      "name": "Advisory: bg-luminance drift (2 entries: relay=dark, granipa=dark)",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": false,
+      "detail": "bg-luminance drift (2 entries: relay=dark, granipa=dark)"
+    },
+    {
+      "name": "Advisory: mono-font drift (2 entries use JetBrains Mono: relay, granipa)",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": false,
+      "detail": "mono-font drift (2 entries use JetBrains Mono: relay, granipa)"
+    }
+  ]
+}

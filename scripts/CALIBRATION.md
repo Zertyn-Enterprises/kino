@@ -1,14 +1,19 @@
 # Gate-Spine Calibration: Divergent-Shape Coverage
 
-**Branch:** `backend/h-92343f26/calibration-divergent-fixtures`  
+**Branch (render-free):** `backend/h-92343f26/calibration-divergent-fixtures`  
+**Branch (executed proof):** `backend/h-758d416e/sereno-ship-gate-proof`  
 **Date:** 2026-06-23  
-**Scope:** 9 render-free metric test suites; pure-function / injected-data paths only; zero renders required.
+**Scope:** 9 render-free metric test suites (unit-level) + full 10-gate ship-gate executed against real SerenoLaunch frames.
 
 ## Summary
 
-All 9 gate-spine metric modules are **robust against divergent video shapes**. Zero mis-fires
+All gate-spine metric modules are **robust against divergent video shapes**. Zero mis-fires
 (neither false-BLOCK of a valid divergent-but-legitimate shape, nor false-PASS of a real
-defect) were found across the four calibration axes:
+defect) were found across the four calibration axes.
+
+This calibration was originally established via render-free unit tests (pure-function /
+injected-data paths only). It has since been **executed end-to-end against real rendered
+frames** via `SerenoLaunch` — see §Executed-Proof below.
 
 | Calibration axis | Module(s) affected | Result |
 | --- | --- | --- |
@@ -244,12 +249,42 @@ Before merging any edit to `scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structu
 
 1. **`npm test`** — validates all 9 metric modules including divergent-shape regression
    fixtures; also validates the dogfood normalize/diff logic against a divergent synthetic shape (Fixture K)
-2. **`npm run dogfood:check:rf`** — validates relay+granipa source-level (render-free) verdicts
+2. **`npm run dogfood:check:rf`** — validates relay+granipa+sereno source-level (render-free) verdicts
    against the committed golden (`scripts/dogfood.renderfree.golden.json`); **CI-enforced on every PR** (no Chromium needed)
-3. **`npm run dogfood:check`** — validates relay+granipa full-render verdicts against
+3. **`npm run dogfood:check`** — validates relay+granipa+sereno full-render verdicts against
    the committed golden (`scripts/dogfood.golden.json`); run locally before merging (renders too heavy for CI)
 
 All three must exit 0.
+
+---
+
+## Executed-Proof (plan-9upjnl task 2)
+
+**Command run:**
+```
+scripts/ship-gate.sh SerenoLaunch sereno \
+  --bg='#F7F5F0' --surface='#EDEAE2' --text='#1C1917' \
+  --textDim='#625E5B' --accent='#3F6D50' --audio-not-bundled
+```
+
+**Overall verdict:** `SHIP: READY` — zero hard-gate failures.
+
+| Gate | Hard verdict | Advisory notes |
+| --- | --- | --- |
+| hook | **PASS** | G4 (Background activity) advisory — 3/16 cells active, not separated. H1/H2/H3 HARD pass: motion@10=0.341 >0.1; frame-0 stddev=9.05 >5; loop-seam=5.65 <60. |
+| retention | **PASS** | All 5 gates pass. dead-air=0s; energy resolveRatio=0.429 <0.75; re-hook longestFlat=4s <8s; loop-seam=5.69 <60; ending mean=0.40. |
+| contrast | **PASS** | text-on-bg=16.05:1 ≥7; text-on-surface=14.55:1 ≥7; textDim-on-bg=5.89:1 ≥4.5; textDim-on-surface=5.34:1 ≥4.5; accent-on-bg=5.48:1 (advisory). |
+| motion | **PASS** | stutter=false; easing ratio=14.305 ≥1.5; sustained-life minWindowMean=0.1062 ≥0.02. |
+| legibility | **PASS** | text-flash violations=0; reading-budget share=40.8% ≤60%; detail stability meanCv=0.020 ≤0.4. |
+| code-craft | **PASS** | All 4 advisory gates pass (no emoji, no system font, no raw hex, no linear easing). |
+| musicsync | **PASS (SKIP-NA)** | No `.analysis.json` in `public/sereno/` — all 4 checks skip cleanly; hard gates pass. Music-less path confirmed. |
+| payoff | **PASS** | P1 dwell=90f ≥12f; P2 edge=1.654 >0.3, contrast=19.39 >5; P3 maxDelta=0.262 <0.5. Note: payoffRendered advisory SKIP (frame=540 is the composition's exclusive-end frame; rendered fine via corpus). |
+| remotion-correct | **PASS** | R1–R5 all pass. No nondeterminism, no raw media tags, all interpolate calls clamped. |
+| distinct | **PASS** | vs relay: 7/9 axes differ (bg, accent, luminance, type, arc, rhythm+moves, texture). vs granipa: 8/9 axes differ. Registry-axis-drift PASS. Two advisory drift warnings (bg-luminance, mono-font) — relay/granipa both dark; sereno is light. |
+
+**Mis-fire findings:** None. Zero hard gates false-blocked the legitimate divergent fixture. No threshold or parser changes required.
+
+The `dogfood.golden.json` has been regenerated from these real renders, permanently locking the n=3 coverage at the pixel level.
 
 ---
 
