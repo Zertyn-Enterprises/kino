@@ -1,0 +1,76 @@
+{
+  "gates": [
+    {
+      "id": 1,
+      "name": "Motion by frame 10",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": 0.17493149690789941,
+      "threshold": 0.1
+    },
+    {
+      "id": 2,
+      "name": "Frame-0 contrast",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": 21.778739678623683,
+      "threshold": 5
+    },
+    {
+      "id": 3,
+      "name": "Loop seam",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": 6.281171396144746,
+      "threshold": 60
+    },
+    {
+      "id": 4,
+      "name": "Background activity",
+      "hard": false,
+      "advisory": true,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "active": 8,
+        "total": 16,
+        "separated": true
+      },
+      "threshold": {
+        "minActive": 2,
+        "separated": true,
+        "cellThreshold": 5
+      }
+    },
+    {
+      "id": 5,
+      "name": "Frame-0 liveness",
+      "hard": false,
+      "advisory": true,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "cells": 9,
+        "total": 16,
+        "rows": 3
+      },
+      "threshold": {
+        "minCells": 2,
+        "minRows": 2,
+        "cellThreshold": 10
+      }
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "hardGatesPass": true
+}

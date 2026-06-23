@@ -14,6 +14,12 @@ import { granipaTimeline } from "./videos/granipa/timeline";
 import { RelayLaunch } from "./videos/relay/Main";
 import { relayTimeline } from "./videos/relay/timeline";
 import { AmbientCheck } from "./smoke/AmbientCheck";
+import { Hook01MidActionDemo } from "./smoke/hooks/Hook01MidActionDemo";
+import { Hook02BoldClaim } from "./smoke/hooks/Hook02BoldClaim";
+import { Hook04PatternInterrupt } from "./smoke/hooks/Hook04PatternInterrupt";
+import { Hook05NumberCounting } from "./smoke/hooks/Hook05NumberCounting";
+import { Hook06PayoffFlashForward } from "./smoke/hooks/Hook06PayoffFlashForward";
+import { Hook08MultiLayerLiveDemo } from "./smoke/hooks/Hook08MultiLayerLiveDemo";
 import { SmokeClip } from "./smoke/SmokeClip";
 import { SmokeTest } from "./smoke/SmokeTest";
 
@@ -95,6 +101,54 @@ export const RemotionRoot: React.FC = () => {
         id="AmbientCheck"
         component={AmbientCheck}
         durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook01MidActionDemo"
+        component={Hook01MidActionDemo}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook02BoldClaim"
+        component={Hook02BoldClaim}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook04PatternInterrupt"
+        component={Hook04PatternInterrupt}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook05NumberCounting"
+        component={Hook05NumberCounting}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook06PayoffFlashForward"
+        component={Hook06PayoffFlashForward}
+        durationInFrames={75}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Hook08MultiLayerLiveDemo"
+        component={Hook08MultiLayerLiveDemo}
+        durationInFrames={75}
         fps={30}
         width={1920}
         height={1080}
