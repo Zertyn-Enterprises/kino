@@ -289,6 +289,39 @@ reports `remotionCorrect.ran = false` (not a hard blocker) — re-run to evaluat
 of record — inspect `hardGatesPass` and the per-gate `pass`/`advisory`/`skip` fields.
 Human-readable verdict is tee'd to `metrics.txt`.
 
+## 14. Distinctiveness gate (run before treatment finalization and at ship)
+
+Run `scripts/distinct.sh <slug> [overrides]` at treatment stage 2 (with pre-registry
+overrides) and again at ship. Judge against `distinct.md`.
+
+Pre-registry override form (stage 2):
+```bash
+scripts/distinct.sh <slug> --bg=.. --accent=.. --luminance=.. --arc=.. --bpm=.. --grain=..
+```
+
+Post-registry form (ship):
+```bash
+scripts/distinct.sh <slug>
+```
+
+### Blocking vs advisory enforcement
+
+**HARD gate — ≥4 axes distinct from every prior:** A candidate that differs on
+fewer than 4 axes from any prior registry entry cannot be presented as a treatment
+or shipped until the identity is revised (return to `direction.md` §3 step 5 with
+the colliding axes identified). `scripts/distinct.sh` exits non-zero on HARD fail.
+
+**SKIP (< 2 registry entries):** gate exits 0 and no comparison is performed.
+This is the normal state when the registry has zero or one entry.
+
+**Advisory drift warnings:** `bg-luminance drift` / `mono-font drift` /
+`blue-teal accent drift` never block ship but require a named justification
+per failing drift advisory before continuing.
+
+**Machine signal**: `out/review/<slug>/distinct/metrics.json` is the artifact
+of record — inspect `hardGatesPass`, `skip`, and the `perPrior[].differingCount`
+fields. Human-readable verdict is in `report.txt`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.
