@@ -684,3 +684,91 @@ describe('computeRetentionMetrics — gates 4+5 on golden negative #2 (early-pea
     expect(verdict.hardGatesPass).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixtures
+//
+// (A) Light-luminance palette: same delta pattern as posFrames with fills
+//     shifted to 200-213 range. Gates are delta-based, not absolute-luminance-
+//     based, so light-palette videos behave identically to dark baselines.
+//     All gates PASS. Result: robust, zero mis-fires.
+//
+// (B) Restrained-motion (no energy punches): 60 frames at delta=1 per pair
+//     (fills 100..159). delta=1 > DEAD_AIR_FLOOR=0.05 → gate 1 PASS.
+//     delta=1 < ENERGY_SPIKE_FLOOR=2.0 → no punches → longestFlat≈9.83s >
+//     rehookSec=8s → gate 3 ADVISORY FAIL only. hardGatesPass=true.
+//     Confirms quiet ambient hooks are advisory-nudged, not hard-blocked.
+// ---------------------------------------------------------------------------
+
+describe('computeRetentionMetrics — divergent: light-luminance palette (fills 200-213)', () => {
+  // Identical delta pattern to posFrames, fills offset by +100.
+  // Gate math is delta-based → identical verdicts to dark-palette baseline.
+  const lightPosFrames = [
+    makeFrame(200), // frame 0
+    makeFrame(200), // frame 1
+    makeFrame(200), // frame 2
+    makeFrame(205), // frame 3  — spike (delta=5)
+    makeFrame(205), // frame 4
+    makeFrame(205), // frame 5
+    makeFrame(205), // frame 6
+    makeFrame(205), // frame 7
+    makeFrame(205), // frame 8
+    makeFrame(205), // frame 9
+    makeFrame(213), // frame 10 — peak spike (delta=8)
+    makeFrame(210), // frame 11 — spike (delta=3)
+    makeFrame(207), // frame 12 — spike (delta=3)
+    makeFrame(204), // frame 13 — spike (delta=3)
+    makeFrame(204), // frame 14
+    makeFrame(204), // frame 15
+    makeFrame(204), // frame 16
+    makeFrame(204), // frame 17
+    makeFrame(204), // frame 18
+    makeFrame(204), // frame 19
+  ];
+  const verdict = computeRetentionMetrics(lightPosFrames, { step: 5, fps: 30 });
+
+  it('hardGatesPass is true — light-luminance palette not blocked', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('gate 1 (dead-air, hard) PASS — delta math is luminance-direction-agnostic', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.measured.longestStaticSec).toBeLessThanOrEqual(1.0);
+  });
+
+  it('gate 3 (re-hook cadence, advisory) PASS — same punch cadence as dark baseline', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.measured.longestFlatSec).toBeLessThanOrEqual(8.0);
+  });
+});
+
+describe('computeRetentionMetrics — divergent: restrained-motion (no energy punches, gate 3 advisory only)', () => {
+  // 60 frames, fills 100..159, all 59 pairs at delta=1.
+  // Gate 1: 1 > DEAD_AIR_FLOOR=0.05 → no static pairs → PASS.
+  // Gate 3: 1 < ENERGY_SPIKE_FLOOR=2.0 → no punches → longestFlat=9.83s > 8s → ADVISORY FAIL.
+  // Confirms quiet ambient hooks not hard-blocked — only advisory nudge.
+  const restrainedFrames = Array.from({ length: 60 }, (_, i) => makeFrame(100 + i));
+  const verdict = computeRetentionMetrics(restrainedFrames, { step: 5, fps: 30 });
+
+  it('hardGatesPass is true — restrained-motion style not hard-blocked', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('gate 1 PASS — delta=1 per pair is above dead-air floor', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.measured.longestStaticSec).toBe(0);
+  });
+
+  it('gate 3 ADVISORY FAIL — no punches in 9.83s stretch exceeds rehookSec=8', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(false);
+    expect(g.measured.longestFlatSec).toBeGreaterThan(8.0);
+  });
+});

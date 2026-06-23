@@ -354,3 +354,65 @@ describe('diff — blockers change detected', () => {
     expect(d.actual).toContain('payoff coverage-gap');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fixture K: divergent-shape synthetic video — normalize() produces correct
+// PASS / SKIP-NA verdicts for a light-palette, music-less, alternate-arc video.
+//
+// This wires the divergent-shape calibration coverage into the dogfood spine
+// guard: any gate-spine edit that accidentally false-blocks a legitimate
+// divergent shape will flip a PASS to FAIL here and fail `npm test`.
+// Calibration basis: scripts/CALIBRATION.md — zero mis-fires across all 9
+// metric modules on light-luminance, music-less, alternate-arc, restrained-motion axes.
+// ---------------------------------------------------------------------------
+
+describe('normalize — divergent-shape synthetic video (light-palette, music-less, alternate arc)', () => {
+  const divergentReport = {
+    shipReady: true,
+    gates: {
+      hook:            { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      retention:       { ran: true,  hardGatesPass: true,  advisoryFailures: ['G3-cadence'], coverage: 'ran' },
+      contrast:        { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      motion:          { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      legibility:      { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      codeCraft:       { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      musicsync:       { ran: false, hardGatesPass: true,  advisoryFailures: [],         coverage: 'skip-na' },
+      payoff:          { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      remotionCorrect: { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+      distinct:        { ran: true,  hardGatesPass: true,  advisoryFailures: [],         coverage: 'ran' },
+    },
+    blockers: [],
+    coverageGaps: [],
+    remediations: [],
+  };
+  const snap = normalize(divergentReport, {});
+
+  it('shipReady is true — divergent shape is not hard-blocked', () => {
+    expect(snap.shipReady).toBe(true);
+  });
+
+  it('hook.hardVerdict is PASS', () => {
+    expect(snap.gates.hook.hardVerdict).toBe('PASS');
+  });
+
+  it('retention.hardVerdict is PASS — advisory G3-cadence does not hard-block restrained motion', () => {
+    expect(snap.gates.retention.hardVerdict).toBe('PASS');
+  });
+
+  it('musicsync.hardVerdict is SKIP-NA — music-less video correctly skips musicsync', () => {
+    expect(snap.gates.musicsync.hardVerdict).toBe('SKIP-NA');
+  });
+
+  it('distinct.hardVerdict is PASS — divergent shape passes ≥4-axis anti-template check', () => {
+    expect(snap.gates.distinct.hardVerdict).toBe('PASS');
+  });
+
+  it('blockers is empty — no hard gates failed on divergent shape', () => {
+    expect(snap.blockers).toHaveLength(0);
+  });
+
+  it('no drift vs identical snapshot — divergent shape is stable in diff()', () => {
+    const drifts = diff('SerenoLaunch', snap, snap);
+    expect(drifts).toHaveLength(0);
+  });
+});

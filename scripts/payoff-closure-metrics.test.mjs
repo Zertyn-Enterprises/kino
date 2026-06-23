@@ -354,3 +354,44 @@ describe('evaluate — payoff with text=null (structural closure only)', () => {
     expect(g.measured).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixture: short music-less video (10s, no climax)
+//
+// total=300 frames at 30fps (10s), no climax → closingStart=floor(300*0.75)=225.
+// Payoff at frame=240 (>= 225) → C2 PASSES. Covers build-in-public / ambient
+// arcs where no explicit climax exists and the resolution spans the last 25%.
+// Result: robust, zero mis-fires on short music-less videos.
+// ---------------------------------------------------------------------------
+
+describe('evaluate — divergent: short music-less video (total=300, no climax, payoff at frame=240)', () => {
+  const musiclessPromise = { text: 'Distraction-free in seconds', frame: 15, wordCount: 4 };
+  const musiclessPayoff  = { text: 'Focus mode on', frame: 240 };
+  const result = evaluate({
+    promise: musiclessPromise,
+    payoff:  musiclessPayoff,
+    climaxFrame: null,
+    totalDurationInFrames: 300,
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(result.hardGatesPass).toBe(true);
+  });
+
+  it('closingStart is floor(300*0.75)=225 when no climax supplied', () => {
+    const g = result.gates.find(g => g.name === 'payoffLandsLate');
+    expect(g.measured.closingStart).toBe(225);
+  });
+
+  it('payoffLandsLate PASS — frame=240 >= closingStart=225', () => {
+    const g = result.gates.find(g => g.name === 'payoffLandsLate');
+    expect(g.pass).toBe(true);
+    expect(g.measured.payoffFrame).toBe(240);
+    expect(g.measured.promiseFrame).toBe(15);
+  });
+
+  it('payoffDeclared PASS — payoff is non-null', () => {
+    const g = result.gates.find(g => g.name === 'payoffDeclared');
+    expect(g.pass).toBe(true);
+  });
+});
