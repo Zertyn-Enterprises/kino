@@ -37,6 +37,7 @@ identity. The agent is the **director** — don't templatize. Read
 - `scripts/remotion-correct.sh <CompId> <slug>` — Remotion-correctness source gate (R1/R2 HARD, R3–R5 advisory; no render required) → out/review/<CompId>/remotion-correct/
 - `scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]` — distinctiveness gate (≥4-axis anti-template, HARD when ≥2 registry entries; no render) → out/review/<slug>/distinct/
 - `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]` — unified ship gate (10 gates); retention/musicsync structure flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/ (`report.txt §How-to-fix` + `report.json.remediations`)
+- `npm run dogfood:check` — machine-assert relay+granipa ship-gate verdicts against committed golden (`scripts/dogfood.golden.json`); **run before merging any gate-spine (`scripts/*-metrics.mjs`, `ship-metrics.mjs`, `structure.mjs`) or `src/lib` change**. Not wired into PR CI (renders too heavy); run locally.
 
 ## Hard rules
 

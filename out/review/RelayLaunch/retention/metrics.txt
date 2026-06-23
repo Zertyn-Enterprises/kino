@@ -2,7 +2,7 @@
 ── Retention pixel metrics ─────────────────────────────────
    192 samples · step=5 · 955 frames (31.83s)
 Dead-air                 PASS  longest=0.17s frames 480-485 (threshold ≤1s, floor=0.05)
-Energy build-to-climax   FAIL  peak@280 (boundary=318, after=false) resolveRatio=0.19 (threshold resolveRatio<0.75) (advisory)
+Energy build-to-climax   FAIL  peak@280 (boundary=720, after=false) resolveRatio=0.19 (threshold resolveRatio<0.75) (advisory)
 Re-hook cadence          PASS  longestFlat=5.00s @frame0 (threshold ≤8s) (advisory)
 Full-video loop seam     PASS  loopSeamDelta=6.53 frames 0↔955 (threshold <60, loopable=true) (advisory)
 Ending hold/no-limp-tail PASS  mode=held mean=0.09 max=0.15 window=9pairs@frame910 (advisory)

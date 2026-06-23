@@ -27,9 +27,9 @@
       "measured": {
         "peakFrame": 305,
         "peakEnergy": 7.268,
-        "boundaryFrame": 373,
+        "boundaryFrame": 885,
         "peakAfterBoundary": false,
-        "resolveRatio": 0.121,
+        "resolveRatio": 0.12,
         "rawPeakFrame": 290
       },
       "threshold": {
@@ -78,8 +78,8 @@
       "skip": false,
       "measured": {
         "endingMode": "held",
-        "endingMeanEnergy": 0.172,
-        "endingMaxEnergy": 0.208,
+        "endingMeanEnergy": 0.163,
+        "endingMaxEnergy": 0.2,
         "windowStartFrame": 1075,
         "windowPairs": 9
       },
