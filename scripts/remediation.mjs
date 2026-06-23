@@ -197,6 +197,22 @@ const ADVISORY_MAP = {
     docRef: '.claude/skills/produce/retention.md §1. Retention gates',
     inspect: 'out/review/<CompId>/retention/metrics.json → gates[2].measured (longestFlatSec, longestFlatStartFrame)',
   },
+  'Full-video loop seam': {
+    gate: 'retention',
+    symptom: 'Retention G4 (Full-video loop seam) — loopable=false; frame 0 vs final frame delta ≥60.0',
+    likelyCause: 'Video ends on a visually distinct frame (CTA card, title card) that does not match the opening frame — the video does not loop cleanly',
+    fix: 'Opportunity flag, not a hard blocker. If looping is desired: ease the final frame back toward the opening palette (fade to black then up, or match bg color at start/end). If a CTA card is intentional: record a named justification noting the deliberate non-loop ending. Check loopSeamDelta in metrics.json',
+    docRef: '.claude/skills/produce/retention.md §1. Retention gates',
+    inspect: 'out/review/<CompId>/retention/metrics.json → gates[3].measured (loopSeamDelta, loopable, frame0Idx, finalFrameIdx)',
+  },
+  'Ending hold / no-limp-tail': {
+    gate: 'retention',
+    symptom: 'Retention G5 (Ending hold / no-limp-tail) — endingMode=limp; final window has mid-level energy with no held card and no final accent',
+    likelyCause: 'Video fades out or trails off with monotone energy decay — no stable held end-state and no final punch',
+    fix: 'Add a clearly resolved ending: either (a) hold a settled brand/CTA card in the final 1.5s so endingMeanEnergy drops below 1.5 (mode=held), or (b) land a deliberate final accent punch (scene flash, logo slam, typography reveal) with delta >2.0 (mode=accented). Check windowStartFrame to locate the ending window',
+    docRef: '.claude/skills/produce/retention.md §1. Retention gates',
+    inspect: 'out/review/<CompId>/retention/metrics.json → gates[4].measured (endingMode, endingMeanEnergy, endingMaxEnergy, windowStartFrame)',
+  },
 
   // Contrast
   'accent-on-bg': {

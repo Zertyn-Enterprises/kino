@@ -29,7 +29,7 @@
         "peakEnergy": 7.268,
         "boundaryFrame": 373,
         "peakAfterBoundary": false,
-        "resolveRatio": 0.12,
+        "resolveRatio": 0.121,
         "rawPeakFrame": 290
       },
       "threshold": {
@@ -51,10 +51,47 @@
         "maxFlatSec": 8,
         "spikeFl": 2
       }
+    },
+    {
+      "id": 4,
+      "name": "Full-video loop seam",
+      "hard": false,
+      "advisory": true,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "loopSeamDelta": 9.488,
+        "loopable": true,
+        "frame0Idx": 0,
+        "finalFrameIdx": 1120
+      },
+      "threshold": {
+        "loopSeamThreshold": 60
+      }
+    },
+    {
+      "id": 5,
+      "name": "Ending hold / no-limp-tail",
+      "hard": false,
+      "advisory": true,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "endingMode": "held",
+        "endingMeanEnergy": 0.172,
+        "endingMaxEnergy": 0.208,
+        "windowStartFrame": 1075,
+        "windowPairs": 9
+      },
+      "threshold": {
+        "holdEnergyThreshold": 1.5,
+        "accentThreshold": 2,
+        "windowSec": 1.5
+      }
     }
   ],
   "summary": {
-    "passed": 2,
+    "passed": 4,
     "failed": 1,
     "skipped": 0,
     "totalFrames": 1120,

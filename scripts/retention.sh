@@ -100,9 +100,6 @@ else
   mkdir -p "$OUT/strip"
   npx remotion render ContactSheet "$OUT/strip" --sequence --image-format=png \
     --props="{\"folder\":\"review-tmp/${COMP}-retention-$$\",\"frames\":[$FRAMES],\"files\":[$FILES]}"
-
-  rm -rf "$TMP"
-  rmdir public/review-tmp 2>/dev/null || true
 fi
 
 # --- Pixel metrics (reuse the same PNG sequence) ---
@@ -113,6 +110,12 @@ node scripts/retention-metrics.mjs "${METRICS_ARGS[@]}" --json \
   > "$OUT/metrics.json" || METRICS_EXIT=$?
 node scripts/retention-metrics.mjs "${METRICS_ARGS[@]}" \
   | tee "$OUT/metrics.txt" || true
+
+# Clean up self-rendered TMP frames (only when not using shared corpus).
+if [ "$USING_CORPUS" -eq 0 ] && [ -n "${TMP:-}" ]; then
+  rm -rf "$TMP"
+  rmdir public/review-tmp 2>/dev/null || true
+fi
 
 echo "Retention review — $OUT/"
 echo "  strip/        ($SAMPLE_COUNT frames at step $STEP)"

@@ -3,7 +3,7 @@
 Distilled from `direction.md` §2 (v1/v2/v3) and `retention.md`. Each pattern
 is a complete buildable spec for how visual energy distributes across the arc.
 Pick ONE structural shape and execute it hard — multiple structural patterns
-fight each other. Apply patterns 6 and 7 as base obligations on every video.
+fight each other. Apply patterns 6, 7, and 9 as base obligations on every video.
 
 > To MEASURE retention (not build it), run `scripts/retention.sh` and read
 > `retention.md`. This catalog is the build-side complement; that file is the
@@ -19,6 +19,8 @@ Machine-asserted gates (🤖) from `retention.md §1`:
 | 1 | Dead-air 🤖 | **HARD** | `longestStaticSec ≤ 1.0s`; per-pair `meanAbsDelta ≥ 0.05` | `--holds=S:E,...` excludes declared holds |
 | 2 | Energy build-to-climax 🤖 | advisory | Smoothed energy peak at or after boundary; `resolveRatio < 0.75` | `--climax=F` shifts the boundary from heuristic to your narrative climax |
 | 3 | Re-hook cadence 🤖 | advisory | `longestFlatSec ≤ 8s` (no body stretch without an energy spike above 2.0) | `--rehook=N` overrides the 8s default |
+| 4 | Full-video loop seam 🤖 | advisory | Frame 0 vs final frame `meanAbsDelta < 60.0` (`LOOP_SEAM_THRESHOLD`); `loopable:false` is an opportunity flag — deliberate CTA-card endings legitimately do not loop | _(no flag — compose for loop by design; see pattern 8)_ |
+| 5 | Ending hold / no-limp-tail 🤖 | advisory | Final ~1.5s (`ENDING_WINDOW_SEC`): either held (`endingMeanEnergy < 1.5`) or accented (any ending pair `> 2.0`); limp tail is the fail | _(no flag — design the ending mode deliberately; see pattern 9)_ |
 
 **Critical flag usage:** without `--climax=F`, gate 2 uses a first-third-boundary
 heuristic. It **fails any edit whose smoothed energy peak lands before that boundary**
@@ -38,6 +40,13 @@ Pattern-to-gate mapping:
 | 5. Payoff seeding | base | **primary** — climax seed is the peak | **primary** — seeds are anchors | `--climax=<climaxFrame>` |
 | 6. Dead-air elimination | **primary** — three-layer budget | neutral | neutral | `--holds=<S:E,...>` |
 | 7. CTA tension/resolve | base | supported (resolveRatio) | neutral | `--climax=<tensionFrame>` |
+
+Ending-pattern gate mapping (Gates 4 and 5 — patterns that address the final frames):
+
+| Pattern | Gate 4 Loop seam | Gate 5 Ending hold |
+|---------|------------------|--------------------|
+| 8. Loop-back ending | **primary** — rhyme to opening makes loopSeamDelta < 60.0 | neutral |
+| 9. Final-accent landing | neutral | **primary** — held/accented ending makes endingMode ≠ limp |
 
 *(All arc fractions and beat counts below are relative — derive frame numbers from your
 video's `timeline.ts` via `beatsToFrames(beat, bpm, fps)`. Never hardcode frames in
@@ -668,6 +677,203 @@ directly into the CTA without a separate tension beat.
 
 ---
 
+## Pattern 8: Loop-back ending
+
+**Psychological lever:** Completion signal + rewatch magnet. When the final frame's
+composition rhymes with frame 0 — same background brightness, same palette weight, same
+AmbientField energy level — the video feels resolved and loops without a visible seam.
+On platforms that auto-replay (X, Instagram, TikTok), a clean loop restarts without the
+viewer choosing to rewatch; the seam disappears and they watch a second time by default.
+Gate 4 measures this: `loopSeamDelta = meanAbsDelta(lum(frame0), lum(finalFrame))` must
+be below `LOOP_SEAM_THRESHOLD (60.0)`. Reference: RelayLaunch 6.53, GranipaLaunch 9.49 —
+both pass by design because hook and CTA share the same dark brand background.
+
+**When to use:** Video is destined for a looping social context (X, Instagram, TikTok).
+The opening visual is strong enough to read as both an entrance and a resolution. Skip
+when the video deliberately ends on a visually distinct CTA card — `loopable:false` is an
+advisory opportunity flag (not a failure) and a justified non-loop is acceptable; but
+designing for the loop is the stronger choice when it fits.
+
+**Structural spec**
+
+```
+Arc fraction:  [0%──── hook ────10%] [10%─── body ───90%] [90%──── CTA + loop-return ────100%]
+Composition:   opening motif         evolving              ← rhyme with 0% →
+Background:    theme.bg              theme.bg              theme.bg (identical)
+AmbientField:  hookEnergy            varies                hookEnergy (matched to hook)
+```
+
+The rhyme is compositional, not identical: the same background brightness, similar element
+positions, the same AmbientField energy texture. The emotional context is different (the
+viewer has earned this ending), but the luminance signature is familiar.
+
+**Gate mapping**
+
+| Gate | Verdict | Basis |
+|------|---------|-------|
+| 4 Full-video loop seam | **PASS by design** | Matching background + AmbientField energy makes loopSeamDelta < 60.0; verify with `scripts/retention.sh` |
+| 1 Dead-air (HARD) | neutral | AmbientField continues in the loop-return window; unaffected |
+| 5 Ending hold / no-limp-tail | neutral | Gate 5 passes independently via Pattern 9; loop-return and ending-mode are orthogonal |
+
+**Build recipe**
+
+```tsx
+// In timeline.ts: expose the loop-return onset — 2 beats from the video end
+const CTA_SCENE           = timeline.scenes.find(s => s.id === 'cta');
+export const LOOP_RETURN_BEAT  = CTA_SCENE.startBeat + CTA_SCENE.beats - 2;
+export const LOOP_RETURN_FRAME = beatsToFrames(LOOP_RETURN_BEAT, timeline.bpm, fps);
+```
+
+```tsx
+// In theme.ts: single source of truth for the hook's AmbientField energy —
+// referenced in BOTH the hook scene AND the CTA scene's loop-return phase
+export const theme = defineTheme({
+  // ... other tokens
+  hookAmbientEnergy: 0.6,   // hook scene and loop-return beat — must match
+  ctaResolveEnergy:  0.4,   // CTA settle body (between hook and loop-return)
+});
+```
+
+```tsx
+// In the CTA scene: settle normally, then return to hook energy in the final beats
+const isLoopReturn  = frame >= LOOP_RETURN_FRAME;
+const ambientEnergy = isLoopReturn ? theme.hookAmbientEnergy : theme.ctaResolveEnergy;
+
+// Background must be theme.bg throughout — not a custom CTA accent color —
+// so frame 0 and the final frame share identical background luminance.
+
+// If the CTA scene moved the focal element, ease it back to the hook position:
+const focalX = interpolate(
+  frame,
+  [LOOP_RETURN_FRAME, LOOP_RETURN_FRAME + framesPerBeat * 2],
+  [ctaFocalX, hookFocalX],
+  { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) },
+);
+```
+
+Gate 4 test: `scripts/retention.sh <CompId>` reports `loopSeamDelta` and `loopable`.
+Target `loopSeamDelta < 20.0` on the first pass — gives headroom for render-time variance.
+If `loopSeamDelta ≥ 60.0`, inspect which element differs between frame 0 and the final
+frame in the filmstrip; adjust the loop-return composition to match that element's position
+or remove it from the final window.
+
+**Arc fit:**
+- **All arcs**: applies to the ending only, composing on top of any structural pattern (1 / 3 / 5).
+- **A (demo-first)**: hook opens on the product at rest; loop-return closes on the product at rest — same static-hero composition closes the loop.
+- **B (problem-first)**: the hook's pain image returns as the closing frame — the viewer arrives back at the opening setup having seen the solution; the loop is emotionally resonant.
+
+**When NOT to use:** When the CTA card is a strong brand/logo moment that must be
+visually distinct from the hook. Accept `loopable:false` and document the justification.
+Gate 4 is advisory — a deliberate non-loop with a justified artistic reason is acceptable.
+
+---
+
+## Pattern 9: Final-accent landing
+
+**Psychological lever:** Resolved arrival. An ending that drifts — energy decaying toward
+zero without landing on a clear compositional frame — reads as "nothing happened here."
+Gate 5 measures the final `ENDING_WINDOW_SEC (1.5s)`: PASS when the ending is either (a)
+a stable held end-state (`endingMeanEnergy < HOLD_ENERGY_THRESHOLD=1.5`) or (b) contains
+at least one final energy accent (any ending pair `> ENERGY_SPIKE_FLOOR=2.0`). The limp
+tail fail is `endingMode=limp` — moderate energy (1.0–2.0) with neither a clear hold nor
+a deliberate punch. Reference: RelayLaunch endingMode=held, mean=0.09; GranipaLaunch
+endingMode=held, mean=0.17 — both pass because AmbientField is at low energy on their
+CTA cards. The limp zone to avoid: CTA AmbientField at energy=0.7 → per-pair delta ~1.0–1.5,
+above HOLD_ENERGY_THRESHOLD but below ENERGY_SPIKE_FLOOR → `endingMode=limp`.
+
+**When to use:** Every video — this is a base obligation. Choose one ending mode per video:
+
+- **Hold mode**: the ending resolves into a legible, settled end-state (CTA card, logo hold,
+  final stat) with micro-motion only. Choose when the brand's closing image IS the message.
+- **Accent mode**: a deliberate final beat punch in the ending window (stamp-in, hard logo
+  arrival, music-locked sting). Choose when the video needs a punctuation mark, not a fade.
+
+**Structural spec — Hold mode**
+
+```
+Arc fraction:  [─── content ─── 90%] [90%────── CTA HOLD ──────100%]
+AmbientField:  varies                  energy ≤ 0.4 → mean < 1.5 per pair (held)
+Motion:        scene content           micro-motion only: breath scale + cursor blink
+```
+
+**Structural spec — Accent mode**
+
+```
+Arc fraction:  [─── content ─── 90%] [90%── CTA settle ──97%] [ACCENT: 1 beat] [──settle──100%]
+AmbientField:  varies                  energy ≤ 0.5              energy={1.0}      energy ≤ 0.4
+Motion:        scene content           settling                   stamp-in/snap     settled hold
+```
+
+**Gate mapping**
+
+| Gate | Verdict | Basis |
+|------|---------|-------|
+| 5 Ending hold / no-limp-tail | **PASS by design** | Hold: AmbientField ≤ 0.4 in ending window → mean < 1.5. Accent: stamp-in → max > 2.0 |
+| 1 Dead-air (HARD) | PASS — requires care | Ending window must still produce delta ≥ 0.05; AmbientField at energy=0.3–0.4 maintains this |
+| 2 Energy-build-to-climax | supported | Low ending energy is what produces `resolveRatio < 0.75` (post-peak mean well below peak); hold mode makes this pass by construction |
+
+**Build recipe — Hold mode**
+
+```tsx
+// In timeline.ts: confirm the CTA scene has enough beats that its settled portion
+// spans ≥ ENDING_WINDOW_SEC (1.5s = 45 frames at 30fps) before the video ends.
+const CTA_SCENE          = timeline.scenes.find(s => s.id === 'cta');
+export const CTA_SETTLE_BEAT  = CTA_SCENE.startBeat + 2; // 2 beats in — primary animation done
+export const CTA_SETTLE_FRAME = beatsToFrames(CTA_SETTLE_BEAT, timeline.bpm, fps);
+```
+
+```tsx
+// In the CTA scene: after primary animation, reduce AmbientField to hold-mode level
+const isSettled     = frame >= CTA_SETTLE_FRAME;
+const ambientEnergy = isSettled ? 0.35 : theme.ctaResolveEnergy;
+// 0.35 → per-pair mean ≈ 0.15 in practice (well below HOLD_ENERGY_THRESHOLD=1.5)
+
+// Micro-motion: prevents dead-air (gate 1) while remaining in held territory (gate 5)
+const breathPeriod  = beatsToFrames(4, timeline.bpm, fps);
+const breathPhase   = (frame % breathPeriod) / breathPeriod;
+const breathScale   = 1 + 0.003 * Math.sin(breathPhase * Math.PI * 2); // < 0.5% — alive but invisible
+```
+
+**Build recipe — Accent mode**
+
+```tsx
+// In timeline.ts: accent beat is 1–2 beats before the final frame
+const CTA_SCENE            = timeline.scenes.find(s => s.id === 'cta');
+export const ENDING_ACCENT_BEAT  = CTA_SCENE.startBeat + CTA_SCENE.beats - 2;
+export const ENDING_ACCENT_FRAME = beatsToFrames(ENDING_ACCENT_BEAT, timeline.bpm, fps);
+```
+
+```tsx
+// In the CTA scene: stamp in the accent (logo re-arrival or sting) at the accent beat
+const isAccentWindow  = frame >= ENDING_ACCENT_FRAME;
+const accentArrival   = makeSpring(frame - ENDING_ACCENT_FRAME, theme.spring.snappy);
+
+// Hard arrival at the accent beat — produces max > ENERGY_SPIKE_FLOOR (2.0)
+const accentScale   = isAccentWindow ? 0.9 + 0.1 * Math.max(0, accentArrival) : 0;
+const accentOpacity = isAccentWindow ? Math.max(0, accentArrival) : 0;
+
+// After the accent, drop to hold-mode energy so the video ends settled
+const postAccent    = frame > ENDING_ACCENT_FRAME + framesPerBeat;
+const ambientEnergy = isAccentWindow && !postAccent ? 1.0 : (postAccent ? 0.3 : theme.ctaResolveEnergy);
+```
+
+Gate 5 test: `scripts/retention.sh <CompId>` reports `endingMode`, `endingMeanEnergy`,
+`endingMaxEnergy`. Targets: `endingMode=held` with `endingMeanEnergy < 0.5` (hold mode),
+or `endingMode=accented` with `endingMaxEnergy > 3.0` (accent mode). Values 0.5–1.5 in
+hold mode indicate AmbientField energy is too high in the ending window — reduce it.
+
+**Arc fit:**
+- **Hold mode**: all arcs (A–F). Any video ending on a legible CTA card benefits from hold mode — this is the default for most Kino videos.
+- **Accent mode**: arcs where the closing beat is a statement (product reveal, founder signature). The accent is an exclamation point, not a fade.
+
+**When NOT to use — hold mode:** When the narrative calls for a punched ending. Use accent
+mode and let the stamp be the final beat.
+**When NOT to use — accent mode:** When the CTA card IS the resolution — the logo and URL
+are the final statement. Adding a snappy arrival after the resolve undercuts the brand
+moment. Use hold mode instead.
+
+---
+
 ## Selection guide
 
 | If your arc has… | Use pattern |
@@ -679,6 +885,8 @@ directly into the CTA without a separate tension beat.
 | Multiple escalating proof beats (E arc) | 5 Payoff seeding |
 | Dead-air gate at risk; settled or hold scenes | 6 Dead-air elimination (always) |
 | Gate 2 resolveRatio failing; CTA needs weight | 7 CTA tension/resolve (always) |
+| Looping social context (X/Instagram/TikTok auto-replay) | 8 Loop-back ending |
+| Gate 5 failing `endingMode=limp`; ending feels unresolved | 9 Final-accent landing (always) |
 
 Cross-reference the arc menu (`direction.md §4`) and pick retention patterns
 that reinforce, not fight, the arc's emotional shape. Pattern 1 (back-loaded
@@ -687,8 +895,9 @@ DISTRIBUTE energy across the arc to arrive at the climax at the right energy
 level, not how to design the climax scene itself.
 
 **Stacking rule:** apply at most two patterns — one structural (1 / 3 / 5) and
-one cadence (2 / 4). Patterns 6 and 7 are base obligations: apply them to every
-video regardless of which structural pattern is chosen. Stacking structural
+one cadence (2 / 4). Patterns 6, 7, and 9 are base obligations: apply them to
+every video regardless of which structural pattern is chosen. Pattern 8 is
+optional — add it when targeting a looping social context. Stacking structural
 patterns produces contradictory energy curves; stacking a structural pattern with
 a cadence pattern is the natural composition (e.g. back-loaded climax + mid-point
 re-hook punch means energy builds toward the climax AND has one deliberate spike

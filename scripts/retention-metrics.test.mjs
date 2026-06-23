@@ -447,3 +447,240 @@ describe('computeRetentionMetrics — gate-2 smoothing: cut spike vs sustained e
     expect(verdict.hardGatesPass).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Gate 4: Full-video loop seam
+//
+// LOOP_SEAM_THRESHOLD = 60.0 (same family as hook gate 3 seam).
+// meanAbsDelta for uniform frames: |fillA − fillB|.
+//
+// Perfect loop: frame0 fill matches finalFrame fill → delta=0 → PASS loopable=true.
+// CTA card end: finalFrame fill very different → delta >> 60 → loopable=false → advisory FAIL.
+// Near-boundary: delta=59 < 60 → PASS; delta=60 NOT < 60 → FAIL.
+// Single frame: gate skipped (fewer than 2 frames).
+// ---------------------------------------------------------------------------
+
+describe('computeRetentionMetrics — gate 4: full-video loop seam (PASS: perfect loop)', () => {
+  // frame0=fill(100), frame1=fill(150) (middle content), frame2=fill(100) (same as frame0)
+  const loopFrames = [makeFrame(100), makeFrame(150), makeFrame(100)];
+  const verdict = computeRetentionMetrics(loopFrames, { step: 5, fps: 30 });
+
+  it('gate 4 is advisory and not hard', () => {
+    const g4 = verdict.gates.find(g => g.id === 4);
+    expect(g4.hard).toBe(false);
+    expect(g4.advisory).toBe(true);
+  });
+
+  it('gate 4 PASS when frame0 and finalFrame match (delta=0 < 60)', () => {
+    const g4 = verdict.gates.find(g => g.id === 4);
+    expect(g4.pass).toBe(true);
+    expect(g4.measured.loopable).toBe(true);
+    expect(g4.measured.loopSeamDelta).toBe(0);
+    expect(g4.measured.frame0Idx).toBe(0);
+    expect(g4.measured.finalFrameIdx).toBe((loopFrames.length - 1) * 5);
+  });
+
+  it('hardGatesPass is unaffected by gate 4 result (advisory only)', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});
+
+describe('computeRetentionMetrics — gate 4: full-video loop seam (FAIL: CTA-card ending)', () => {
+  // frame0=fill(0) dark open, finalFrame=fill(220) bright CTA → delta=220 ≥ 60
+  const ctaFrames = [makeFrame(0), makeFrame(128), makeFrame(220)];
+  const verdict = computeRetentionMetrics(ctaFrames, { step: 5, fps: 30 });
+
+  it('gate 4 FAIL advisory when seam delta ≥ threshold (loopable=false)', () => {
+    const g4 = verdict.gates.find(g => g.id === 4);
+    expect(g4.pass).toBe(false);
+    expect(g4.measured.loopable).toBe(false);
+    expect(g4.measured.loopSeamDelta).toBeGreaterThanOrEqual(60);
+  });
+
+  it('hardGatesPass still true despite gate 4 advisory FAIL', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});
+
+describe('computeRetentionMetrics — gate 4: loop seam threshold boundary', () => {
+  it('delta=59 (just below threshold) → gate 4 PASS loopable=true', () => {
+    const frames = [makeFrame(0), makeFrame(100), makeFrame(59)];
+    const g4 = computeRetentionMetrics(frames, { step: 5, fps: 30 }).gates.find(g => g.id === 4);
+    expect(g4.pass).toBe(true);
+    expect(g4.measured.loopable).toBe(true);
+    expect(g4.measured.loopSeamDelta).toBeCloseTo(59, 1);
+  });
+
+  it('delta=60 (at threshold, not strictly below) → gate 4 FAIL loopable=false', () => {
+    const frames = [makeFrame(0), makeFrame(100), makeFrame(60)];
+    const g4 = computeRetentionMetrics(frames, { step: 5, fps: 30 }).gates.find(g => g.id === 4);
+    expect(g4.pass).toBe(false);
+    expect(g4.measured.loopable).toBe(false);
+    expect(g4.measured.loopSeamDelta).toBeCloseTo(60, 1);
+  });
+});
+
+describe('computeRetentionMetrics — gate 4: single-frame degenerate (skip)', () => {
+  it('single frame → gate 4 skipped', () => {
+    const verdict = computeRetentionMetrics([makeFrame(128)], { step: 5, fps: 30 });
+    const g4 = verdict.gates.find(g => g.id === 4);
+    expect(g4.skip).toBe(true);
+    expect(g4.hard).toBe(false);
+    expect(g4.advisory).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gate 5: Ending hold / no-limp-tail
+//
+// ENDING_WINDOW_SEC = 1.5 → nEndingPairs = floor(1.5*30/5) = 9 sample pairs.
+// HOLD_ENERGY_THRESHOLD = 1.5 (allows integer delta=1 as held without static runs).
+// ENERGY_SPIKE_FLOOR (accent) = 2.0 (strict >).
+//
+// Fixture layout (step=5, fps=30, ending window = last 9 pairs):
+//
+//   g5HeldFrames (20 frames, fills 100..119, all pairs delta=1):
+//     Ending pairs[10..18]: [1,1,1,1,1,1,1,1,1] → mean=1.0 < 1.5 → held PASS
+//     Dead-air: delta=1 > 0.05 → no static pairs → gate 1 PASS
+//
+//   g5AccentedFrames (2 frames: fill(50), fill(100) → 1 pair delta=50):
+//     endingEnergy=[50] → max=50 > 2.0 → accented PASS
+//     (slice(-9) on length-1 array returns all of it)
+//
+//   g5LimpFrames (20 frames, fills 100,102,...,138, all pairs delta=2):
+//     Ending pairs[10..18]: mean=2.0 NOT < 1.5, max=2.0 NOT > 2.0 → limp FAIL
+//     Dead-air: delta=2 > 0.05 → no static pairs → gate 1 PASS
+// ---------------------------------------------------------------------------
+
+const g5HeldFrames = Array.from({ length: 20 }, (_, i) => makeFrame(100 + i));
+// fills 100,101,...,119 → all 19 pairs delta=1 (held: mean=1.0 < 1.5; not static: 1 > 0.05)
+
+const g5AccentedFrames = [makeFrame(50), makeFrame(100)];
+// 1 pair delta=50 → ending max=50 > 2.0 → accented PASS
+
+const g5LimpFrames = Array.from({ length: 20 }, (_, i) => makeFrame(100 + i * 2));
+// fills 100,102,...,138 → all 19 pairs delta=2 (not accented: 2 not > 2.0; not held: 2.0 not < 1.5)
+
+describe('computeRetentionMetrics — gate 5: held ending (stable end-card) → PASS', () => {
+  const verdict = computeRetentionMetrics(g5HeldFrames, { step: 5, fps: 30 });
+
+  it('gate 5 is advisory and not hard', () => {
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.hard).toBe(false);
+    expect(g5.advisory).toBe(true);
+  });
+
+  it('gate 5 PASS — mode=held when ending window energy is near-zero', () => {
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.pass).toBe(true);
+    expect(g5.measured.endingMode).toBe('held');
+    expect(g5.measured.endingMeanEnergy).toBeLessThan(1.5); // HOLD_ENERGY_THRESHOLD
+    expect(g5.measured.endingMaxEnergy).toBeLessThanOrEqual(2.0);
+  });
+
+  it('hardGatesPass unaffected by gate 5', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});
+
+describe('computeRetentionMetrics — gate 5: accented ending (final beat punch) → PASS', () => {
+  const verdict = computeRetentionMetrics(g5AccentedFrames, { step: 5, fps: 30 });
+
+  it('gate 5 PASS — mode=accented when ending window has energy spike > 2.0', () => {
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.pass).toBe(true);
+    expect(g5.measured.endingMode).toBe('accented');
+    expect(g5.measured.endingMaxEnergy).toBeGreaterThan(2.0);
+  });
+
+  it('hardGatesPass unaffected by gate 5', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});
+
+describe('computeRetentionMetrics — gate 5: limp tail (monotone drift, no hold, no accent) → advisory FAIL', () => {
+  const verdict = computeRetentionMetrics(g5LimpFrames, { step: 5, fps: 30 });
+
+  it('gate 5 advisory FAIL — mode=limp when ending energy neither held nor accented', () => {
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.advisory).toBe(true);
+    expect(g5.pass).toBe(false);
+    expect(g5.measured.endingMode).toBe('limp');
+    expect(g5.measured.endingMeanEnergy).toBeGreaterThanOrEqual(1.0);
+    expect(g5.measured.endingMaxEnergy).toBeLessThanOrEqual(2.0);
+  });
+
+  it('hardGatesPass still true (gate 5 advisory only)', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});
+
+describe('computeRetentionMetrics — gate 5: short video (fewer pairs than ending window)', () => {
+  // 4 frames (3 pairs) — fewer than nEndingPairs=9; slice(-9) returns all 3 pairs.
+  // All delta=0 (identical frames) → mean=0 < 1.0 → held PASS.
+  it('short video with 3 pairs → uses all available pairs, mode=held', () => {
+    const frames = Array.from({ length: 4 }, () => makeFrame(128));
+    const g5 = computeRetentionMetrics(frames, { step: 5, fps: 30 }).gates.find(g => g.id === 5);
+    expect(g5.skip).toBe(false);
+    expect(g5.pass).toBe(true);
+    expect(g5.measured.endingMode).toBe('held');
+    expect(g5.measured.windowPairs).toBeLessThan(9);
+  });
+});
+
+describe('computeRetentionMetrics — gate 5: single-frame degenerate (skip)', () => {
+  it('single frame → gate 5 skipped', () => {
+    const verdict = computeRetentionMetrics([makeFrame(128)], { step: 5, fps: 30 });
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.skip).toBe(true);
+    expect(g5.hard).toBe(false);
+    expect(g5.advisory).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gates 4 + 5 on the existing golden fixtures — verify consistency
+// ---------------------------------------------------------------------------
+
+describe('computeRetentionMetrics — gates 4+5 on golden positive fixture', () => {
+  // posFrames: frame0=fill(100), frame19=fill(104) → loop seam delta=4
+  // ending window pairs[10..18] = [3,3,3,0,0,0,0,0,0] → max=3 > 2.0 → accented
+  const verdict = computeRetentionMetrics(posFrames, { step: 5, fps: 30 });
+
+  it('gate 4 PASS — posFrames loops cleanly (delta=4 < 60)', () => {
+    const g4 = verdict.gates.find(g => g.id === 4);
+    expect(g4.pass).toBe(true);
+    expect(g4.measured.loopSeamDelta).toBeCloseTo(4, 0);
+  });
+
+  it('gate 5 PASS — posFrames has accented ending (spikes in ending window)', () => {
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.pass).toBe(true);
+    expect(g5.measured.endingMode).toBe('accented');
+  });
+});
+
+describe('computeRetentionMetrics — gates 4+5 on golden negative #2 (early-peak fixture)', () => {
+  // neg2Frames: frame0=fill(100), frame19=fill(218) → delta=118 → loopable=false advisory FAIL
+  // ending window: pairs[10..18] all delta=1 → mean=1.0 < HOLD_ENERGY_THRESHOLD=1.5 → held PASS
+  // (uniform +1 drift at the end qualifies as a "held" near-static state)
+  const verdict = computeRetentionMetrics(neg2Frames, { step: 5, fps: 30 });
+
+  it('gate 4 advisory FAIL — neg2Frames does not loop (delta=118 ≥ 60)', () => {
+    const g4 = verdict.gates.find(g => g.id === 4);
+    expect(g4.advisory).toBe(true);
+    expect(g4.pass).toBe(false);
+    expect(g4.measured.loopSeamDelta).toBeGreaterThanOrEqual(60);
+  });
+
+  it('gate 5 PASS — neg2Frames ending is held (uniform +1 drift, mean=1.0 < 1.5)', () => {
+    const g5 = verdict.gates.find(g => g.id === 5);
+    expect(g5.advisory).toBe(true);
+    expect(g5.pass).toBe(true);
+    expect(g5.measured.endingMode).toBe('held');
+  });
+
+  it('hardGatesPass still true — both new gates are advisory', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});

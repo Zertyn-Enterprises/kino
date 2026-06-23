@@ -17,7 +17,7 @@ scripts/stills.sh <CompId> <frames...> --props='{"debug":true}'   # review still
 scripts/filmstrip.sh <CompId> [step] [props] # contact sheets → out/review/<CompId>/strip/
 scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]        # hook-window review → out/review/<CompId>/hook/
 scripts/hook-tournament.sh <CompId> [step] -- '<propsA>' '<propsB>' [..]  # rank hook variants → out/review/<CompId>/hook-tournament/
-scripts/retention.sh <CompId> [step=5] [props] [--holds=S:E,...] [--climax=F] [--rehook=N]  # retention metrics → out/review/<CompId>/retention/
+scripts/retention.sh <CompId> [step=5] [props] [--holds=S:E,...] [--climax=F] [--rehook=N]  # retention metrics (dead-air, energy build, re-hook cadence, loop-seam, ending-hold) → out/review/<CompId>/retention/
 scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]  # contrast gate → out/review/<slug>/contrast/
 scripts/motion.sh <CompId> [step=3] [props] [--window=S:E]               # motion-craft gate → out/review/<CompId>/motion/
 scripts/legibility.sh <CompId> [step=3] [props] [--window=S:E]           # legibility-dwell gate → out/review/<CompId>/legibility/
