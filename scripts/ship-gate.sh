@@ -61,56 +61,88 @@ else
 fi
 echo ""
 
-# --- 1. Run each gate, capturing exit codes without aborting ---
+# --- 1. Run all gates concurrently (bounded: one job per gate = 8 max), collect exit codes ---
 
-echo "==> Running hook gate..."
+GATE_TMPDIR=$(mktemp -d)
+trap 'rm -rf "$GATE_TMPDIR"' EXIT
+
 HOOK_EXIT=0
-scripts/hook.sh "$COMP" || HOOK_EXIT=$?
-
-echo ""
-echo "==> Running retention gate..."
 RETENTION_EXIT=0
-if [ "${#RETENTION_ARGS[@]}" -gt 0 ]; then
-  scripts/retention.sh "$COMP" 5 "" "${RETENTION_ARGS[@]}" || RETENTION_EXIT=$?
-else
-  scripts/retention.sh "$COMP" || RETENTION_EXIT=$?
-fi
-
-echo ""
-echo "==> Running contrast gate..."
 CONTRAST_EXIT=0
-if [ "${#PALETTE_ARGS[@]}" -gt 0 ]; then
-  scripts/contrast.sh "$SLUG" "${PALETTE_ARGS[@]}" || CONTRAST_EXIT=$?
+MOTION_EXIT=0
+LEGIBILITY_EXIT=0
+CODE_CRAFT_EXIT=0
+MUSICSYNC_EXIT=0
+PAYOFF_EXIT=0
+
+scripts/hook.sh "$COMP" >"$GATE_TMPDIR/hook.log" 2>&1 &
+HOOK_PID=$!
+
+if [ "${#RETENTION_ARGS[@]}" -gt 0 ]; then
+  scripts/retention.sh "$COMP" 5 "" "${RETENTION_ARGS[@]}" >"$GATE_TMPDIR/retention.log" 2>&1 &
 else
-  echo "WARNING: no palette flags supplied — contrast gate cannot run" >&2
+  scripts/retention.sh "$COMP" >"$GATE_TMPDIR/retention.log" 2>&1 &
+fi
+RETENTION_PID=$!
+
+CONTRAST_PID=""
+if [ "${#PALETTE_ARGS[@]}" -gt 0 ]; then
+  scripts/contrast.sh "$SLUG" "${PALETTE_ARGS[@]}" >"$GATE_TMPDIR/contrast.log" 2>&1 &
+  CONTRAST_PID=$!
+else
+  echo "WARNING: no palette flags supplied — contrast gate cannot run" >"$GATE_TMPDIR/contrast.log"
   CONTRAST_EXIT=1
 fi
 
-echo ""
-echo "==> Running motion gate..."
-MOTION_EXIT=0
-scripts/motion.sh "$COMP" || MOTION_EXIT=$?
+scripts/motion.sh "$COMP" >"$GATE_TMPDIR/motion.log" 2>&1 &
+MOTION_PID=$!
 
-echo ""
-echo "==> Running legibility gate..."
-LEGIBILITY_EXIT=0
-scripts/legibility.sh "$COMP" || LEGIBILITY_EXIT=$?
+scripts/legibility.sh "$COMP" >"$GATE_TMPDIR/legibility.log" 2>&1 &
+LEGIBILITY_PID=$!
 
-echo ""
-echo "==> Running code-craft gate..."
-CODE_CRAFT_EXIT=0
-scripts/code-craft.sh "$COMP" "$SLUG" || CODE_CRAFT_EXIT=$?
+scripts/code-craft.sh "$COMP" "$SLUG" >"$GATE_TMPDIR/code-craft.log" 2>&1 &
+CODE_CRAFT_PID=$!
 
-echo ""
-echo "==> Running musicsync gate..."
-MUSICSYNC_EXIT=0
-scripts/musicsync.sh "$COMP" "$SLUG" || MUSICSYNC_EXIT=$?
+scripts/musicsync.sh "$COMP" "$SLUG" >"$GATE_TMPDIR/musicsync.log" 2>&1 &
+MUSICSYNC_PID=$!
 
-echo ""
-echo "==> Running payoff gate..."
-PAYOFF_EXIT=0
-scripts/payoff.sh "$COMP" || PAYOFF_EXIT=$?
+scripts/payoff.sh "$COMP" >"$GATE_TMPDIR/payoff.log" 2>&1 &
+PAYOFF_PID=$!
 
+# Join all background jobs; collect each exit code without losing failures.
+wait "$HOOK_PID"      || HOOK_EXIT=$?
+wait "$RETENTION_PID" || RETENTION_EXIT=$?
+[ -n "$CONTRAST_PID" ] && { wait "$CONTRAST_PID" || CONTRAST_EXIT=$?; }
+wait "$MOTION_PID"      || MOTION_EXIT=$?
+wait "$LEGIBILITY_PID"  || LEGIBILITY_EXIT=$?
+wait "$CODE_CRAFT_PID"  || CODE_CRAFT_EXIT=$?
+wait "$MUSICSYNC_PID"   || MUSICSYNC_EXIT=$?
+wait "$PAYOFF_PID"      || PAYOFF_EXIT=$?
+
+# Print gate outputs in the original fixed order.
+echo "==> hook gate:"
+cat "$GATE_TMPDIR/hook.log"
+echo ""
+echo "==> retention gate:"
+cat "$GATE_TMPDIR/retention.log"
+echo ""
+echo "==> contrast gate:"
+cat "$GATE_TMPDIR/contrast.log"
+echo ""
+echo "==> motion gate:"
+cat "$GATE_TMPDIR/motion.log"
+echo ""
+echo "==> legibility gate:"
+cat "$GATE_TMPDIR/legibility.log"
+echo ""
+echo "==> code-craft gate:"
+cat "$GATE_TMPDIR/code-craft.log"
+echo ""
+echo "==> musicsync gate:"
+cat "$GATE_TMPDIR/musicsync.log"
+echo ""
+echo "==> payoff gate:"
+cat "$GATE_TMPDIR/payoff.log"
 echo ""
 
 # --- 2. Aggregate via ship-metrics.mjs ---
