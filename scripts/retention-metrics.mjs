@@ -54,6 +54,11 @@ const DEAD_AIR_FLOOR    = 0.05;
 const DEAD_AIR_MAX_SEC  = 1.0;
 const ENERGY_SPIKE_FLOOR = 2.0;
 const RESOLVE_RATIO     = 0.75;
+const LOOP_SEAM_THRESHOLD   = 60.0;  // mean abs lum delta frame0 vs final; below = loopable
+const HOLD_ENERGY_THRESHOLD = 1.5;   // mean ending energy below = "held" stable end-state
+                                     // (1.5 allows integer delta=1 as held without triggering
+                                     //  DEAD_AIR_FLOOR=0.05; delta=0 and delta=1 both qualify)
+const ENDING_WINDOW_SEC     = 1.5;   // seconds of final video to examine for gate 5
 
 /**
  * Parse --holds=S:E,... into an array of [startFrame, endFrame] pairs.
@@ -267,6 +272,81 @@ export function computeRetentionMetrics(frames, {
     });
   }
 
+  // ── Gate 4: Full-video loop seam (ADVISORY) ────────────────────────────────
+  // Compare frame 0 vs true final sampled frame (whole-frame mean-abs luminance delta).
+  // Advisory: CTA-card endings legitimately do not loop; loopable:false is an
+  // opportunity flag, not a hard failure. Same metric family as hook gate 3 seam.
+  if (N < 2) {
+    gates.push({
+      id: 4, name: 'Full-video loop seam', hard: false, advisory: true,
+      pass: false, skip: true, measured: null,
+      threshold: { loopSeamThreshold: LOOP_SEAM_THRESHOLD },
+      skipReason: 'fewer than 2 frames provided',
+    });
+  } else {
+    const loopSeamDelta = +(meanAbsDelta(getLum(0), getLum(N - 1)).toFixed(3));
+    const loopable = loopSeamDelta < LOOP_SEAM_THRESHOLD;
+    gates.push({
+      id: 4, name: 'Full-video loop seam', hard: false, advisory: true,
+      pass: loopable, skip: false,
+      measured: {
+        loopSeamDelta,
+        loopable,
+        frame0Idx: 0,
+        finalFrameIdx: (N - 1) * step,
+      },
+      threshold: { loopSeamThreshold: LOOP_SEAM_THRESHOLD },
+    });
+  }
+
+  // ── Gate 5: Ending hold / no-limp-tail (ADVISORY) ──────────────────────────
+  // Examine the final ENDING_WINDOW_SEC of energy pairs.
+  // PASS when ending is (a) a stable held end-state (mean < HOLD_ENERGY_THRESHOLD) or
+  // (b) lands a final energy accent (max > ENERGY_SPIKE_FLOOR).
+  // FAIL only the limp tail: non-trivial but sub-spike energy with mean >= threshold.
+  // Does not contradict gate 2's rewarded resolve — a resolve that lands on a held
+  // legible card has mean≈0 in the ending window and passes as "held."
+  if (energy.length === 0) {
+    gates.push({
+      id: 5, name: 'Ending hold / no-limp-tail', hard: false, advisory: true,
+      pass: false, skip: true, measured: null,
+      threshold: { holdEnergyThreshold: HOLD_ENERGY_THRESHOLD, accentThreshold: ENERGY_SPIKE_FLOOR, windowSec: ENDING_WINDOW_SEC },
+      skipReason: 'fewer than 2 frames provided',
+    });
+  } else {
+    const nEndingPairs  = Math.max(1, Math.floor(ENDING_WINDOW_SEC * fps / step));
+    const endingEnergy  = energy.slice(-nEndingPairs);
+    const endingMeanEnergy = +(endingEnergy.reduce((s, v) => s + v, 0) / endingEnergy.length).toFixed(3);
+    const endingMaxEnergy  = +(Math.max(...endingEnergy)).toFixed(3);
+    const windowStartFrame = Math.max(0, energy.length - nEndingPairs) * step;
+
+    let endingMode;
+    let g5Pass;
+    if (endingMaxEnergy > ENERGY_SPIKE_FLOOR) {
+      endingMode = 'accented';
+      g5Pass = true;
+    } else if (endingMeanEnergy < HOLD_ENERGY_THRESHOLD) {
+      endingMode = 'held';
+      g5Pass = true;
+    } else {
+      endingMode = 'limp';
+      g5Pass = false;
+    }
+
+    gates.push({
+      id: 5, name: 'Ending hold / no-limp-tail', hard: false, advisory: true,
+      pass: g5Pass, skip: false,
+      measured: {
+        endingMode,
+        endingMeanEnergy,
+        endingMaxEnergy,
+        windowStartFrame,
+        windowPairs: endingEnergy.length,
+      },
+      threshold: { holdEnergyThreshold: HOLD_ENERGY_THRESHOLD, accentThreshold: ENERGY_SPIKE_FLOOR, windowSec: ENDING_WINDOW_SEC },
+    });
+  }
+
   const hardGatesPass = gates.filter(g => g.hard).every(g => g.skip || g.pass);
   const summary = {
     passed:  gates.filter(g => !g.skip &&  g.pass).length,
@@ -308,6 +388,16 @@ function printHumanReadable({ gates, summary }) {
       case 3: {
         const { longestFlatSec, longestFlatStartFrame } = gate.measured;
         console.log(`Re-hook cadence          ${status}  longestFlat=${longestFlatSec.toFixed(2)}s @frame${longestFlatStartFrame} (threshold ≤${gate.threshold.maxFlatSec}s)${adv}`);
+        break;
+      }
+      case 4: {
+        const { loopSeamDelta, loopable, frame0Idx, finalFrameIdx } = gate.measured;
+        console.log(`Full-video loop seam     ${status}  loopSeamDelta=${loopSeamDelta.toFixed(2)} frames ${frame0Idx}↔${finalFrameIdx} (threshold <${gate.threshold.loopSeamThreshold}, loopable=${loopable})${adv}`);
+        break;
+      }
+      case 5: {
+        const { endingMode, endingMeanEnergy, endingMaxEnergy, windowStartFrame, windowPairs } = gate.measured;
+        console.log(`Ending hold/no-limp-tail ${status}  mode=${endingMode} mean=${endingMeanEnergy.toFixed(2)} max=${endingMaxEnergy.toFixed(2)} window=${windowPairs}pairs@frame${windowStartFrame}${adv}`);
         break;
       }
     }
