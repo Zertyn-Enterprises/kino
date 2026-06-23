@@ -176,8 +176,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 
   const propsHash = computePropsHash(compId, propsJson);
-  const dir = resolve(corpusDirFor(CORPUS_ROOT, compId, propsHash));
-  const framesDir = join(dir, 'frames');
+  // relDir is relative (no dot-prefixed components) — safe for Remotion's CLI path check.
+  // dir is the absolute path used for all file-system operations and manifest entries.
+  const relDir = corpusDirFor(CORPUS_ROOT, compId, propsHash);
+  const dir = resolve(relDir);
+  const relFramesDir = join(relDir, 'frames');   // passed to Remotion CLI (no dots in path)
+  const absFramesDir = join(dir, 'frames');      // used for fs reads/writes
   const manifestFile = join(dir, 'manifest.json');
 
   // Idempotency: skip render if a fresh corpus already exists.
@@ -195,9 +199,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 
   // Render the full timeline at scale 0.25, step 1.
-  mkdirSync(framesDir, { recursive: true });
+  // Use the relative path for the Remotion CLI so that Remotion's extension check
+  // does not trip on dot-prefixed parent directories (e.g. .claude in worktrees).
+  mkdirSync(absFramesDir, { recursive: true });
   const renderArgs = [
-    'remotion', 'render', compId, framesDir,
+    'remotion', 'render', compId, relFramesDir,
     '--sequence', '--image-format=png',
     `--scale=${SCALE}`,
     `--every-nth-frame=${STEP}`,
@@ -205,10 +211,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   ];
   if (propsJson) renderArgs.push(`--props=${propsJson}`);
   process.stderr.write(`Corpus: rendering ${compId} (${durationFrames} frames at scale ${SCALE})…\n`);
-  execFileSync('npx', renderArgs, { stdio: 'inherit' });
+  // Route child stdout → stderr so render progress doesn't pollute this process's stdout
+  // (which the shell captures via $(...) to obtain the manifest path).
+  execFileSync('npx', renderArgs, { stdio: ['inherit', process.stderr, process.stderr] });
 
   // Collect rendered PNG files in frame order (file index i == frame number i with step=1).
-  const pngFiles = readdirSync(framesDir)
+  const pngFiles = readdirSync(absFramesDir)
     .filter(f => f.endsWith('.png'))
     .sort((a, b) => {
       const na = parseInt((a.match(/-(\d+)\.png$/) || ['', '0'])[1], 10);
@@ -216,7 +224,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       return na - nb;
     });
 
-  const entries = pngFiles.map((f, i) => ({ frame: i, path: resolve(join(framesDir, f)) }));
+  const entries = pngFiles.map((f, i) => ({ frame: i, path: resolve(join(absFramesDir, f)) }));
   const manifest = buildManifest(compId, propsHash, durationFrames, entries);
   writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
 

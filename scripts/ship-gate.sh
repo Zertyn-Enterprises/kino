@@ -48,6 +48,19 @@ CODE_CRAFT_JSON="out/review/$COMP/code-craft/metrics.json"
 MUSICSYNC_JSON="out/review/$COMP/musicsync/metrics.json"
 PAYOFF_JSON="out/review/$COMP/payoff/metrics.json"
 
+# --- 0. Build shared render corpus once (retention/motion/legibility/payoff slice from it) ---
+
+echo "==> Building shared render corpus for $COMP..."
+CORPUS_BUILD_EXIT=0
+CORPUS_MANIFEST_TMP=$(node scripts/render-corpus.mjs "$COMP") || CORPUS_BUILD_EXIT=$?
+if [ "$CORPUS_BUILD_EXIT" -eq 0 ] && [ -n "$CORPUS_MANIFEST_TMP" ]; then
+  export CORPUS_MANIFEST="$CORPUS_MANIFEST_TMP"
+  echo "    Corpus: $CORPUS_MANIFEST"
+else
+  echo "WARNING: corpus build failed (exit $CORPUS_BUILD_EXIT) — retention/motion/legibility/payoff will self-render" >&2
+fi
+echo ""
+
 # --- 1. Run each gate, capturing exit codes without aborting ---
 
 echo "==> Running hook gate..."
