@@ -1127,3 +1127,81 @@ describe('checkRegistryCompleteness — pure function', () => {
     expect(result.orphan).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixtures: music-less candidate
+//
+// SERENO_ENTRY is a light-palette ambient video with no music.
+// parseBpmBand('no music — ambient nature sound only') → 'unknown'.
+// The music-bpm axis is excluded when either side has bpmBand='unknown' — the
+// axis is simply not counted (neither same nor differing). With 8 of 9 axes
+// comparing, SERENO still differs from relay+granipa on all 8 → hardGatesPass=true.
+// Result: robust, zero mis-fires for music-less candidates.
+// ---------------------------------------------------------------------------
+
+const SERENO_ENTRY = `
+## 3 · sereno / SerenoLaunch (2026-07-01)
+
+| field           | value                                                            |
+| --------------- | ---------------------------------------------------------------- |
+| product         | Sereno — ambient focus timer for distraction-free deep work      |
+| arc             | C · build-in-public                                             |
+| rhythm          | slow reveal, single long hold at centre, soft bloom at the end  |
+| luminance       | light (warm white #FDF8F2)                                      |
+| palette         | bg #FDF8F2 · accent warm coral #FF7A5C                          |
+| type            | Playfair Display display / Lora body                            |
+| signature moves | soft bloom · gravity settle · whisper fade                      |
+| texture         | clean — no grain, warm shadow depth                             |
+| transitions     | slow cross-dissolve across all scene boundaries                 |
+| music           | no music — ambient nature sound only                            |
+`;
+
+const REGISTRY_THREE = REGISTRY_TWO + SERENO_ENTRY;
+
+describe('computeDistinctMetrics — divergent: music-less candidate (bpmBand=unknown, ≥4 other axes differ)', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_THREE,
+    candidateSlug: 'sereno',
+  });
+
+  it('hardGatesPass is true — music-less candidate not blocked', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('sereno differs from relay on ≥4 non-bpm axes', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay.differingCount).toBeGreaterThanOrEqual(4);
+    expect(vsRelay.hardPass).toBe(true);
+  });
+
+  it('sereno differs from granipa on ≥4 non-bpm axes', () => {
+    const vsGranipa = verdict.perPrior.find(p => p.priorSlug === 'granipa');
+    expect(vsGranipa.differingCount).toBeGreaterThanOrEqual(4);
+    expect(vsGranipa.hardPass).toBe(true);
+  });
+
+  it('luminance axis differs (light vs dark)', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay.differingAxes).toContain('luminance');
+  });
+
+  it('arc axis differs (C vs B for relay)', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay.differingAxes).toContain('arc');
+  });
+
+  it('music-bpm axis NOT counted (bpmBand=unknown skips comparison)', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay.differingAxes).not.toContain('music-bpm');
+  });
+});
+
+describe('parseBpmBand — music-less strings return unknown', () => {
+  it('"no music — ambient nature sound only" → unknown', () => {
+    expect(parseBpmBand('no music — ambient nature sound only')).toBe('unknown');
+  });
+
+  it('"ambient sound design, no BPM" → unknown', () => {
+    expect(parseBpmBand('ambient sound design, no BPM')).toBe('unknown');
+  });
+});

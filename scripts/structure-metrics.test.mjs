@@ -258,3 +258,40 @@ describe('loadStructure — payoff golden (granipa)', () => {
     expect(structure.payoff.frame).toBe(1018);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Divergent-shape fixtures — structureToFlags (pure function, render-free)
+//
+// Calibration: structureToFlags serializes any combination of climaxFrame,
+// holds, and rehookSeconds with no taste-specific logic. These fixtures confirm
+// zero mis-fires on non-relay/non-granipa arc shapes:
+//   (a) short rehookSeconds=4: restrained-motion video with tight re-hook budget
+//   (b) three hold windows: multi-demo product with extended compare pauses
+//   (c) ambient arc: no climax, single hold, short rehook (build-in-public arc)
+// Result: robust, zero mis-fires.
+// ---------------------------------------------------------------------------
+
+describe('structureToFlags — divergent: short rehookSeconds=4 (restrained-motion video)', () => {
+  const flags = structureToFlags({ climaxFrame: null, holds: [], rehookSeconds: 4 });
+
+  it('emits --rehook=4', () => {
+    expect(flags).toBe('--rehook=4');
+  });
+});
+
+describe('structureToFlags — divergent: three hold windows (multi-demo product)', () => {
+  const flags = structureToFlags({ climaxFrame: null, holds: [[100, 150], [200, 250], [300, 350]], rehookSeconds: null });
+
+  it('emits all three holds in one --holds= flag', () => {
+    expect(flags).toBe('--holds=100:150,200:250,300:350');
+  });
+});
+
+describe('structureToFlags — divergent: ambient arc (holds + rehook, no climax)', () => {
+  const flags = structureToFlags({ climaxFrame: null, holds: [[60, 90]], rehookSeconds: 5 });
+
+  it('emits --holds and --rehook, does NOT emit --climax', () => {
+    expect(flags).toBe('--holds=60:90 --rehook=5');
+    expect(flags).not.toContain('--climax');
+  });
+});

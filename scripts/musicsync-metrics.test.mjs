@@ -374,6 +374,163 @@ describe('computeMusicSync — no-analysis-SKIP (analysis=null)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Divergent-shape fixtures (render-free)
+//
+// These cover musicsync code paths not exercised by relay/granipa (both fast-
+// bpm, drop-annotated, fully cut-mapped):
+//
+//   (A) Slow 72bpm ambient: MS1/MS2 PASS (exact match, zero phase error),
+//       MS3 PASS (climax on drop at t=1.5s=frame45), MS4 PASS (cuts [25,50,75]
+//       on 72bpm beat grid at 25 frames/beat). No false-block on slow tempo.
+//
+//   (B) Empty drops array: MS3 SKIP (hasDrops=false). MS1/MS2/MS4 still run.
+//       No false-block when music has no annotated drops.
+//
+//   (C) Octave BPM relation (declared=120, detected=60): MS1 PASS via octave
+//       check (60×2=120=declared). Half-time mixing/scoring accepted.
+//
+//   (D) Empty cutFrames: MS4 SKIP. MS1/MS2/MS3 still evaluate normally.
+//       No false-block when timeline has no cut markers declared.
+//
+// Result: robust, zero mis-fires on divergent musical shapes.
+// ---------------------------------------------------------------------------
+
+describe('computeMusicSync — divergent (A): slow 72bpm ambient track (all PASS or SKIP-only)', () => {
+  // At 72bpm, fps=30: framesPerBeat=25. Cuts at [25,50,75] land on beats 1,2,3.
+  // Drop at t=1.5s → frame=45 = climaxFrame → MS3 distFrames=0 → PASS.
+  const slowTimeline = { bpm: 72, fps: 30, firstDownbeatSec: 0, cutFrames: [25, 50, 75] };
+  const slowAnalysis  = { bpm: 72, firstBeatSec: 0, drops: [{ t: 1.5, jump: 0.6 }] };
+  const verdict = computeMusicSync({ timeline: slowTimeline, analysis: slowAnalysis, climaxFrame: 45 });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('MS1 (bpm-match, hard) PASS — 72bpm detected matches 72bpm declared exactly', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+    expect(g.measured.deltaPercent).toBeCloseTo(0, 4);
+  });
+
+  it('MS2 (phase-align, hard) PASS — firstDownbeatSec=0 matches firstBeatSec=0', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+  });
+
+  it('MS3 (climax-on-drop, advisory) PASS — climaxFrame=45 matches drop at t=1.5s (frame 45)', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+    expect(g.measured.distFrames).toBeCloseTo(0, 0);
+  });
+
+  it('MS4 (cut-on-beat, advisory) PASS — cuts [25,50,75] on 72bpm beat grid', () => {
+    const g = verdict.gates.find(g => g.id === 4);
+    expect(g.advisory).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.measured.onBeatCuts).toBe(3);
+    expect(g.measured.totalCuts).toBe(3);
+  });
+});
+
+describe('computeMusicSync — divergent (B): empty drops array (MS3 SKIP)', () => {
+  // Music without annotated drops: hasDrops=false → MS3 SKIP.
+  // MS1/MS2 (hard) and MS4 (advisory) still evaluate.
+  const noDropsAnalysis = { bpm: 120, firstBeatSec: 0, drops: [] };
+  const verdict = computeMusicSync({ timeline: baseTimeline, analysis: noDropsAnalysis, climaxFrame: 45 });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('MS3 SKIP — drops=[] means no drop to check climax against', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.skip).toBe(true);
+    expect(g.pass).toBe(false);
+  });
+
+  it('MS1 (hard) still evaluates and passes', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.skip).toBe(false);
+    expect(g.pass).toBe(true);
+  });
+
+  it('MS2 (hard) still evaluates and passes', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.skip).toBe(false);
+    expect(g.pass).toBe(true);
+  });
+
+  it('MS4 (advisory) evaluates (cutFrames present)', () => {
+    const g = verdict.gates.find(g => g.id === 4);
+    expect(g.skip).toBe(false);
+  });
+});
+
+describe('computeMusicSync — divergent (C): octave BPM relation (declared=120, detected=60)', () => {
+  // Half-time: detected=60 = declared/2. Octave check: 60×2=120=declared → MS1 PASS.
+  const halfTimeAnalysis = { bpm: 60, firstBeatSec: 0, drops: [] };
+  const verdict = computeMusicSync({ timeline: baseTimeline, analysis: halfTimeAnalysis, climaxFrame: 45 });
+
+  it('hardGatesPass is true — octave relation accepted', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('MS1 PASS via octave check — 60×2=120 matches declared=120', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+  });
+
+  it('MS2 (phase-align, hard) PASS', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+  });
+
+  it('MS3 SKIP — no drops in half-time analysis', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.skip).toBe(true);
+  });
+});
+
+describe('computeMusicSync — divergent (D): empty cutFrames (MS4 SKIP)', () => {
+  // Music-less minimal scene with no cut markers declared.
+  // MS4 skips when cutFrames=[]. MS1/MS2/MS3 still evaluate.
+  const noCutsTimeline = { ...baseTimeline, cutFrames: [] };
+  const verdict = computeMusicSync({ timeline: noCutsTimeline, analysis: cleanAnalysis, climaxFrame: 45 });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('MS4 SKIP — cutFrames=[] means no cuts to check on beat grid', () => {
+    const g = verdict.gates.find(g => g.id === 4);
+    expect(g.advisory).toBe(true);
+    expect(g.skip).toBe(true);
+  });
+
+  it('MS1 and MS2 (hard) still pass', () => {
+    expect(verdict.gates.find(g => g.id === 1).pass).toBe(true);
+    expect(verdict.gates.find(g => g.id === 2).pass).toBe(true);
+  });
+
+  it('MS3 evaluates and passes — cleanAnalysis has drops, climaxFrame=45 matches drop at t=1.5s', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.skip).toBe(false);
+    expect(g.pass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Octave-relation acceptance — MS1 should pass when analysis detects half/double bpm
 //
 // Declared bpm=120; detected bpm=60 (half-time) → octave relation ÷2.
