@@ -67,6 +67,24 @@ cat out/review/<CompId>/ship/report.txt    # human-readable table
 A missing or unreadable gate `metrics.json` is reported as `ran: false`,
 `hardGatesPass: false`, and the gate name is added to `blockers`.
 
+## Self-repair loop
+
+When `ship-gate.sh` prints `SHIP: BLOCKED` (or any advisory failures exist), the
+`report.txt` appends a `## How to fix` section — one entry per failure, ordered
+hard blockers first then advisories. Each entry contains a `[gate] symptom`,
+parameter/code-level `fix`, `ref: <docRef>`, and `inspect: <artifact>` line.
+The `report.json` carries the same data as a top-level `remediations` array.
+
+Loop:
+1. Run `scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]`
+2. If `SHIP: BLOCKED` or advisory failures exist, read `## How to fix` in `report.txt`.
+3. Apply each fix recipe (code/parameter/palette change).
+4. Re-run ship-gate.sh.
+
+The fix recipes are deterministic: they map every gate identifier to a concrete
+action. Advisory failures require a named written justification when the fix
+is intentionally not applied (see each gate's doc for accepted exception classes).
+
 ## Per-gate semantics
 
 See `hook.md`, `retention.md`, `contrast.md`, `motion.md`, `legibility.md`, `code-craft.md`, and `musicsync.md` for the full gate specs. In brief:

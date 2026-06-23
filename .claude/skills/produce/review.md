@@ -322,6 +322,12 @@ per failing drift advisory before continuing.
 of record — inspect `hardGatesPass`, `skip`, and the `perPrior[].differingCount`
 fields. Human-readable verdict is in `report.txt`.
 
+## 15. Self-repair (when ship-gate.sh blocks)
+
+When `scripts/ship-gate.sh` exits non-zero, read the `## How to fix` section in
+`out/review/<CompId>/ship/report.txt` — each failure maps to a concrete fix, docRef,
+and inspect artifact. See `ship.md §Self-repair loop`.
+
 ## 5. Render hygiene (final gate before "done")
 
 - `npm run lint && npm test` green; no unregistered compositions.

@@ -29,7 +29,8 @@ Read these before any creative decision (all in this folder):
 - `retention.md` — retention gate: dead-air (HARD) / energy-build-to-climax + re-hook cadence (advisory). Run `scripts/retention.sh`; see `review.md §7`.
 - `retention-patterns.md` — seven buildable retention patterns; pick one structural shape per act before writing the storyboard. Build-side companion to `retention.md`.
 - `ship.md` — unified ship gate: `scripts/ship-gate.sh` usage, `report.json`
-  shape, and re-run command. The single entrypoint for the final ship verdict.
+  shape, re-run command, and `## Self-repair loop` — every gate failure maps to
+  a concrete fix recipe in `report.txt § How to fix` + `report.json.remediations`.
 - `legibility.md` — legibility-dwell gate: L1 text-flash floor (HARD), L2 reading-budget
   share (advisory), L3 detail stability (advisory). `scripts/legibility.sh` usage,
   threshold reference, and recorded RelayLaunch + GranipaLaunch snapshots.
