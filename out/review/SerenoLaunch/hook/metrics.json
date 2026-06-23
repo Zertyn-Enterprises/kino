@@ -1,0 +1,128 @@
+{
+  "gates": [
+    {
+      "id": 1,
+      "name": "Motion by frame 10",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": 0.3410185993453603,
+      "threshold": 0.1
+    },
+    {
+      "id": 2,
+      "name": "Frame-0 contrast",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": 9.051677771619502,
+      "threshold": 5
+    },
+    {
+      "id": 3,
+      "name": "Loop seam",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "measured": 5.64999285036399,
+      "threshold": 60
+    },
+    {
+      "id": 4,
+      "name": "Background activity",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": false,
+      "measured": {
+        "active": 3,
+        "total": 16,
+        "separated": false
+      },
+      "threshold": {
+        "minActive": 2,
+        "separated": true,
+        "cellThreshold": 5
+      }
+    },
+    {
+      "id": 5,
+      "name": "Frame-0 liveness",
+      "hard": false,
+      "advisory": true,
+      "pass": true,
+      "skip": false,
+      "measured": {
+        "cells": 7,
+        "total": 16,
+        "rows": 4
+      },
+      "threshold": {
+        "minCells": 2,
+        "minRows": 2,
+        "cellThreshold": 10
+      }
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "skipped": 0
+  },
+  "hardGatesPass": true,
+  "promise": {
+    "gates": [
+      {
+        "name": "promiseDeclared",
+        "hard": true,
+        "advisory": false,
+        "pass": true,
+        "skip": false,
+        "measured": "focus arrives in seconds",
+        "threshold": "non-empty"
+      },
+      {
+        "name": "wordCount",
+        "hard": true,
+        "advisory": false,
+        "pass": true,
+        "skip": false,
+        "measured": 4,
+        "threshold": 6
+      },
+      {
+        "name": "promiseFrame",
+        "hard": true,
+        "advisory": false,
+        "pass": true,
+        "skip": false,
+        "measured": 45,
+        "threshold": 75
+      },
+      {
+        "name": "promiseRendered",
+        "hard": false,
+        "advisory": true,
+        "pass": true,
+        "skip": false,
+        "measured": {
+          "activeCells": 5,
+          "totalCentralCells": 8
+        },
+        "threshold": {
+          "minActiveCells": 1,
+          "cellThreshold": 10
+        }
+      }
+    ],
+    "summary": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "hardGatesPass": true
+  }
+}

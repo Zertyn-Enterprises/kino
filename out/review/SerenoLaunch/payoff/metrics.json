@@ -26,8 +26,8 @@
       "pass": true,
       "skip": false,
       "measured": {
-        "edgeDensity": 1.0402,
-        "contrast": 19.85
+        "edgeDensity": 1.6543,
+        "contrast": 19.39
       },
       "threshold": {
         "edgeThreshold": 0.3,
@@ -43,7 +43,7 @@
       "skip": false,
       "measured": {
         "tailPairsChecked": 2,
-        "maxTailDelta": 0.0757,
+        "maxTailDelta": 0.2621,
         "stable": true
       },
       "threshold": {

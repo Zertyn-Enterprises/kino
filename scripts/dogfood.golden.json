@@ -83,9 +83,9 @@
         "textDim-on-surface": 6.45
       },
       "motion": {
-        "Easing presence.meanDelta": 0.717,
+        "Easing presence.meanDelta": 0.718,
         "Easing presence.peakDelta": 12.685,
-        "Easing presence.ratio": 17.681,
+        "Easing presence.ratio": 17.679,
         "Stutter/jank.cutsDetected": 7,
         "Stutter/jank.windows": 8,
         "Sustained life.minWindowMean": 0.0627,
@@ -106,7 +106,7 @@
         "Closing stability.maxTailDelta": 0.0757,
         "Closing stability.tailPairsChecked": 2,
         "Final-frame legibility.contrast": 19.85,
-        "Final-frame legibility.edgeDensity": 1.0416,
+        "Final-frame legibility.edgeDensity": 1.0402,
         "Payoff presence & dwell.holdRuns": 1,
         "Payoff presence & dwell.longestRunStart": 0,
         "Payoff presence & dwell.maxDwellFrames": 90
@@ -310,9 +310,9 @@
         "textDim-on-surface": 5.34
       },
       "motion": {
-        "Easing presence.meanDelta": 1.01,
+        "Easing presence.meanDelta": 1.006,
         "Easing presence.peakDelta": 14.395,
-        "Easing presence.ratio": 14.259,
+        "Easing presence.ratio": 14.305,
         "Stutter/jank.cutsDetected": 0,
         "Stutter/jank.windows": 1,
         "Sustained life.minWindowMean": 0.1062,
