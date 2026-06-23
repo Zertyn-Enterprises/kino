@@ -24,6 +24,7 @@ scripts/legibility.sh <CompId> [step=3] [props] [--window=S:E]           # legib
 scripts/code-craft.sh <CompId> <slug>                                    # code-craft source gate (no render) → out/review/<CompId>/code-craft/
 scripts/musicsync.sh <CompId> <slug> [--climax=F]                        # music-sync gate (MS1-MS4; SKIP when no analysis) → out/review/<CompId>/musicsync/
 scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]           # payoff/CTA gate (P1/P2 HARD, P3 advisory) → out/review/<CompId>/payoff/
+scripts/remotion-correct.sh <CompId> <slug>                              # Remotion-correctness source gate (R1/R2 HARD, R3-R5 advisory, no render) → out/review/<CompId>/remotion-correct/
 scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate → out/review/<CompId>/ship/
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
