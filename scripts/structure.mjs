@@ -53,15 +53,16 @@ export function structureToFlags(structure) {
 // ---------------------------------------------------------------------------
 
 /**
- * Load the derived TimelineStructure for a video slug by bundling its
- * timeline.ts with esbuild (the same transform path used by musicsync-runner).
+ * Load the full Timeline object for a video slug by bundling its timeline.ts
+ * with esbuild. Returns the entire Timeline (including totalDurationInFrames,
+ * fps, structure, etc.).
  *
  * @param {string} slug  e.g. 'relay', 'granipa'
- * @returns {Promise<{ climaxFrame: number|null, holds: [number,number][], rehookSeconds: number|null }>}
+ * @returns {Promise<import('../src/lib/timeline').Timeline>}
  */
-export async function loadStructure(slug) {
+export async function loadTimeline(slug) {
   const tsPath  = resolve(__dirname, '..', 'src', 'videos', slug, 'timeline.ts');
-  const outFile = join(tmpdir(), `structure-${slug}-${process.pid}.cjs`);
+  const outFile = join(tmpdir(), `timeline-${slug}-${process.pid}.cjs`);
   try {
     await build({
       entryPoints: [tsPath],
@@ -82,10 +83,21 @@ export async function loadStructure(slug) {
         `Exports: ${Object.keys(mod).join(', ')}`,
       );
     }
-    return mod[key].structure;
+    return mod[key];
   } finally {
     try { unlinkSync(outFile); } catch { /* temp file already gone */ }
   }
+}
+
+/**
+ * Load the derived TimelineStructure for a video slug by bundling its
+ * timeline.ts with esbuild (the same transform path used by musicsync-runner).
+ *
+ * @param {string} slug  e.g. 'relay', 'granipa'
+ * @returns {Promise<{ climaxFrame: number|null, holds: [number,number][], rehookSeconds: number|null }>}
+ */
+export async function loadStructure(slug) {
+  return (await loadTimeline(slug)).structure;
 }
 
 // ---------------------------------------------------------------------------
