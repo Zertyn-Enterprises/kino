@@ -57,6 +57,7 @@ function extractAdvisoryFailures(metrics) {
  *     distinct:       { ran: boolean, hardGatesPass: boolean, advisoryFailures: string[], justified: boolean },
  *   },
  *   blockers: string[],
+ *   remediations: Array<{ gate: string, symptom: string, severity: string, likelyCause: string, fix: string, docRef: string, inspect: string }>,
  * }}
  */
 export function computeShipVerdict({ hook, retention, contrast, motion = null, legibility = null, codeCraft = null, musicsync = null, payoff = null, remotionCorrect = null, distinct = null }) {
@@ -109,7 +110,8 @@ export function computeShipVerdict({ hook, retention, contrast, motion = null, l
   };
 
   const shipReady = blockers.length === 0;
-  return { shipReady, gates, blockers };
+  const base = { shipReady, gates, blockers };
+  return { ...base, remediations: buildRemediations(base) };
 }
 
 /** Load and parse a JSON file; returns null if the path is absent or unreadable. */
@@ -122,8 +124,8 @@ function loadMetrics(path) {
   }
 }
 
-function printHumanReadable(verdict, remediations) {
-  const { shipReady, gates, blockers } = verdict;
+function printHumanReadable(verdict) {
+  const { shipReady, gates, blockers, remediations } = verdict;
   console.log('\n── Ship verdict ────────────────────────────────────────────');
   for (const [name, g] of Object.entries(gates)) {
     const status = !g.ran ? 'NOT RUN' : (g.hardGatesPass ? 'PASS' : 'FAIL');
@@ -137,7 +139,10 @@ function printHumanReadable(verdict, remediations) {
     for (const b of blockers) console.log(`  • ${b}`);
   }
   console.log('───────────────────────────────────────────────────────────');
-  console.log(`SHIP: ${shipReady ? 'READY' : 'BLOCKED'}\n`);
+  const blockedPointer = !shipReady && remediations && remediations.length > 0
+    ? ' — see ## How to fix below'
+    : '';
+  console.log(`SHIP: ${shipReady ? 'READY' : 'BLOCKED'}${blockedPointer}\n`);
 
   if (remediations && remediations.length > 0) {
     console.log('## How to fix\n');
@@ -180,12 +185,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const distinct       = loadMetrics(distinctPath);
 
   const verdict = computeShipVerdict({ hook, retention, contrast, motion, legibility, codeCraft, musicsync, payoff, remotionCorrect, distinct });
-  const remediations = buildRemediations(verdict);
 
   if (jsonMode) {
-    process.stdout.write(JSON.stringify({ ...verdict, remediations }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
   } else {
-    printHumanReadable(verdict, remediations);
+    printHumanReadable(verdict);
   }
 
   process.exit(verdict.shipReady ? 0 : 1);

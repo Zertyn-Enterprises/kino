@@ -1217,3 +1217,120 @@ describe('computeShipVerdict — distinct advisory-only (drift advisory, hard ga
     expect(distinctAdvisoryOnlyVerdict.gates.distinct.justified).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fixtures 24–27: computeShipVerdict().remediations — the field is now part
+// of the return value and must be correct without a separate buildRemediations call.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Fixture 24: ship-ready verdict → remediations is empty
+// ---------------------------------------------------------------------------
+
+describe('computeShipVerdict().remediations — ship-ready (no blockers, no advisories)', () => {
+  const verdict = computeShipVerdict({
+    hook:       hookMetrics({ hardGatesPass: true }),
+    retention:  hookMetrics({ hardGatesPass: true }),
+    contrast:   contrastMetrics({ hardGatesPass: true }),
+    motion:     hookMetrics({ hardGatesPass: true }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true }),
+  });
+
+  it('remediations field is present in the return value', () => {
+    expect(verdict).toHaveProperty('remediations');
+  });
+
+  it('remediations is [] when no failures', () => {
+    expect(verdict.remediations).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 25: hard blocker → remediations contains a blocker entry
+// ---------------------------------------------------------------------------
+
+describe('computeShipVerdict().remediations — hard blocker (retention failed)', () => {
+  const verdict = computeShipVerdict({
+    hook:       hookMetrics({ hardGatesPass: true }),
+    retention:  hookMetrics({ hardGatesPass: false }),
+    contrast:   contrastMetrics({ hardGatesPass: true }),
+    motion:     hookMetrics({ hardGatesPass: true }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true }),
+  });
+
+  it('remediations has one entry', () => {
+    expect(verdict.remediations).toHaveLength(1);
+  });
+
+  it('entry severity is blocker', () => {
+    expect(verdict.remediations[0].severity).toBe('blocker');
+  });
+
+  it('entry has non-empty fix', () => {
+    expect(verdict.remediations[0].fix.trim().length).toBeGreaterThan(10);
+  });
+
+  it('entry docRef references retention.md', () => {
+    expect(verdict.remediations[0].docRef).toMatch(/retention/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 26: advisory failure → remediations contains an advisory entry
+// ---------------------------------------------------------------------------
+
+describe('computeShipVerdict().remediations — advisory failure (codeCraft C3-easing)', () => {
+  const verdict = computeShipVerdict({
+    hook:       hookMetrics({ hardGatesPass: true }),
+    retention:  hookMetrics({ hardGatesPass: true }),
+    contrast:   contrastMetrics({ hardGatesPass: true }),
+    motion:     hookMetrics({ hardGatesPass: true }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true, advisoryFails: ['C3-easing'] }),
+  });
+
+  it('remediations has one advisory entry', () => {
+    expect(verdict.remediations).toHaveLength(1);
+    expect(verdict.remediations[0].severity).toBe('advisory');
+  });
+
+  it('shipReady is still true — advisory never blocks', () => {
+    expect(verdict.shipReady).toBe(true);
+  });
+
+  it('advisory entry has non-empty fix mentioning interpolate or Easing', () => {
+    expect(verdict.remediations[0].fix).toMatch(/interpolate|Easing/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 27: mixed blockers + advisories → blockers before advisories in remediations
+// ---------------------------------------------------------------------------
+
+describe('computeShipVerdict().remediations — ordering: blockers before advisories', () => {
+  const verdict = computeShipVerdict({
+    hook:       null,                                                            // gate-not-run blocker
+    retention:  hookMetrics({ hardGatesPass: false }),                          // hard-fail blocker
+    contrast:   contrastMetrics({ hardGatesPass: true, advisoryFails: ['accent-on-bg'] }),
+    motion:     hookMetrics({ hardGatesPass: true, advisoryFails: ['Easing presence'] }),
+    legibility: hookMetrics({ hardGatesPass: true }),
+    codeCraft:  hookMetrics({ hardGatesPass: true }),
+  });
+
+  it('all blockers appear before all advisories', () => {
+    const rems = verdict.remediations;
+    const firstAdvisoryIdx = rems.findIndex(r => r.severity === 'advisory');
+    const lastBlockerIdx   = rems.reduce((idx, r, i) => (r.severity === 'blocker' ? i : idx), -1);
+    expect(firstAdvisoryIdx).toBeGreaterThan(lastBlockerIdx);
+  });
+
+  it('has 2 blockers (hook gate-not-run + retention hard-fail)', () => {
+    expect(verdict.remediations.filter(r => r.severity === 'blocker')).toHaveLength(2);
+  });
+
+  it('has 2 advisories (accent-on-bg + Easing presence)', () => {
+    expect(verdict.remediations.filter(r => r.severity === 'advisory')).toHaveLength(2);
+  });
+});
