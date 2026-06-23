@@ -1,0 +1,54 @@
+{
+  "hardGatesPass": true,
+  "skip": false,
+  "n": 2,
+  "candidateSlug": "relay",
+  "priorSlugs": [
+    "granipa"
+  ],
+  "perPrior": [
+    {
+      "priorSlug": "granipa",
+      "differingAxes": [
+        "palette-bg",
+        "palette-accent",
+        "luminance",
+        "type",
+        "arc",
+        "rhythm+moves",
+        "texture",
+        "transitions",
+        "music-bpm"
+      ],
+      "differingCount": 9,
+      "hardPass": true,
+      "collidingAxes": []
+    }
+  ],
+  "gates": [
+    {
+      "name": "HARD: ≥4 axes distinct from every prior",
+      "hard": true,
+      "advisory": false,
+      "pass": true,
+      "skip": false,
+      "detail": "all 1 prior(s) satisfied ≥4 axes"
+    },
+    {
+      "name": "Advisory: bg-luminance drift (2 entries: relay=dark, granipa=tonal)",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": false,
+      "detail": "bg-luminance drift (2 entries: relay=dark, granipa=tonal)"
+    },
+    {
+      "name": "Advisory: mono-font drift (2 entries use JetBrains Mono: relay, granipa)",
+      "hard": false,
+      "advisory": true,
+      "pass": false,
+      "skip": false,
+      "detail": "mono-font drift (2 entries use JetBrains Mono: relay, granipa)"
+    }
+  ]
+}

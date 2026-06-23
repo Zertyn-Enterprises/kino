@@ -1,0 +1,599 @@
+/**
+ * Tests for distinct-metrics.mjs — distinctiveness gate.
+ *
+ * Fixtures:
+ *   1. relay-vs-granipa real divergence: both shipped videos, candidate=relay, prior=granipa.
+ *      All 9 axes differ → hardGatesPass=true.
+ *   2. granipa-vs-relay real divergence: candidate=granipa, prior=relay.
+ *      All 9 axes differ → hardGatesPass=true.
+ *   3. Synthetic too-similar candidate: <4 axes differ from relay → HARD FAIL with colliders named.
+ *   4. Clean candidate: differs on all 9 axes from both relay and granipa → PASS.
+ *   5. SKIP when n<2 (only one registry entry).
+ *   6. deltaE parsing edge cases: same hex → ΔE=0 (below threshold).
+ *   7. Hex parsing: 6-digit uppercase and lowercase accepted.
+ *   8. parseBpmBand: range averaging (98–122 → avg 110 → mid), single (120 → upbeat).
+ *   9. parseGrainBand: 5% → filmic, 2.5% → light, 0% → none, "clean" → none.
+ *  10. parseFontFamilies: strips role suffixes, lowercases, splits on "/".
+ *  11. parseLuminanceClass: 'tonal dark' → tonal, 'dark' → dark, 'light' → light.
+ *  12. parsePaletteHex: extracts bg and accent from registry palette field.
+ */
+
+import { describe, expect, it } from 'vitest';
+import {
+  computeDistinctMetrics,
+  computeAxisDivergences,
+  parseRegistry,
+  parseHex,
+  hexToLab,
+  deltaE94,
+  jaccard,
+  tokenSet,
+  parseLuminanceClass,
+  parseFontFamilies,
+  parseArc,
+  parseGrainBand,
+  parseBpmBand,
+  parsePaletteHex,
+} from './distinct-metrics.mjs';
+
+// ── Registry fixtures ─────────────────────────────────────────────────────────────────────────
+
+// Minimal _registry.md text matching the real shipped examples.
+const RELAY_ENTRY = `
+## 1 · relay / RelayLaunch (2026-06-11)
+
+| field           | value                                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| product         | Relay — instant preview deploys for every git push (fictional demo product)                                     |
+| arc             | B · problem-first                                                                                                |
+| rhythm          | dead-stop tension, then everything at once; holds shorten toward climax                                          |
+| luminance       | dark (green-tinted near-black #0A0E0B)                                                                           |
+| palette         | bg #0A0E0B · accent lime #B6F22E (live-only semantic) · alt red #E5484D (waiting)                                |
+| type            | Space Grotesk display+body / JetBrains Mono terminal+data                                                        |
+| signature moves | zero-gap cut (cause IS effect, same beat) · ripple-from-origin reveals · live-pulse heartbeat on accent elements |
+| texture         | filmic — grain 5%, vignette 0.3, no light leaks                                                                  |
+| transitions     | hard cuts only, all on downbeats                                                                                 |
+| music           | 120bpm character (audio not bundled); drop at beat 16, biggest hit beat 48                                       |
+`;
+
+const GRANIPA_ENTRY = `
+## 2 · granipa / GranipaLaunch (2026-06-16)
+
+| field           | value                                                                                                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| product         | Grañipa — on-device Mac memory layer (local transcription, clipboard history, screen OCR, window snapping)                                                                                                                      |
+| arc             | A · demo-first cold open                                                                                                                                                                                                         |
+| rhythm          | one confident take — the product performing live inside a single developing window, micro-punctuation on the beat, one satisfying wide resolve at the end                                                                        |
+| luminance       | tonal dark (rich surfaces, single world)                                                                                                                                                                                         |
+| palette         | bg #0B0F18 · accent blue #3D8BFF (alive) · violet #A05BF0 (depth) · coral #F4604C scarce for trusted-local                                                                                                                       |
+| type            | Sentient display / Switzer body / JetBrains Mono                                                                                                                                                                                 |
+| signature moves | live ink (text writes itself in real time inside the window) · converge & seal (features lock into one MacWindow chrome with seal) · sovereign drift + pullback (slow camera life + one deliberate wide reveal of the container) |
+| texture         | light filmic — grain 2.5%, vignette 0.18, almost no leaks                                                                                                                                                                        |
+| transitions     | contained internal motions + one wide pullback at the sovereignty moment                                                                                                                                                         |
+| music           | warm assured modern, ~98-122bpm character (audio not bundled); home bloom aligned to the reveal                                                                                                                                  |
+`;
+
+const REGISTRY_TWO = RELAY_ENTRY + GRANIPA_ENTRY;
+
+// A synthetic candidate that is too similar to relay (differs on <4 axes).
+const TOO_SIMILAR_ENTRY = `
+## 3 · copycat / CopycatLaunch (2026-07-01)
+
+| field           | value                                                                       |
+| --------------- | --------------------------------------------------------------------------- |
+| product         | Copycat — another dark terminal product                                     |
+| arc             | B · problem-first                                                           |
+| rhythm          | dead-stop tension, then everything at once; holds shorten toward climax     |
+| luminance       | dark (dark near-black #0A0E10)                                              |
+| palette         | bg #0A0E10 · accent green #B8F030 (live)                                   |
+| type            | Space Grotesk display+body / JetBrains Mono terminal                        |
+| signature moves | cut (cause IS effect) · ripple reveals · heartbeat on accent                |
+| texture         | filmic — grain 5%, vignette 0.3, no leaks                                  |
+| transitions     | hard cuts only, all on downbeats                                            |
+| music           | 120bpm electronic (audio not bundled)                                       |
+`;
+
+// A clearly distinct candidate — fresh identity on all axes.
+const FRESH_ENTRY = `
+## 3 · sparkle / SparkleLaunch (2026-07-01)
+
+| field           | value                                                                                |
+| --------------- | ------------------------------------------------------------------------------------ |
+| product         | Sparkle — visual collaboration tool for design teams                                 |
+| arc             | D · transformation                                                                   |
+| rhythm          | slow reveal then sudden expansion; each scene breathes before the next punch arrives |
+| luminance       | light (bright white canvas #FAFAFA)                                                  |
+| palette         | bg #FAFAFA · accent coral #FF5757 (interactive) · sand #F5E6C8 (warmth)             |
+| type            | Canela display / Neue Haas Grotesk body / IBM Plex Mono                              |
+| signature moves | bloom expand (element fans outward) · gravity snap (objects fall into place) · color wash fade |
+| texture         | clean — no grain, soft shadows only                                                  |
+| transitions     | cross-dissolve with scale, one dramatic wipe for the hero moment                     |
+| music           | 72bpm ambient electronic, slow swell with sudden drop                                |
+`;
+
+const REGISTRY_ONE = RELAY_ENTRY;
+const REGISTRY_THREE_SIMILAR = RELAY_ENTRY + GRANIPA_ENTRY + TOO_SIMILAR_ENTRY;
+const REGISTRY_THREE_FRESH   = RELAY_ENTRY + GRANIPA_ENTRY + FRESH_ENTRY;
+
+// ── Fixture 1: relay-vs-granipa real divergence ──────────────────────────────────────────────
+
+describe('relay-vs-granipa — candidate=relay, prior=granipa', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,
+    candidateSlug: 'relay',
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('skip is false', () => {
+    expect(verdict.skip).toBe(false);
+  });
+
+  it('candidate is relay', () => {
+    expect(verdict.candidateSlug).toBe('relay');
+  });
+
+  it('prior is granipa', () => {
+    expect(verdict.priorSlugs).toEqual(['granipa']);
+  });
+
+  it('relay vs granipa differs on ≥4 axes', () => {
+    expect(verdict.perPrior[0].differingCount).toBeGreaterThanOrEqual(4);
+    expect(verdict.perPrior[0].hardPass).toBe(true);
+  });
+
+  it('HARD gate passes', () => {
+    const hardGate = verdict.gates.find(g => g.hard);
+    expect(hardGate).toBeDefined();
+    expect(hardGate.pass).toBe(true);
+    expect(hardGate.skip).toBe(false);
+  });
+
+  it('palette-bg axis differs (relay #0A0E0B vs granipa #0B0F18 ΔE94 > 5)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('palette-bg');
+  });
+
+  it('palette-accent axis differs (lime vs blue, large ΔE94)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('palette-accent');
+  });
+
+  it('luminance axis differs (dark vs tonal)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('luminance');
+  });
+
+  it('type axis differs (Space Grotesk vs Sentient/Switzer — Jaccard 0.25 < 0.5)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('type');
+  });
+
+  it('arc axis differs (B vs A)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('arc');
+  });
+
+  it('texture axis differs (filmic 5% vs light 2.5%)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('texture');
+  });
+
+  it('music-bpm axis differs (upbeat 120bpm vs mid avg 110bpm)', () => {
+    expect(verdict.perPrior[0].differingAxes).toContain('music-bpm');
+  });
+});
+
+// ── Fixture 2: granipa-vs-relay real divergence ──────────────────────────────────────────────
+
+describe('granipa-vs-relay — candidate=granipa, prior=relay', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,
+    candidateSlug: 'granipa',
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('granipa vs relay differs on ≥4 axes', () => {
+    expect(verdict.perPrior[0].differingCount).toBeGreaterThanOrEqual(4);
+    expect(verdict.perPrior[0].hardPass).toBe(true);
+  });
+});
+
+// ── Fixture 3: too-similar candidate HARD fails ──────────────────────────────────────────────
+
+describe('too-similar candidate — <4 axes differ from relay → HARD FAIL', () => {
+  // copycat vs relay: same arc (B), same luminance (dark), same type (Space Grotesk / JetBrains Mono),
+  // same rhythm tokens (dead-stop, tension, holds, climax), same texture band (filmic 5%),
+  // same bpm band (upbeat 120), similar transitions. palette-bg and palette-accent may differ slightly.
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_THREE_SIMILAR,
+    candidateSlug: 'copycat',
+  });
+
+  it('hardGatesPass is false', () => {
+    expect(verdict.hardGatesPass).toBe(false);
+  });
+
+  it('skip is false', () => {
+    expect(verdict.skip).toBe(false);
+  });
+
+  it('HARD gate fails', () => {
+    const hardGate = verdict.gates.find(g => g.hard);
+    expect(hardGate.pass).toBe(false);
+  });
+
+  it('copycat vs relay has <4 differing axes', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay).toBeDefined();
+    expect(vsRelay.hardPass).toBe(false);
+    expect(vsRelay.differingCount).toBeLessThan(4);
+  });
+
+  it('colliding axes named on hard fail', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay.collidingAxes.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Fixture 4: clean candidate passes ────────────────────────────────────────────────────────
+
+describe('clean candidate — differs on all axes from relay and granipa → PASS', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_THREE_FRESH,
+    candidateSlug: 'sparkle',
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('HARD gate passes for both priors', () => {
+    expect(verdict.perPrior).toHaveLength(2);
+    expect(verdict.perPrior.every(p => p.hardPass)).toBe(true);
+  });
+
+  it('sparkle vs relay differs on ≥4 axes', () => {
+    const vsRelay = verdict.perPrior.find(p => p.priorSlug === 'relay');
+    expect(vsRelay.differingCount).toBeGreaterThanOrEqual(4);
+  });
+
+  it('sparkle vs granipa differs on ≥4 axes', () => {
+    const vsGranipa = verdict.perPrior.find(p => p.priorSlug === 'granipa');
+    expect(vsGranipa.differingCount).toBeGreaterThanOrEqual(4);
+  });
+
+  it('luminance differs (light vs dark/tonal)', () => {
+    for (const p of verdict.perPrior) {
+      expect(p.differingAxes).toContain('luminance');
+    }
+  });
+
+  it('arc differs (D vs A/B)', () => {
+    for (const p of verdict.perPrior) {
+      expect(p.differingAxes).toContain('arc');
+    }
+  });
+
+  it('music-bpm differs (slow 72bpm vs mid/upbeat)', () => {
+    for (const p of verdict.perPrior) {
+      expect(p.differingAxes).toContain('music-bpm');
+    }
+  });
+});
+
+// ── Fixture 5: SKIP when n<2 ─────────────────────────────────────────────────────────────────
+
+describe('SKIP when n<2 — only one registry entry', () => {
+  const verdict = computeDistinctMetrics({
+    registryText: REGISTRY_ONE,
+  });
+
+  it('hardGatesPass is true (SKIP)', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('skip is true', () => {
+    expect(verdict.skip).toBe(true);
+  });
+
+  it('n is 1', () => {
+    expect(verdict.n).toBe(1);
+  });
+
+  it('perPrior is empty', () => {
+    expect(verdict.perPrior).toHaveLength(0);
+  });
+
+  it('HARD gate is marked skip', () => {
+    const hardGate = verdict.gates.find(g => g.hard);
+    expect(hardGate.skip).toBe(true);
+  });
+});
+
+// ── Fixture 6: deltaE = 0 for same hex ───────────────────────────────────────────────────────
+
+describe('deltaE edge cases', () => {
+  it('same hex → deltaE94 = 0', () => {
+    const lab = hexToLab('#0A0E0B');
+    expect(deltaE94(lab, lab)).toBe(0);
+  });
+
+  it('same hex → palette-bg does NOT differ', () => {
+    const r = parseRegistry(REGISTRY_TWO);
+    const relay   = r.find(rec => rec.slug === 'relay');
+    const sameParsed = {
+      ...relay.parsed,
+      bg:     relay.parsed.bg,     // same bg
+      accent: relay.parsed.accent, // same accent
+    };
+    const axes = computeAxisDivergences(sameParsed, relay.parsed);
+    expect(axes).not.toContain('palette-bg');
+    expect(axes).not.toContain('palette-accent');
+  });
+
+  it('very different colors have deltaE94 > threshold', () => {
+    const lime = hexToLab('#B6F22E');
+    const blue = hexToLab('#3D8BFF');
+    expect(deltaE94(lime, blue)).toBeGreaterThan(5);
+  });
+
+  it('relay bg vs granipa bg deltaE94 > 5', () => {
+    const relayBg   = hexToLab('#0A0E0B');
+    const granipaBg = hexToLab('#0B0F18');
+    expect(deltaE94(relayBg, granipaBg)).toBeGreaterThan(5);
+  });
+});
+
+// ── Fixture 7: hex parsing ────────────────────────────────────────────────────────────────────
+
+describe('parseHex', () => {
+  it('parses lowercase hex', () => {
+    expect(parseHex('#0a0e0b')).toEqual([10, 14, 11]);
+  });
+
+  it('parses uppercase hex', () => {
+    expect(parseHex('#0A0E0B')).toEqual([10, 14, 11]);
+  });
+
+  it('parses mid-range hex', () => {
+    expect(parseHex('#B6F22E')).toEqual([182, 242, 46]);
+  });
+
+  it('throws on invalid length', () => {
+    expect(() => parseHex('#abc')).toThrow();
+  });
+});
+
+// ── Fixture 8: parseBpmBand ──────────────────────────────────────────────────────────────────
+
+describe('parseBpmBand', () => {
+  it('parses range "~98-122bpm" → mid (avg 110)', () => {
+    expect(parseBpmBand('warm assured modern, ~98-122bpm character')).toBe('mid');
+  });
+
+  it('parses single "120bpm" → upbeat', () => {
+    expect(parseBpmBand('120bpm character; drop at beat 16')).toBe('upbeat');
+  });
+
+  it('parses slow bpm ≤89 → slow', () => {
+    expect(parseBpmBand('ambient 72bpm slow swell')).toBe('slow');
+  });
+
+  it('parses fast bpm >140 → fast', () => {
+    expect(parseBpmBand('drum and bass 170bpm aggressive')).toBe('fast');
+  });
+
+  it('returns unknown when no bpm found', () => {
+    expect(parseBpmBand('no tempo information here')).toBe('unknown');
+  });
+});
+
+// ── Fixture 9: parseGrainBand ────────────────────────────────────────────────────────────────
+
+describe('parseGrainBand', () => {
+  it('5% → filmic', () => {
+    expect(parseGrainBand('filmic — grain 5%, vignette 0.3')).toBe('filmic');
+  });
+
+  it('2.5% → light', () => {
+    expect(parseGrainBand('light filmic — grain 2.5%, vignette 0.18')).toBe('light');
+  });
+
+  it('"clean" with no grain % → none', () => {
+    expect(parseGrainBand('clean — no grain, soft shadows only')).toBe('none');
+  });
+
+  it('0% → none', () => {
+    expect(parseGrainBand('minimal — grain 0%')).toBe('none');
+  });
+
+  it('8% → heavy', () => {
+    expect(parseGrainBand('heavy filmic — grain 8%')).toBe('heavy');
+  });
+});
+
+// ── Fixture 10: parseFontFamilies ────────────────────────────────────────────────────────────
+
+describe('parseFontFamilies', () => {
+  it('extracts relay type families', () => {
+    const fams = parseFontFamilies('Space Grotesk display+body / JetBrains Mono terminal+data');
+    expect(fams).toContain('space grotesk');
+    expect(fams).toContain('jetbrains mono');
+    expect(fams).toHaveLength(2);
+  });
+
+  it('extracts granipa type families', () => {
+    const fams = parseFontFamilies('Sentient display / Switzer body / JetBrains Mono');
+    expect(fams).toContain('sentient');
+    expect(fams).toContain('switzer');
+    expect(fams).toContain('jetbrains mono');
+    expect(fams).toHaveLength(3);
+  });
+
+  it('Jaccard of relay and granipa families is 0.25 (one shared / four total)', () => {
+    const a = parseFontFamilies('Space Grotesk display+body / JetBrains Mono terminal+data');
+    const b = parseFontFamilies('Sentient display / Switzer body / JetBrains Mono');
+    expect(jaccard(a, b)).toBeCloseTo(1 / 4, 5);
+  });
+});
+
+// ── Fixture 11: parseLuminanceClass ─────────────────────────────────────────────────────────
+
+describe('parseLuminanceClass', () => {
+  it('"tonal dark" → tonal', () => {
+    expect(parseLuminanceClass('tonal dark (rich surfaces, single world)')).toBe('tonal');
+  });
+
+  it('"dark (green-tinted near-black)" → dark', () => {
+    expect(parseLuminanceClass('dark (green-tinted near-black #0A0E0B)')).toBe('dark');
+  });
+
+  it('"light (bright white canvas)" → light', () => {
+    expect(parseLuminanceClass('light (bright white canvas #FAFAFA)')).toBe('light');
+  });
+
+  it('unknown string → unknown', () => {
+    expect(parseLuminanceClass('mid-tone warm')).toBe('unknown');
+  });
+});
+
+// ── Fixture 12: parsePaletteHex ─────────────────────────────────────────────────────────────
+
+describe('parsePaletteHex', () => {
+  it('extracts relay bg and accent', () => {
+    const p = parsePaletteHex('bg #0A0E0B · accent lime #B6F22E (live-only) · alt red #E5484D');
+    expect(p.bg).toBe('#0A0E0B');
+    expect(p.accent).toBe('#B6F22E');
+  });
+
+  it('extracts granipa bg and accent', () => {
+    const p = parsePaletteHex('bg #0B0F18 · accent blue #3D8BFF (alive) · violet #A05BF0');
+    expect(p.bg).toBe('#0B0F18');
+    expect(p.accent).toBe('#3D8BFF');
+  });
+
+  it('extracts accent without color name qualifier', () => {
+    const p = parsePaletteHex('bg #FAFAFA · accent #FF5757 (interactive)');
+    expect(p.bg).toBe('#FAFAFA');
+    expect(p.accent).toBe('#FF5757');
+  });
+
+  it('returns null when field absent', () => {
+    const p = parsePaletteHex('no palette here');
+    expect(p.bg).toBeNull();
+    expect(p.accent).toBeNull();
+  });
+});
+
+// ── Fixture 13: convergence drift advisory ───────────────────────────────────────────────────
+
+describe('convergence drift advisory', () => {
+  const verdict = computeDistinctMetrics({
+    registryText:  REGISTRY_TWO,
+    candidateSlug: 'relay',
+  });
+
+  it('drift advisory fires for bg-luminance (relay=dark + granipa=tonal, both dark-family)', () => {
+    const driftGates = verdict.gates.filter(g => g.advisory && !g.pass);
+    const bgDrift = driftGates.find(g => g.name.includes('bg-luminance'));
+    expect(bgDrift).toBeDefined();
+  });
+
+  it('drift advisory fires for JetBrains Mono (both relay and granipa use it)', () => {
+    const driftGates = verdict.gates.filter(g => g.advisory && !g.pass);
+    const monoDrift = driftGates.find(g => g.name.includes('mono-font'));
+    expect(monoDrift).toBeDefined();
+  });
+
+  it('drift advisory is advisory=true and does NOT affect hardGatesPass', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+    const driftGates = verdict.gates.filter(g => g.advisory && !g.pass);
+    expect(driftGates.every(g => g.hard === false)).toBe(true);
+  });
+});
+
+// ── Fixture 14: parseRegistry structure ─────────────────────────────────────────────────────
+
+describe('parseRegistry', () => {
+  const records = parseRegistry(REGISTRY_TWO);
+
+  it('parses two records', () => {
+    expect(records).toHaveLength(2);
+  });
+
+  it('relay is first, granipa is second', () => {
+    expect(records[0].slug).toBe('relay');
+    expect(records[1].slug).toBe('granipa');
+  });
+
+  it('relay parsed correctly', () => {
+    const relay = records[0];
+    expect(relay.parsed.bg).toBe('#0A0E0B');
+    expect(relay.parsed.accent).toBe('#B6F22E');
+    expect(relay.parsed.luminance).toBe('dark');
+    expect(relay.parsed.arc).toBe('B');
+    expect(relay.parsed.grainBand).toBe('filmic');
+    expect(relay.parsed.bpmBand).toBe('upbeat');
+    expect(relay.parsed.usesJetbrainsMono).toBe(true);
+  });
+
+  it('granipa parsed correctly', () => {
+    const granipa = records[1];
+    expect(granipa.parsed.bg).toBe('#0B0F18');
+    expect(granipa.parsed.accent).toBe('#3D8BFF');
+    expect(granipa.parsed.luminance).toBe('tonal');
+    expect(granipa.parsed.arc).toBe('A');
+    expect(granipa.parsed.grainBand).toBe('light');
+    expect(granipa.parsed.bpmBand).toBe('mid');
+    expect(granipa.parsed.usesJetbrainsMono).toBe(true);
+  });
+});
+
+// ── Fixture 15: default candidate (last entry) ───────────────────────────────────────────────
+
+describe('default candidate (last entry when no slug given)', () => {
+  const verdict = computeDistinctMetrics({ registryText: REGISTRY_TWO });
+
+  it('uses granipa as candidate (last entry)', () => {
+    expect(verdict.candidateSlug).toBe('granipa');
+  });
+
+  it('uses relay as prior', () => {
+    expect(verdict.priorSlugs).toEqual(['relay']);
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+});
+
+// ── Fixture 16: tokenSet and jaccard ────────────────────────────────────────────────────────
+
+describe('tokenSet and jaccard', () => {
+  it('tokenSet drops short tokens', () => {
+    const s = tokenSet('a and in the foo bar baz');
+    expect(s.has('foo')).toBe(true);
+    expect(s.has('bar')).toBe(true);
+    expect(s.has('baz')).toBe(true);
+    expect(s.has('and')).toBe(true);
+    expect(s.has('the')).toBe(true);
+    expect(s.has('in')).toBe(false);  // 2 chars — dropped
+    expect(s.has('a')).toBe(false);   // 1 char — dropped
+  });
+
+  it('jaccard of identical sets is 1', () => {
+    expect(jaccard(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(1);
+  });
+
+  it('jaccard of disjoint sets is 0', () => {
+    expect(jaccard(['a', 'b'], ['c', 'd'])).toBe(0);
+  });
+
+  it('jaccard of two empty sets is 1', () => {
+    expect(jaccard([], [])).toBe(1);
+  });
+
+  it('jaccard({a,b,c},{a}) = 1/3', () => {
+    expect(jaccard(['a', 'b', 'c'], ['a'])).toBeCloseTo(1 / 3, 5);
+  });
+});

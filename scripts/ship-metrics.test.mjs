@@ -1,28 +1,41 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Seventeen fixture sets:
- *   - Ship-ready:                  all six gates hardGatesPass true, advisory fails present
- *                                  → shipReady true, blockers empty.
- *   - Blocked:                     one gate hardGatesPass false → shipReady false, gate named in blockers.
- *   - Missing gate:                contrast null → shipReady false, 'contrast gate not run' blocker.
- *   - Motion blocked:              motion hardGatesPass false → shipReady false, motion in blockers.
- *   - Missing motion:              motion null → shipReady false, 'motion gate not run' blocker.
- *   - Legibility blocked:          legibility hardGatesPass false → shipReady false, legibility in blockers.
- *   - Missing legibility:          legibility null → shipReady false, 'legibility gate not run' blocker.
- *   - Legibility advisory-only:    legibility has advisory fail only, all other gates clean
- *                                  → shipReady true (advisory fails never block).
- *   - CodeCraft blocked:           codeCraft hardGatesPass false → shipReady false, codeCraft in blockers.
- *   - Missing codeCraft:           codeCraft null → shipReady false, 'codeCraft gate not run' blocker.
- *   - CodeCraft advisory-only:     codeCraft has advisory fail only, all other gates clean
- *                                  → shipReady true (advisory fails never block).
+ * Twenty-three fixture sets:
+ *   - Ship-ready:                     all gates hardGatesPass true, advisory fails present
+ *                                     → shipReady true, blockers empty.
+ *   - Blocked:                        hook hardGatesPass false → shipReady false, gate named in blockers.
+ *   - Missing gate:                   contrast null → shipReady false, 'contrast gate not run' blocker.
+ *   - Motion blocked:                 motion hardGatesPass false → shipReady false, motion in blockers.
+ *   - Missing motion:                 motion null → shipReady false, 'motion gate not run' blocker.
+ *   - Legibility blocked:             legibility hardGatesPass false → shipReady false, legibility in blockers.
+ *   - Missing legibility:             legibility null → shipReady false, 'legibility gate not run' blocker.
+ *   - Legibility advisory-only:       legibility has advisory fail only, all other gates clean
+ *                                     → shipReady true (advisory fails never block).
+ *   - CodeCraft blocked:              codeCraft hardGatesPass false → shipReady false, codeCraft in blockers.
+ *   - Missing codeCraft:              codeCraft null → shipReady false, 'codeCraft gate not run' blocker.
+ *   - CodeCraft advisory-only:        codeCraft has advisory fail only, all other gates clean
+ *                                     → shipReady true (advisory fails never block).
+ *   - Musicsync skip-mode:            musicsync all gates SKIP (no audio analysis) → shipReady true.
+ *   - Musicsync hard fail:            musicsync hardGatesPass false → shipReady false.
+ *   - Musicsync null:                 musicsync=null → graceful SKIP, does NOT block ship.
+ *   - Payoff null:                    payoff=null → graceful SKIP, does NOT block ship.
+ *   - Payoff hard fail:               payoff hardGatesPass false → shipReady false.
+ *   - Payoff advisory-only:           payoff has P3 advisory fail only → shipReady true.
+ *   - RemotionCorrect null:           remotionCorrect=null → graceful SKIP, does NOT block ship.
+ *   - RemotionCorrect hard fail:      remotionCorrect hardGatesPass false → shipReady false.
+ *   - RemotionCorrect advisory-only:  remotionCorrect has R3/R4/R5 advisory fail only → shipReady true.
+ *   - Distinct null:                  distinct=null → graceful SKIP, does NOT block ship.
+ *   - Distinct hard fail:             distinct hardGatesPass false (<4 axes differ) → shipReady false.
+ *   - Distinct advisory-only:         distinct has drift advisory fail only → shipReady true.
  *
  * All inputs are plain objects matching the shape of each gate's metrics.json;
  * no file I/O is exercised — pure computeShipVerdict path only.
  *
  * Advisory failures:
- *   hook/retention/motion/legibility/codeCraft: metrics.gates entries with advisory=true, pass=false, skip=false
- *   contrast:                                   metrics.pairs entries with hard=false, pass=false
+ *   hook/retention/motion/legibility/codeCraft/musicsync/payoff/remotionCorrect/distinct:
+ *                                   metrics.gates entries with advisory=true, pass=false, skip=false
+ *   contrast:                       metrics.pairs entries with hard=false, pass=false
  */
 
 import { describe, expect, it } from 'vitest';
@@ -1068,5 +1081,139 @@ describe('computeShipVerdict — remotionCorrect advisory-only (R3/R4/R5 advisor
   it('remotionCorrect advisory failure listed — R3-interpolate-clamp', () => {
     expect(remotionCorrectAdvisoryOnlyVerdict.gates.remotionCorrect.advisoryFailures).toContain('R3-interpolate-clamp');
     expect(remotionCorrectAdvisoryOnlyVerdict.gates.remotionCorrect.justified).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 21: distinct null — gate not run → does NOT block
+//             (same graceful SKIP semantics as musicsync/payoff/remotionCorrect)
+//
+// All nine base gates: hardGatesPass=true
+// distinct: null (no metrics.json — graceful SKIP)
+//
+// Expected: shipReady=true, blockers=[], distinct.ran=false, distinct.hardGatesPass=true
+// ---------------------------------------------------------------------------
+
+const distinctNullVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+  distinct:   null,
+});
+
+describe('computeShipVerdict — distinct null (gate not run — graceful SKIP, not a hard blocker)', () => {
+  it('shipReady is true — null distinct does not block', () => {
+    expect(distinctNullVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(distinctNullVerdict.blockers).toHaveLength(0);
+  });
+
+  it('distinct gate ran=false but hardGatesPass=true (graceful SKIP)', () => {
+    expect(distinctNullVerdict.gates.distinct.ran).toBe(false);
+    expect(distinctNullVerdict.gates.distinct.hardGatesPass).toBe(true);
+  });
+
+  it('distinct advisory failures is empty', () => {
+    expect(distinctNullVerdict.gates.distinct.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 22: distinct hard fail — HARD BLOCKED → shipReady=false
+//
+// All nine base gates: hardGatesPass=true
+// distinct: hardGatesPass=false (<4 axes differ from a prior entry)
+//
+// Expected: shipReady=false, blockers=['distinct hard gates failed']
+// ---------------------------------------------------------------------------
+
+const distinctHardFailVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+  distinct:   hookMetrics({ hardGatesPass: false }),
+});
+
+describe('computeShipVerdict — distinct hard fail (<4 axes differ from prior)', () => {
+  it('shipReady is false', () => {
+    expect(distinctHardFailVerdict.shipReady).toBe(false);
+  });
+
+  it('blockers contains "distinct hard gates failed"', () => {
+    expect(distinctHardFailVerdict.blockers).toContain('distinct hard gates failed');
+  });
+
+  it('blockers has exactly one entry', () => {
+    expect(distinctHardFailVerdict.blockers).toHaveLength(1);
+  });
+
+  it('distinct gate ran but hardGatesPass false', () => {
+    expect(distinctHardFailVerdict.gates.distinct.ran).toBe(true);
+    expect(distinctHardFailVerdict.gates.distinct.hardGatesPass).toBe(false);
+  });
+
+  it('all nine base gates are not blockers', () => {
+    expect(distinctHardFailVerdict.gates.hook.hardGatesPass).toBe(true);
+    expect(distinctHardFailVerdict.gates.retention.hardGatesPass).toBe(true);
+    expect(distinctHardFailVerdict.gates.contrast.hardGatesPass).toBe(true);
+    expect(distinctHardFailVerdict.gates.motion.hardGatesPass).toBe(true);
+    expect(distinctHardFailVerdict.gates.legibility.hardGatesPass).toBe(true);
+    expect(distinctHardFailVerdict.gates.codeCraft.hardGatesPass).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 23: distinct advisory-only — drift advisory fires, hard gate passes → ships
+//
+// All nine base gates: hardGatesPass=true
+// distinct: hardGatesPass=true, advisory fail: 'Advisory: bg-luminance drift...'
+//
+// Expected: shipReady=true, blockers=[], distinct.justified=false
+// ---------------------------------------------------------------------------
+
+const distinctAdvisoryOnlyVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  null,
+  payoff:     null,
+  remotionCorrect: null,
+  distinct:   hookMetrics({ hardGatesPass: true, advisoryFails: ['Advisory: bg-luminance drift (2 entries: relay=dark, granipa=tonal)'] }),
+});
+
+describe('computeShipVerdict — distinct advisory-only (drift advisory, hard gate passes)', () => {
+  it('shipReady is true — advisory fails never block', () => {
+    expect(distinctAdvisoryOnlyVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(distinctAdvisoryOnlyVerdict.blockers).toHaveLength(0);
+  });
+
+  it('distinct gate ran and hardGatesPass true', () => {
+    expect(distinctAdvisoryOnlyVerdict.gates.distinct.ran).toBe(true);
+    expect(distinctAdvisoryOnlyVerdict.gates.distinct.hardGatesPass).toBe(true);
+  });
+
+  it('distinct advisory failure listed — bg-luminance drift', () => {
+    expect(distinctAdvisoryOnlyVerdict.gates.distinct.advisoryFailures).toHaveLength(1);
+    expect(distinctAdvisoryOnlyVerdict.gates.distinct.justified).toBe(false);
   });
 });

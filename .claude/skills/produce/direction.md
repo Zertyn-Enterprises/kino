@@ -84,7 +84,10 @@ treatment — they are the justification for every aesthetic choice.
    Bias "kinetic/viral" energy + dense purposeful layers with active background for feed engagement.
 5. **Diff against `src/videos/_registry.md`.** Must differ on ≥4 axes from
    every prior video. If it doesn't, return to step 1 with the constraint
-   "not that".
+   "not that". Verify mechanically before finalizing the treatment:
+   `scripts/distinct.sh <slug> --bg=.. --accent=.. --luminance=.. --arc=.. --bpm=.. --grain=..`
+   Must print `DISTINCT: PASS`; a HARD BLOCKED verdict names the colliding axes.
+   See `distinct.md` for the nine-axis table and override flags.
 
 Honesty bound: this genre (Apple/Linear/Vercel launch film) is itself a
 recognizable style — distinctness is WITHIN-genre. Identity comes from 2–3
