@@ -45,6 +45,16 @@ labeled in `metrics.json` with a three-state coverage model:
 - `coverage-gap` — registry entry exists but field is missing/unparseable
 - `skip-na` — no registry entry for candidate (pre-registry mode)
 
+## Override semantics
+
+CLI flags, derived source values, and registry-parsed values apply in priority order:
+
+1. **Explicit CLI flags** (`--bg=`, `--accent=`, `--luminance=`, `--arc=`, `--bpm=`, `--grain=`) — highest priority; override both derived and registry values for the named axis.
+2. **Derived from `theme.ts`** — when loadable, replaces registry-parsed values for the 5 code-derivable axes (palette-bg, palette-accent, luminance, type, texture/grain).
+3. **Registry-parsed values** — fallback when the axis is non-derivable or `theme.ts` is unloadable.
+
+The 4 non-derivable axes (arc / rhythm+moves / transitions / music-bpm) always come from the registry (or a CLI override) — they are not in code and cannot be auto-derived.
+
 ## Verdicts
 
 | Verdict | Meaning | Exit |
@@ -130,7 +140,7 @@ scripts/distinct.sh <slug> \
 
 State the axis diff table in the treatment's **Registry diff** section.
 
-## Recorded snapshots — 2026-06-23 (derived-axes path)
+## Recorded snapshots — 2026-06-23 (derived-axes path, confirmed by actual run)
 
 Both relay and granipa are in the registry; each passes as the other's candidate
 using axes derived from the actual `theme.ts`.
