@@ -15,7 +15,7 @@ import { buildTimeline } from "../../lib/timeline";
 export const granipaTimeline = buildTimeline(
   { fps: 30, bpm: 122, firstDownbeatSec: 0 },
   [
-    { id: "hook", beats: 5 },
+    { id: "hook", beats: 5, promise: { text: "what your mac tools see in a day:", byFrame: 8 } },
     { id: "indict", beats: 12 },
     { id: "gutpunch", beats: 3 },
     { id: "reveal", beats: 6 },
