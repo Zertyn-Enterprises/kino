@@ -233,7 +233,7 @@ For each scene, in storyboard order:
 3. Read the stills. Critique against `review.md` gates. Fix. Re-render.
 4. `scripts/filmstrip.sh <Comp> 8` for the scene's frame range when motion
    needs judging (step 8 ≈ 4 sheets/min — fine for one scene).
-   **Hook scene only:** build ≥2 archetype variants from `hooks.md` (expose a
+   **Hook scene only:** Clone the matching archetype's reference fixture (see `hooks.md`) as the gate-proven starting point, then re-derive bespoke per Hard Rule 3 (fixtures are proofs, not templates). Build ≥2 archetype variants from `hooks.md` (expose a
    `hookVariant` prop; branch the hook scene on it), then run:
    `scripts/hook-tournament.sh <Comp> 3 -- '<propsA>' '<propsB>'`
    Adopt a **decisive** winner; on a **contested** near-tie the director decides between the tied variants on the human-judged substance gates (promise-by-2.5s, hook-pattern-committed, frame-0 thumbnail focal) and records the chosen variant + one-line rationale (see `hook.md §3` for ranking key + RelayLaunch A/B worked example — decisive run, B wins by composite delta 0.4675).
