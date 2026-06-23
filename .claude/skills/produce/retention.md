@@ -9,9 +9,15 @@ Run `scripts/retention.sh <CompId>` to produce the evidence this gate needs:
 - `out/review/<CompId>/retention/metrics.txt` — human-readable verdict (tee'd output)
 
 Optional flags (pass after the positional args):
-- `--holds=S:E,...` — exclude declared static holds (e.g. a freeze-frame or credits card) from gate 1
-- `--climax=F` — supply the narrative climax frame to gate 2 (default: first-third boundary heuristic)
-- `--rehook=N` — max seconds between re-hook punches for gate 3 (default: 8)
+- `--slug=<slug>` — video slug (e.g. `relay`); enables auto-derive of structure flags from `timeline.ts`
+- `--holds=S:E,...` — override for declared static holds; auto-derived from `role:'hold'` scenes when `--slug` provided
+- `--climax=F` — override for narrative climax frame; auto-derived from `role:'climax'` scene when `--slug` provided
+- `--rehook=N` — override for re-hook cadence in seconds; auto-derived from `rehookSeconds` when `--slug` provided
+
+**Anti-drift:** declare structure once in `timeline.ts` via scene `role` (and `rehookSeconds` on the config), then pass
+`--slug=<slug>` instead of hand-typing frame numbers. Hand-typed `--climax`/`--holds`/`--rehook` go stale the instant
+`bpm` or beat counts change; the auto-derived values always stay in sync with the source. Explicit CLI flags always
+override auto-derived ones (for ad-hoc overrides or scripts that pre-compute flags).
 
 ## 0. Anti-rubber-stamp
 

@@ -18,19 +18,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-COMP="${1:?usage: scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]}"
+COMP="${1:?usage: scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E] [--slug=<slug>]}"
 STEP="${2:-3}"
 PROPS="${3:-}"
 
-# Parse --window=S:E from args 4+; remaining options pass through to payoff-metrics.mjs.
+# Parse --window=S:E and --slug from args 4+; remaining options pass through to payoff-metrics.mjs.
+# --slug is accepted for consistency with retention.sh and ship-gate.sh auto-wiring;
+# no structure flags currently apply to the payoff gate's closing-window measurement.
 WINDOW_ARG=""
 METRICS_OPTS=()
 for arg in "${@:4}"; do
-  if [[ "$arg" == --window=* ]]; then
-    WINDOW_ARG="${arg#--window=}"
-  else
-    METRICS_OPTS+=("$arg")
-  fi
+  case "$arg" in
+    --window=*) WINDOW_ARG="${arg#--window=}" ;;
+    --slug=*)   ;; # accepted, not forwarded — no payoff-metrics.mjs structure flags
+    *)          METRICS_OPTS+=("$arg") ;;
+  esac
 done
 
 # Corpus handshake: if CORPUS_MANIFEST env var points to a valid manifest,

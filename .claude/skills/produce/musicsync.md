@@ -1,8 +1,8 @@
 # Music-sync gate — audio↔picture alignment verifier
 
-Run `scripts/musicsync.sh <CompId> <slug> [--climax=F]` after music analysis to
-verify that the video's declared tempo and downbeat match the real track and that
-cuts land on the detected beat grid. Output lands in `out/review/<CompId>/musicsync/`:
+Run `scripts/musicsync.sh <CompId> <slug>` after music analysis to verify that the
+video's declared tempo and downbeat match the real track and that cuts land on the
+detected beat grid. Output lands in `out/review/<CompId>/musicsync/`:
 
 ```
 metrics.json   — machine verdict (hardGatesPass + per-gate detail)
@@ -18,7 +18,7 @@ Degrades cleanly to SKIP (exit 0) when no `public/<slug>/*.analysis.json` is fou
 - The video's TypeScript timeline, loaded via esbuild at runtime (no hardcoded
   frames — same transform path as vitest, so timeline values are always from source).
 - The `*.analysis.json` produced by `node scripts/analyze-music.mjs <slug>` (optional).
-- An optional declared climax frame (`--climax=F`).
+- An optional declared climax frame (`--climax=F`); auto-derived from the `role:'climax'` scene in `timeline.ts` when not explicitly passed.
 
 `scripts/musicsync-runner.mjs` handles the I/O: loads the timeline, reads the
 analysis JSON, calls `computeMusicSync`, and writes the verdict.
@@ -53,15 +53,15 @@ is the expected steady-state for any video whose `analyze-music.mjs` has not bee
 ## Usage
 
 ```bash
-# Minimal (degrades to SKIP when no analysis present)
+# Default — climax auto-derived from role:'climax' scene in timeline.ts (no hand-typed frame)
 scripts/musicsync.sh RelayLaunch relay
+scripts/musicsync.sh GranipaLaunch granipa
 
-# With climax frame declared (enables MS3 gate)
+# Explicit climax override (takes precedence over auto-derive)
 scripts/musicsync.sh GranipaLaunch granipa --climax=885
 
 # With tolerance overrides
 scripts/musicsync.sh <CompId> <slug> \
-  --climax=F \
   --tol-bpm=0.02 \
   --tol-downbeat=1 \
   --tol-climax=3 \
@@ -69,9 +69,13 @@ scripts/musicsync.sh <CompId> <slug> \
   --coverage-floor=0.90
 ```
 
-The gate is also invoked automatically by `scripts/ship-gate.sh` without `--climax`;
-to gate MS3 in the unified ship run, pass `--climax=F` directly to `musicsync.sh`
-before running `ship-gate.sh`.
+**Anti-drift:** declare the climax once in `timeline.ts` via `role:'climax'` on the
+appropriate scene. `musicsync.sh` auto-derives `--climax` so the MS3 gate always
+targets the correct frame even after beat/bpm changes. Explicit `--climax=F` always
+overrides the auto-derived value.
+
+The gate is also invoked automatically by `scripts/ship-gate.sh`; `--climax` is
+auto-derived there too — no manual flag needed in the unified ship run.
 
 ## Thresholds (calibrated against 30 fps video on a tracked music bed)
 

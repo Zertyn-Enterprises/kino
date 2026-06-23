@@ -17,16 +17,16 @@ scripts/stills.sh <CompId> <frames...> --props='{"debug":true}'   # review still
 scripts/filmstrip.sh <CompId> [step] [props] # contact sheets → out/review/<CompId>/strip/
 scripts/hook.sh <CompId> [hookFrames=90] [step=3] [props]        # hook-window review → out/review/<CompId>/hook/
 scripts/hook-tournament.sh <CompId> [step] -- '<propsA>' '<propsB>' [..]  # rank hook variants → out/review/<CompId>/hook-tournament/
-scripts/retention.sh <CompId> [step=5] [props] [--holds=S:E,...] [--climax=F] [--rehook=N]  # retention metrics (dead-air, energy build, re-hook cadence, loop-seam, ending-hold) → out/review/<CompId>/retention/
+scripts/retention.sh <CompId> [step=5] [props] [--slug=<slug>] [--holds=S:E,...] [--climax=F] [--rehook=N]  # retention metrics; --slug enables auto-derive of structure flags from timeline.ts (explicit flags override) → out/review/<CompId>/retention/
 scripts/contrast.sh <slug> --bg=#.. --surface=#.. --text=#.. --textDim=#.. --accent=#.. [--accentAlt=#..]  # contrast gate → out/review/<slug>/contrast/
 scripts/motion.sh <CompId> [step=3] [props] [--window=S:E]               # motion-craft gate → out/review/<CompId>/motion/
 scripts/legibility.sh <CompId> [step=3] [props] [--window=S:E]           # legibility-dwell gate → out/review/<CompId>/legibility/
 scripts/code-craft.sh <CompId> <slug>                                    # code-craft source gate (no render) → out/review/<CompId>/code-craft/
-scripts/musicsync.sh <CompId> <slug> [--climax=F]                        # music-sync gate (MS1-MS4; SKIP when no analysis) → out/review/<CompId>/musicsync/
+scripts/musicsync.sh <CompId> <slug> [--climax=F]                        # music-sync gate (MS1-MS4; --climax auto-derived from role:'climax' scene; SKIP when no analysis) → out/review/<CompId>/musicsync/
 scripts/payoff.sh <CompId> [step=3] [propsJson] [--window=S:E]           # payoff/CTA gate (P1/P2 HARD, P3 advisory) → out/review/<CompId>/payoff/
 scripts/remotion-correct.sh <CompId> <slug>                              # Remotion-correctness source gate (R1/R2 HARD, R3-R5 advisory, no render) → out/review/<CompId>/remotion-correct/
 scripts/distinct.sh <slug> [--bg=#.. --accent=#.. --luminance=.. --arc=. --bpm=.. --grain=..]  # distinctiveness gate (≥4-axis anti-template, no render) → out/review/<slug>/distinct/
-scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate → out/review/<CompId>/ship/ (report.txt §How-to-fix + report.json.remediations list every fix recipe)
+scripts/ship-gate.sh <CompId> <slug> [palette flags] [-- retention flags]  # unified ship gate; retention flags auto-derived from timeline.ts (pass after -- only to override) → out/review/<CompId>/ship/
 scripts/preflight.sh <CompId> <slug>                                         # structural-integrity gate (no render; P1/P2 HARD, P3/P4 advisory) → out/review/<CompId>/preflight/
 node scripts/new-video.mjs <slug> <CompId>                                   # scaffold new video skeleton (P1/P2-passing by construction)
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
