@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { parseRegistry, computeAxisDivergences } from './distinct-metrics.mjs';
 import { computeRegistryAxes } from './registry-axes.mjs';
 import { computeContrastMetrics } from './contrast-metrics.mjs';
+import { AMBIENT_MOTIF_KEYS } from './ambient-motif-keys.mjs';
 
 // ── Deterministic hash ────────────────────────────────────────────────────────
 
@@ -38,6 +39,9 @@ function hashString(str) {
 // Candidates are tried in order of ascending crowding; ties keep original order.
 
 const LUMINANCE_CANDIDATES  = ['tonal', 'light', 'dark'];
+
+// Non-strips motifs available for anti-convergence selection.
+const NON_STRIPS_MOTIF_KEYS = AMBIENT_MOTIF_KEYS.filter(k => k !== 'strips');
 const ARC_CANDIDATES        = ['D', 'E', 'A', 'B', 'C'];
 const BPM_BAND_CANDIDATES   = ['slow', 'fast', 'upbeat', 'mid'];
 const BPM_BPM_BY_BAND       = { slow: 70, fast: 165, upbeat: 128, mid: 100 };
@@ -149,6 +153,7 @@ function computeCollidersByAxis(priors, chosen) {
  *   arc: string,
  *   bpmBand: string, bpmBpm: number,
  *   grainBand: string, grainPct: number,
+ *   ambientMotifKey: string,
  *   openAxes: string[],
  *   collidersByAxis: Object<string, string[]>
  * }}
@@ -166,6 +171,11 @@ export function computeIdentitySeed(registryText) {
   // Pick font by hash rotation — any catalog entry gives type-DIFFERS vs all priors.
   const font = FONT_CATALOG[hash % FONT_CATALOG.length];
   const typeFamilies = [font.displayFamily.toLowerCase(), font.bodyFamily.toLowerCase()];
+
+  // Pick non-strips ambient motif: rank by ascending prior usage count, tie-break by hash.
+  const priorMotifs = priors.map(p => p.fields.get('ambient-motif') ?? '').filter(Boolean);
+  const rankedMotifs = rankCandidates(NON_STRIPS_MOTIF_KEYS, priorMotifs);
+  const ambientMotifKey = rankedMotifs[hash % rankedMotifs.length];
 
   for (const luminance of rankedLuminance) {
     const palettes = PALETTE_CATALOG[luminance];
@@ -217,6 +227,7 @@ export function computeIdentitySeed(registryText) {
               bpmBpm:        BPM_BPM_BY_BAND[bpmBand],
               grainBand,
               grainPct:      GRAIN_PCT_BY_BAND[grainBand],
+              ambientMotifKey,
               openAxes:      computeOpenAxes(axes, chosen),
               collidersByAxis: computeCollidersByAxis(priors, chosen),
             };
@@ -270,6 +281,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   arc        ${seed.arc}
   bpm        ${seed.bpmBpm} bpm (${seed.bpmBand})
   grain      ${seed.grainPct}% (${seed.grainBand})
+  ambient    ${seed.ambientMotifKey} (auto-selected — override with --ambient=<key>)
 
   Open axes (zero prior uses): ${open}
   Colliders: ${colliders}
