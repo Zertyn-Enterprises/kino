@@ -89,6 +89,12 @@ treatment — they are the justification for every aesthetic choice.
    Must print `DISTINCT: PASS`; a HARD BLOCKED verdict names the colliding axes.
    See `distinct.md` for the nine-axis table and override flags.
 
+   **Shortcut:** pass `--distinct` to the scaffold command to start with an
+   anti-convergence seed palette already distinct-gate-green by construction
+   (see `distinct.md §Scaffold: --distinct flag`). Still re-derive bespoke
+   color, type, and motion identity from the product's domain — the seed is
+   the starting point, not the final answer.
+
 Honesty bound: this genre (Apple/Linear/Vercel launch film) is itself a
 recognizable style — distinctness is WITHIN-genre. Identity comes from 2–3
 signature moves executed perfectly, not ten executed loosely. When in doubt,
