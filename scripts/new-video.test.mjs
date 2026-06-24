@@ -21,6 +21,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_ARCHETYPE_KEYS, HOOK_ARCHETYPES } from './hook-archetypes.mjs';
+import { RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -151,6 +152,31 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
     });
   });
 
+  describe('regression lock (d) — no-flag path emits pure generic scaffold', () => {
+    it('timeline.ts has no role:\'climax\' or rehookSeconds', () => {
+      const src = readGenerated('timeline.ts');
+      expect(src).not.toContain('role: "climax"');
+      expect(src).not.toContain('rehookSeconds');
+    });
+
+    it('scenes/Body.tsx does not exist', () => {
+      expect(existsSync(join(videoDir, 'scenes', 'Body.tsx'))).toBe(false);
+    });
+
+    it('scenes/Climax.tsx does not exist', () => {
+      expect(existsSync(join(videoDir, 'scenes', 'Climax.tsx'))).toBe(false);
+    });
+
+    it('scenes/Cta.tsx does not exist', () => {
+      expect(existsSync(join(videoDir, 'scenes', 'Cta.tsx'))).toBe(false);
+    });
+
+    it('Main.tsx does not mount <Sequence (no body scenes wired)', () => {
+      const src = readGenerated('Main.tsx');
+      expect(src).not.toMatch(/<Sequence/);
+    });
+  });
+
   describe('TypeScript typecheck', () => {
     it('generated scaffold typechecks clean (tsc --noEmit)', { timeout: 15000 }, () => {
       try {
@@ -267,8 +293,21 @@ describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
   });
 
   it('all 8 archetype scaffolds typecheck clean (tsc --noEmit)', { timeout: 30000 }, () => {
+    // Scoped tsconfig: only lib + these archetype slugs — insulates against
+    // parallel retention-patterns.test.mjs writing __rp_tsc__-* dirs in src/videos/.
+    const archTsConfig = join(PROJECT_ROOT, 'tsconfig.arch-tsc-test.json');
+    writeFileSync(archTsConfig, JSON.stringify({
+      extends: './tsconfig.json',
+      include: [
+        'src/lib/**/*',
+        'src/smoke/**/*',
+        'src/review/**/*',
+        ...ARCH_TEST_CASES.map(({ slug }) => `src/videos/${slug}/**/*`),
+      ],
+      exclude: ['remotion.config.ts'],
+    }));
     try {
-      execSync('npx tsc --noEmit', {
+      execSync('npx tsc --noEmit -p tsconfig.arch-tsc-test.json', {
         cwd: PROJECT_ROOT,
         encoding: 'utf8',
         stdio: 'pipe',
@@ -276,6 +315,8 @@ describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
     } catch (err) {
       const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
       throw new Error(`tsc --noEmit failed on archetype scaffolds:\n${out}`);
+    } finally {
+      if (existsSync(archTsConfig)) rmSync(archTsConfig);
     }
   });
 
@@ -299,5 +340,268 @@ describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
     expect(mainSrc, `Main.tsx for ${key} should not import AmbientField`).not.toMatch(/AmbientField/);
     // byFrame is passed to Hook component.
     expect(mainSrc, `Main.tsx for ${key} should pass byFrame to Hook`).toMatch(/byFrame/);
+  });
+});
+
+// ── --body flag validation ────────────────────────────────────────────────────
+
+describe('new-video.mjs — --body flag validation', () => {
+  it('unknown --body key exits non-zero and lists valid keys', () => {
+    let threw = false;
+    let stderr = '';
+    try {
+      execSync('node scripts/new-video.mjs badslug10 BadComp10 --body=bad-unknown-key', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+      stderr = err.stderr?.toString() ?? '';
+    }
+    expect(threw, 'unknown --body key should exit non-zero').toBe(true);
+    expect(stderr).toMatch(/bad-unknown-key/);
+    for (const key of RETENTION_PATTERN_KEYS) {
+      expect(stderr, `stderr should list valid key "${key}"`).toContain(key);
+    }
+  });
+
+  it('blank --body= value exits non-zero', () => {
+    let threw = false;
+    try {
+      execSync('node scripts/new-video.mjs blankslug10 BlankComp10 --body=', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+    }
+    expect(threw, 'blank --body= should exit non-zero').toBe(true);
+  });
+
+  it('unknown --body key does not create any directories', () => {
+    try {
+      execSync('node scripts/new-video.mjs safeslug10 SafeComp10 --body=bad-key', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch {
+      // expected failure
+    }
+    expect(existsSync(join(PROJECT_ROOT, 'src', 'videos', 'safeslug10'))).toBe(false);
+    expect(existsSync(join(PROJECT_ROOT, 'public', 'safeslug10'))).toBe(false);
+  });
+});
+
+// ── --body scaffold content ───────────────────────────────────────────────────
+
+// Use 'back-loaded-climax' (Climax scene) and 'cta-tension-resolve' (Cta scene)
+// to cover both scene variants.
+const BODY_TEST_CASES = [
+  { key: 'back-loaded-climax',    slug: 'testbodyclimax01', comp: 'TestBodyClimax01', expectCta: false },
+  { key: 'cta-tension-resolve',   slug: 'testbodycta01',    comp: 'TestBodyCta01',    expectCta: true  },
+];
+
+describe('new-video.mjs --body — scaffold content', () => {
+  let rootSnapBody;
+
+  beforeAll(() => {
+    rootSnapBody = readFileSync(rootTsx, 'utf8');
+    for (const { slug } of BODY_TEST_CASES) {
+      const vd = join(PROJECT_ROOT, 'src', 'videos', slug);
+      const pd = join(PROJECT_ROOT, 'public', slug);
+      if (existsSync(vd)) rmSync(vd, { recursive: true });
+      if (existsSync(pd)) rmSync(pd, { recursive: true });
+    }
+    for (const { key, slug, comp } of BODY_TEST_CASES) {
+      execSync(`node scripts/new-video.mjs ${slug} ${comp} --body=${key}`, {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    }
+  });
+
+  afterAll(() => {
+    for (const { slug } of BODY_TEST_CASES) {
+      const vd = join(PROJECT_ROOT, 'src', 'videos', slug);
+      const pd = join(PROJECT_ROOT, 'public', slug);
+      if (existsSync(vd)) rmSync(vd, { recursive: true });
+      if (existsSync(pd)) rmSync(pd, { recursive: true });
+    }
+    writeFileSync(rootTsx, rootSnapBody);
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: timeline.ts has role:\'climax\'', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'timeline.ts'), 'utf8');
+    expect(src).toContain("role: \"climax\"");
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: timeline.ts has role:\'hold\'', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'timeline.ts'), 'utf8');
+    expect(src).toContain("role: \"hold\"");
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: timeline.ts has rehookSeconds', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'timeline.ts'), 'utf8');
+    expect(src).toContain('rehookSeconds');
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: scenes/Body.tsx exists', ({ slug }) => {
+    expect(existsSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'scenes', 'Body.tsx'))).toBe(true);
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: correct second scene file exists', ({ slug, expectCta }) => {
+    const secondFile = expectCta ? 'Cta.tsx' : 'Climax.tsx';
+    expect(existsSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'scenes', secondFile))).toBe(true);
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: Main.tsx imports Sequence from remotion', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/import\s*\{[^}]*Sequence[^}]*\}\s*from\s*["']remotion["']/);
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: Main.tsx mounts <Sequence', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/<Sequence/);
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: Main.tsx imports AmbientField (gate-1 PASS for gaps)', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/AmbientField/);
+  });
+
+  it.each(BODY_TEST_CASES)('--body=$key: Main.tsx does NOT import Hook (body-only)', ({ slug }) => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src', 'videos', slug, 'Main.tsx'), 'utf8');
+    expect(src).not.toMatch(/import\s*\{[^}]*Hook[^}]*\}\s*from/);
+  });
+
+  it('all --body scaffolds typecheck clean (tsc --noEmit)', { timeout: 30000 }, () => {
+    const bodyTsConfig = join(PROJECT_ROOT, 'tsconfig.body-tsc-test.json');
+    writeFileSync(bodyTsConfig, JSON.stringify({
+      extends: './tsconfig.json',
+      include: [
+        'src/lib/**/*',
+        'src/smoke/**/*',
+        'src/review/**/*',
+        ...BODY_TEST_CASES.map(({ slug }) => `src/videos/${slug}/**/*`),
+      ],
+      exclude: ['remotion.config.ts'],
+    }));
+    try {
+      execSync('npx tsc --noEmit -p tsconfig.body-tsc-test.json', {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
+      throw new Error(`tsc --noEmit failed on --body scaffolds:\n${out}`);
+    } finally {
+      if (existsSync(bodyTsConfig)) rmSync(bodyTsConfig);
+    }
+  });
+});
+
+// ── --hook + --body compose test ──────────────────────────────────────────────
+
+describe('new-video.mjs --hook + --body — compose correctly', () => {
+  const HOOK_BODY_SLUG = 'testhookbody01';
+  const HOOK_BODY_COMP = 'TestHookBody01';
+  const hookBodyDir    = join(PROJECT_ROOT, 'src', 'videos', HOOK_BODY_SLUG);
+  const hookBodyPub    = join(PROJECT_ROOT, 'public', HOOK_BODY_SLUG);
+  let rootSnapHookBody;
+
+  beforeAll(() => {
+    rootSnapHookBody = readFileSync(rootTsx, 'utf8');
+    if (existsSync(hookBodyDir)) rmSync(hookBodyDir, { recursive: true });
+    if (existsSync(hookBodyPub)) rmSync(hookBodyPub, { recursive: true });
+    execSync(
+      `node scripts/new-video.mjs ${HOOK_BODY_SLUG} ${HOOK_BODY_COMP} --hook=bold-claim --body=back-loaded-climax`,
+      { cwd: PROJECT_ROOT, stdio: 'pipe' },
+    );
+  });
+
+  afterAll(() => {
+    if (existsSync(hookBodyDir)) rmSync(hookBodyDir, { recursive: true });
+    if (existsSync(hookBodyPub)) rmSync(hookBodyPub, { recursive: true });
+    writeFileSync(rootTsx, rootSnapHookBody);
+  });
+
+  it('Main.tsx imports Hook from scenes/Hook', () => {
+    const src = readFileSync(join(hookBodyDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/import\s*\{[^}]*Hook[^}]*\}\s*from\s*["']\.\/scenes\/Hook["']/);
+  });
+
+  it('Main.tsx imports Body from scenes/Body', () => {
+    const src = readFileSync(join(hookBodyDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/import\s*\{[^}]*Body[^}]*\}\s*from\s*["']\.\/scenes\/Body["']/);
+  });
+
+  it('Main.tsx mounts <Hook> in a Sequence', () => {
+    const src = readFileSync(join(hookBodyDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/<Hook/);
+    expect(src).toMatch(/<Sequence/);
+  });
+
+  it('Main.tsx mounts <Body> in a Sequence', () => {
+    const src = readFileSync(join(hookBodyDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/<Body/);
+  });
+
+  it('Main.tsx has AmbientField at top level (covers gap periods)', () => {
+    const src = readFileSync(join(hookBodyDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/AmbientField/);
+  });
+
+  it('scenes/Hook.tsx exists (archetype)', () => {
+    expect(existsSync(join(hookBodyDir, 'scenes', 'Hook.tsx'))).toBe(true);
+  });
+
+  it('scenes/Body.tsx exists', () => {
+    expect(existsSync(join(hookBodyDir, 'scenes', 'Body.tsx'))).toBe(true);
+  });
+
+  it('scenes/Climax.tsx exists (back-loaded-climax pattern)', () => {
+    expect(existsSync(join(hookBodyDir, 'scenes', 'Climax.tsx'))).toBe(true);
+  });
+
+  it('timeline.ts has role:\'climax\' (retention gate-green by construction)', () => {
+    const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
+    expect(src).toContain('role: "climax"');
+  });
+
+  it('timeline.ts has role:\'hold\' (retention gate-green by construction)', () => {
+    const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
+    expect(src).toContain('role: "hold"');
+  });
+
+  it('timeline.ts has rehookSeconds (retention gate-green by construction)', () => {
+    const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
+    expect(src).toContain('rehookSeconds');
+  });
+
+  it('hook+body scaffold typechecks clean (tsc --noEmit)', { timeout: 30000 }, () => {
+    const hookBodyTsConfig = join(PROJECT_ROOT, 'tsconfig.hookbody-tsc-test.json');
+    writeFileSync(hookBodyTsConfig, JSON.stringify({
+      extends: './tsconfig.json',
+      include: [
+        'src/lib/**/*',
+        'src/smoke/**/*',
+        'src/review/**/*',
+        `src/videos/${HOOK_BODY_SLUG}/**/*`,
+      ],
+      exclude: ['remotion.config.ts'],
+    }));
+    try {
+      execSync('npx tsc --noEmit -p tsconfig.hookbody-tsc-test.json', {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
+      throw new Error(`tsc --noEmit failed on --hook+--body scaffold:\n${out}`);
+    } finally {
+      if (existsSync(hookBodyTsConfig)) rmSync(hookBodyTsConfig);
+    }
   });
 });

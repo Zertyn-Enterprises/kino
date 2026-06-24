@@ -137,6 +137,8 @@ Theme tokens that carry the escalation ladder:
 - AmbientField `energy` prop: `0.4` (opening) → `0.9` (body peak) → `1.2` (climax) → `0.5` (CTA)
 - `theme.flashPeak` — climax flash opacity (set in theme.ts, not a number literal in scene code)
 
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=back-loaded-climax`
+
 **Arc fit:**
 - **A (demo-first)**: impressive cold demo at measured energy; proof montage escalates; differentiator climax is the peak. Canonical match for A arcs.
 - **B (problem-first)**: low-energy pain → medium-energy revelation → high-energy proof climax. The "there's another way" turn IS the energy inflection.
@@ -261,6 +263,8 @@ Theme tokens:
 - `theme.accent` — the new element's color; visually distinct from body content
 - `theme.punchShakeStrength` — pixel magnitude of arrival shake; calibrate in theme.ts
 
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=mid-point-rehook`
+
 **Arc fit:**
 - **B (problem-first)**: punch is the "there's another way" turn — canonical placement for this arc
 - **D (transformation)**: punch is the crossing — the signature move at its decisive moment
@@ -343,6 +347,8 @@ Theme tokens:
 - `theme.spring.snappy` — reveal spring (hard arrival; contrasts with body springs)
 - `theme.flashPeak` — flash peak opacity at reveal frame; calibrate in theme.ts
 
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=open-loop-payoff`
+
 **Arc fit:**
 - **B (problem-first)**: loop opens with "what if pain didn't have to work like this?"; evidence = proof beats; reveal = full product demo
 - **F (indictment)**: loop opens with "what IS this alternative I built?"; close at founder reveal + architecture moment
@@ -415,6 +421,8 @@ Theme tokens:
 - `theme.spring.snappy` — re-entry snap easing after the interrupt
 - `theme.bgAlt` — alternate background field during the interrupt (set in theme.ts)
 - `theme.accent` — re-entry element highlight color; signals return to normal
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=pattern-interrupt`
 
 **Arc fit:**
 - **C (manifesto)**: interrupt is the philosophical pivot — the claim that shifts the argument's ground
@@ -494,6 +502,8 @@ Theme tokens:
 - `theme.spring.gentle` → `theme.spring.brisk` → `theme.spring.snappy` — arrival ease for seeds 1 → 2/3 → 4 (climax)
 - AmbientField `energy` props: `0.4` pre-seed → `0.5 / 0.65 / 0.8 / 1.2` per seed index
 - `theme.climaxMotif.*` — the shared visual element (scale, color, shape); declared in theme.ts so all seeds reference the same design token
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=payoff-seeding`
 
 **Arc fit:**
 - **E (feature symphony)**: each feature beat IS a seed; the final feature reveal IS the climax. Canonical match.
@@ -576,6 +586,8 @@ scripts/retention.sh <CompId> 5 --holds=<startFrame>:<endFrame>
 Theme tokens:
 - `theme.accentDim` — AmbientField dim color; must not compete with foreground luminance
 - Breath period: `beatsToFrames(4, timeline.bpm, fps)` — tempo-locked; do not hardcode the frame count
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=dead-air-elimination`
 
 **Arc fit:** Universal — applies as a base layer obligation to ALL arcs (A through F).
 The arc shape determines WHAT animates per act; dead-air elimination ensures
@@ -665,6 +677,8 @@ Theme tokens:
 - `theme.spring.gentle` — CTA settle easing; calmer than body springs (the exhale)
 - `theme.accentDim` — CTA background color; recedes so logo reads clearly
 - `theme.ctaArrowTargetX` — full travel distance of the tension gesture; set in theme.ts
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=cta-tension-resolve`
 
 **Arc fit:**
 - **All arcs**: the CTA act is shared across A–F; this pattern applies universally.
@@ -756,6 +770,8 @@ Target `loopSeamDelta < 20.0` on the first pass — gives headroom for render-ti
 If `loopSeamDelta ≥ 60.0`, inspect which element differs between frame 0 and the final
 frame in the filmstrip; adjust the loop-return composition to match that element's position
 or remove it from the final window.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=loop-back-ending`
 
 **Arc fit:**
 - **All arcs**: applies to the ending only, composing on top of any structural pattern (1 / 3 / 5).
@@ -861,6 +877,8 @@ Gate 5 test: `scripts/retention.sh <CompId>` reports `endingMode`, `endingMeanEn
 `endingMaxEnergy`. Targets: `endingMode=held` with `endingMeanEnergy < 0.5` (hold mode),
 or `endingMode=accented` with `endingMaxEnergy > 3.0` (accent mode). Values 0.5–1.5 in
 hold mode indicate AmbientField energy is too high in the ending window — reduce it.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --body=final-accent-landing`
 
 **Arc fit:**
 - **Hold mode**: all arcs (A–F). Any video ending on a legible CTA card benefits from hold mode — this is the default for most Kino videos.
