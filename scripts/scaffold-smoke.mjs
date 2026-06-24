@@ -15,6 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { computeIdentitySeed } from './identity-seed.mjs';
+import { luminanceClass } from './theme-axes.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 void __filename; // used for is-main guard below
@@ -83,6 +84,12 @@ function appendSeedRegistryEntry(seed, ambientKey) {
   const textureVal = seed.grainPct > 0
     ? `filmic — grain ${seed.grainPct}%, vignette 0`
     : `clean — grain 0%, vignette 0%`;
+  // Derive luminance from the actual bg hex — same algorithm as theme-axes.mjs.
+  // seed.luminance is the PALETTE_CATALOG bucket label, but some 'tonal' palette
+  // bgs have Y < 0.05 which luminanceClass() classifies as 'dark'. Use the hex-
+  // derived class so the registry-axis-drift gate (which compares registry vs
+  // theme.ts-derived) always matches what distinct-metrics.mjs will compute.
+  const derivedLuminance = luminanceClass(seed.bg);
   const registryEntry = `
 ## ${existingCount + 1} · ${SLUG} / ${COMP_ID} (${today})
 
@@ -93,7 +100,7 @@ function appendSeedRegistryEntry(seed, ambientKey) {
 | product         | scaffold-smoke.mjs fixture                          |
 | arc             | ${seed.arc}                                         |
 | rhythm          | TODO(director)                                      |
-| luminance       | ${seed.luminance}                                   |
+| luminance       | ${derivedLuminance}                                 |
 | palette         | bg ${seed.bg} · accent ${seed.accent}               |
 | type            | ${seed.displayFamily} display / ${seed.bodyFamily} body |
 | signature moves | TODO(director)                                      |
