@@ -973,4 +973,36 @@ describe('new-video.mjs --distinct — anti-convergence seed + render-free gates
       writeFileSync(rootTsx, rootSnap);
     }
   });
+
+  it('--distinct and --body compose: seed palette + retention structure both present', () => {
+    const COMPOSE_SLUG = 'testdistinctbody01';
+    const COMPOSE_COMP = 'TestDistinctBody01';
+    const composeDir   = join(PROJECT_ROOT, 'src', 'videos', COMPOSE_SLUG);
+    const composePub   = join(PROJECT_ROOT, 'public', COMPOSE_SLUG);
+    const rootSnap     = readFileSync(rootTsx, 'utf8');
+
+    if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
+    if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${COMPOSE_SLUG} ${COMPOSE_COMP} --distinct --body=back-loaded-climax`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      // theme.ts has seed palette (not generic dark/teal default).
+      const themeSrc = readFileSync(join(composeDir, 'theme.ts'), 'utf8');
+      expect(themeSrc).not.toContain('"#0a0a0f"');
+      expect(themeSrc).not.toContain('"#7effc9"');
+      expect(themeSrc).toContain('anti-convergence seed');
+      // timeline.ts has retention structure from --body (gate-green by construction).
+      const timelineSrc = readFileSync(join(composeDir, 'timeline.ts'), 'utf8');
+      expect(timelineSrc).toContain('role: "climax"');
+      expect(timelineSrc).toContain('rehookSeconds');
+      // scenes/Body.tsx exists (body pattern applied).
+      expect(existsSync(join(composeDir, 'scenes', 'Body.tsx'))).toBe(true);
+    } finally {
+      if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
+      if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
 });
