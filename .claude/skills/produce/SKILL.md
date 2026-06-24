@@ -189,16 +189,22 @@ status table:
 | # | scene id | beats | status |   <!-- pending → built → reviewed -->
 ```
 
-**Scaffold step:** run `node scripts/new-video.mjs <slug> <CompId>` to generate
-the video skeleton (treatment.md with `Status: DRAFT`, storyboard.md with the
-status table header, theme.ts with a neutral valid-hex starter palette (all 5
-slots are real 7-char hex, TODO-commented for the director), timeline.ts via
-`buildTimeline` with promise+payoff declared, Main.tsx composing `AmbientField`
+**Scaffold step:** run `node scripts/new-video.mjs <slug> <CompId> [--hook=<key>]`
+to generate the video skeleton (treatment.md with `Status: DRAFT`, storyboard.md
+with the status table header, theme.ts with a neutral valid-hex starter palette
+(all 5 slots are real 7-char hex, TODO-commented for the director), timeline.ts
+via `buildTimeline` with promise+payoff declared, Main.tsx composing `AmbientField`
 as a living-background layer + `Hook` scene that renders `promise.text`,
 scenes/Hook.tsx, public/<slug>/MANIFEST.md) and register the Composition in
 `src/Root.tsx`. The scaffold is **hook-gate-green by construction**: preflight
 P1 + P2 pass, and hook advisory gates 4 + 5 (background-activity, frame-0
 liveness) PASS from frame 0 via `AmbientField`.
+
+Pass `--hook=<key>` (one of the 8 kebab slugs from `hooks.md`) to emit a
+gate-PASS archetype Hook.tsx from the archetype catalog instead of the generic
+scaffold. The archetype's Hook.tsx includes its own `AmbientField` with the
+per-archetype recipe, so the Main.tsx omits the top-level AmbientField. Run
+the scaffold with an unknown key to print all valid keys.
 
 Then **immediately run the preflight gate** to confirm the structural wiring before
 any render spend:

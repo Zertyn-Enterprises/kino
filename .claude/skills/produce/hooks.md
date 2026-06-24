@@ -86,6 +86,8 @@ fills all rows behind focal layer without competing with it.
 
 **Reference fixture:** `src/smoke/hooks/Hook01MidActionDemo.tsx` — gate-PASS proof; run `scripts/hook.sh Hook01MidActionDemo`.
 
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=mid-action-demo`
+
 **Best-fit arcs:** A (demo-first), B (problem-first after pain intro)
 
 **When NOT to use:** When the impressive action requires domain context to read —
@@ -138,6 +140,8 @@ AmbientField: full-frame behind text, `density={40}` `energy={0.8}`, accent at
 | 5 Frame-0 liveness (advisory) | PASS with AmbientField | First word at frame 0 may occupy a single grid row; AmbientField spans ≥ 2 rows |
 
 **Reference fixture:** `src/smoke/hooks/Hook02BoldClaim.tsx` — gate-PASS proof; run `scripts/hook.sh Hook02BoldClaim`.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=bold-claim`
 
 **Best-fit arcs:** C (manifesto, type-led), F (indictment — if the claim is an
 accusation about incumbents)
@@ -199,6 +203,8 @@ energy reinforces "broken" mood while satisfying the advisory gate; upgrade to
 | 5 Frame-0 liveness (advisory) | PASS with AmbientField | Error content may be confined to one grid row; AmbientField distributes to ≥ 2 rows |
 
 **Reference fixture:** `src/videos/relay/scenes/Hook.tsx` (embedded in `RelayLaunch`) — see worked example below.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=dramatized-pain`
 
 **Best-fit arcs:** B (problem-first — canonical match; pain IS the arc's opening
 act), F (indictment — if the pain implicates a named incumbent)
@@ -273,6 +279,8 @@ that the world is slightly wrong.
 
 **Reference fixture:** `src/smoke/hooks/Hook04PatternInterrupt.tsx` — gate-PASS proof; run `scripts/hook.sh Hook04PatternInterrupt`.
 
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=pattern-interrupt`
+
 **Best-fit arcs:** C (manifesto — product as category-creator doing the
 impossible), A (demo-first — if the impossibility IS the demo)
 
@@ -328,6 +336,8 @@ number give it depth and prevent the frame reading as a static title card.
 | 5 Frame-0 liveness (advisory) | PASS with AmbientField | Central number may occupy rows 1–2 of 4×4 grid; AmbientField fills rows 0 and 3 |
 
 **Reference fixture:** `src/smoke/hooks/Hook05NumberCounting.tsx` — gate-PASS proof; run `scripts/hook.sh Hook05NumberCounting`.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=number-counting`
 
 **Best-fit arcs:** A (demo-first — number proves the demo's scale), E (feature
 symphony — one beat = one number metric)
@@ -389,6 +399,8 @@ the product reveal.
 | 5 Frame-0 liveness (advisory) | PASS with AmbientField | Finished-state UI content may still concentrate in one grid band; AmbientField ensures ≥ 2 rows |
 
 **Reference fixture:** `src/smoke/hooks/Hook06PayoffFlashForward.tsx` — gate-PASS proof; run `scripts/hook.sh Hook06PayoffFlashForward`.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=payoff-flash-forward`
 
 **Best-fit arcs:** B (problem-first — flash the solution, cut back to pain, earn
 it), D (transformation — flash the "after", spend the video getting there)
@@ -454,6 +466,8 @@ separated cells.
 | 5 Frame-0 liveness (advisory) | PASS with AmbientField or strong focal text | Text spans single row — passes via concentrated-focal path when text stddev > 20 (GranipaLaunch: rows=1, max-stddev=49.3 → PASS). AmbientField additionally guarantees spread-path PASS. |
 
 **Reference fixture:** `src/videos/granipa/scenes/Hook.tsx` (embedded in `GranipaLaunch`) — see worked example below.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=open-question`
 
 **Best-fit arcs:** F (indictment — canonical match), C (manifesto — if the
 question sets up a world-view argument)
@@ -529,6 +543,8 @@ color of the dominant process; background strips in secondary accent variant.
 | 5 Frame-0 liveness (advisory) | PASS — inherent + AmbientField | Multiple panels distributed across the frame span ≥ 2 rows naturally |
 
 **Reference fixture:** `src/smoke/hooks/Hook08MultiLayerLiveDemo.tsx` — gate-PASS proof; run `scripts/hook.sh Hook08MultiLayerLiveDemo`.
+
+**Scaffold:** `node scripts/new-video.mjs <slug> <CompId> --hook=multi-layer-live-demo`
 
 **Best-fit arcs:** A (demo-first — the multi-layer demo IS the argument), E
 (feature symphony — each beat reveals another parallel layer)

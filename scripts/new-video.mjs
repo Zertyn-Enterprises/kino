@@ -2,9 +2,12 @@
 // Scaffold a new video: src/videos/<slug>/ + public/<slug>/MANIFEST.md +
 // src/Root.tsx registration. Refuses if slug or CompId already exists.
 //
-// Usage: node scripts/new-video.mjs <slug> <CompId>
+// Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>]
 //   slug     video slug: src/videos/<slug>/ (e.g. myproduct)
 //   CompId   Remotion composition ID: PascalCase (e.g. MyProductLaunch)
+//   --hook   optional archetype key from hook-archetypes.mjs; emits a
+//            gate-green archetype Hook.tsx instead of the generic scaffold.
+//            Run with an unknown key to print valid keys.
 //
 // Generates a hook-gate-green scaffold by construction:
 //   P1: Root.tsx Composition registered with 1920×1080, fps 30, timeline binding
@@ -16,15 +19,31 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HOOK_ARCHETYPES, HOOK_ARCHETYPE_KEYS } from './hook-archetypes.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
 
-const [slug, CompId] = process.argv.slice(2).filter(a => !a.startsWith('--'));
+// Extract --hook= before the existing -- filter so it isn't lost.
+const rawArgs = process.argv.slice(2);
+const hookFlagArg = rawArgs.find(a => a.startsWith('--hook='));
+const hookKey = hookFlagArg ? hookFlagArg.slice('--hook='.length) : null;
+
+const [slug, CompId] = rawArgs.filter(a => !a.startsWith('--'));
 
 if (!slug || !CompId) {
-  process.stderr.write('Usage: node scripts/new-video.mjs <slug> <CompId>\n');
+  process.stderr.write('Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>]\n');
   process.exit(1);
+}
+
+// Validate --hook key before doing any filesystem work.
+if (hookKey !== null) {
+  if (!hookKey || !HOOK_ARCHETYPES[hookKey]) {
+    process.stderr.write(
+      `ERROR: unknown --hook key "${hookKey}"\nValid keys: ${HOOK_ARCHETYPE_KEYS.join(', ')}\n`,
+    );
+    process.exit(1);
+  }
 }
 
 // ── Existence checks ──────────────────────────────────────────────────────────
@@ -57,6 +76,36 @@ mkdirSync(join(PROJECT_ROOT, 'public', slug), { recursive: true });
 
 // ── Scaffold files ────────────────────────────────────────────────────────────
 
+const hookSection = hookKey
+  ? (() => {
+      const arch = HOOK_ARCHETYPES[hookKey];
+      const archNum = HOOK_ARCHETYPE_KEYS.indexOf(hookKey) + 1;
+      return `\
+## Hook
+
+Archetype: ${arch.title} (\`${hookKey}\`) — hooks.md §${archNum}
+AmbientField recipe: density=${arch.ambientRecipe.density}, energy=${arch.ambientRecipe.energy}
+Signature primitive: ${arch.signaturePrimitive}
+Best-fit arcs: ${arch.arcFit.join(', ')}
+
+Gate mapping (gate-green by construction):
+| Gate | Verdict |
+|------|---------|
+| 1 Motion by frame 10 (HARD) | PASS — signature primitive fires by frame 9 |
+| 2 Frame-0 contrast (HARD) | PASS — focal element on dark background |
+| 4 Background activity (advisory) | PASS — AmbientField active from frame 0 |
+| 5 Frame-0 liveness (advisory) | PASS — AmbientField active from frame 0 |
+| 6 Promise by 2.5s (HARD) | PASS — set promise.text + byFrame≤75 in timeline.ts |
+| 7 Text density (HARD) | PASS — keep promise.text ≤ 6 words |
+
+TODO: describe exactly what the first 75 frames do, and why a muted scroller stops.
+TODO: re-derive bespoke copy, visual, and motion identity per Hard Rule 3.`;
+    })()
+  : `\
+## Hook
+
+TODO: exactly what the first 75 frames do, and why a muted scroller stops.`;
+
 writeFileSync(join(videoDir, 'treatment.md'), `# Treatment — ${slug} (${CompId})
 
 Status: DRAFT
@@ -69,9 +118,7 @@ TODO: one sentence — the message this launch must communicate.
 
 TODO: chosen arc shape + the emotion of each act.
 
-## Hook
-
-TODO: exactly what the first 75 frames do, and why a muted scroller stops.
+${hookSection}
 
 ## Identity
 
@@ -145,8 +192,33 @@ export const ${timelineVar} = buildTimeline({ fps: 30, bpm: 120 }, [
 ] as const);
 `);
 
-// Main.tsx: AmbientField living-background + Hook scene + DebugGrid last (hook-gate-green).
-writeFileSync(join(videoDir, 'Main.tsx'), `import { AbsoluteFill } from "remotion";
+// Main.tsx: generic scaffold includes AmbientField; archetype scaffold omits it
+// (the archetype Hook.tsx provides its own per-recipe AmbientField).
+writeFileSync(
+  join(videoDir, 'Main.tsx'),
+  hookKey
+    ? `import { AbsoluteFill } from "remotion";
+import { DebugGrid } from "../../lib/DebugGrid";
+import { ThemeProvider } from "../../lib/theme";
+import { ${themeVar} } from "./theme";
+import { ${timelineVar} } from "./timeline";
+import { Hook } from "./scenes/Hook";
+
+export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
+  return (
+    <ThemeProvider value={${themeVar}}>
+      <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
+        <Hook
+          promise={${timelineVar}.structure?.promise?.text}
+          byFrame={${timelineVar}.structure?.promise?.frame}
+        />
+        <DebugGrid enabled={debug} />
+      </AbsoluteFill>
+    </ThemeProvider>
+  );
+};
+`
+    : `import { AbsoluteFill } from "remotion";
 import { AmbientField } from "../../lib/fx";
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
@@ -171,10 +243,15 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
     </ThemeProvider>
   );
 };
-`);
+`,
+);
 
-// Hook.tsx: minimal focal scene — renders promise.text centered; director replaces with archetype.
-writeFileSync(join(videoDir, 'scenes', 'Hook.tsx'), `import { AbsoluteFill } from "remotion";
+// Hook.tsx: archetype scene from renderHookScene, or generic focal scaffold.
+writeFileSync(
+  join(videoDir, 'scenes', 'Hook.tsx'),
+  hookKey
+    ? HOOK_ARCHETYPES[hookKey].renderHookScene({ themeVar, timelineVar })
+    : `import { AbsoluteFill } from "remotion";
 import { useTheme } from "../../../lib/theme";
 
 export function Hook({ promise }: { promise?: string }) {
@@ -198,7 +275,8 @@ export function Hook({ promise }: { promise?: string }) {
     </AbsoluteFill>
   );
 }
-`);
+`,
+);
 
 writeFileSync(join(PROJECT_ROOT, 'public', slug, 'MANIFEST.md'), `# Assets — ${slug}
 
@@ -252,16 +330,21 @@ writeFileSync(rootTsxPath, updatedRoot);
 
 // ── Done ──────────────────────────────────────────────────────────────────────
 
+const archLabel = hookKey
+  ? `archetype ${HOOK_ARCHETYPES[hookKey].title} (--hook=${hookKey})`
+  : null;
+
 process.stdout.write(`Scaffolded ${CompId} (${slug}) — hook-gate-green by construction:
   src/videos/${slug}/treatment.md
   src/videos/${slug}/storyboard.md
   src/videos/${slug}/theme.ts        (valid 7-char hex palette — TODO-commented for director)
   src/videos/${slug}/timeline.ts
-  src/videos/${slug}/Main.tsx        (AmbientField + Hook scene; hook gates 4+5 PASS from frame 0)
-  src/videos/${slug}/scenes/Hook.tsx (renders promise.text as focal element)
+  src/videos/${slug}/Main.tsx        (${hookKey ? 'archetype Hook scene; AmbientField in Hook.tsx' : 'AmbientField + Hook scene; hook gates 4+5 PASS from frame 0'})
+  src/videos/${slug}/scenes/Hook.tsx (${archLabel ?? 'renders promise.text as focal element'})
   public/${slug}/MANIFEST.md
   src/Root.tsx  — ${CompId} registered
 
 Next: scripts/hook.sh ${CompId}
-      scripts/preflight.sh ${CompId} ${slug}
+      scripts/preflight.sh ${CompId} ${slug}${hookKey ? `
+      Hook archetype: ${archLabel} — re-derive bespoke copy/motion per Hard Rule 3` : ''}
 `);

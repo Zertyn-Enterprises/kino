@@ -10,6 +10,9 @@
  *   - Main.tsx imports + mounts Hook scene
  *   - timeline.ts declares promise + payoff
  *   - Hook.tsx uses useTheme and renders the promise prop
+ *   - HOOK_ARCHETYPES registry completeness vs hooks.md Reference fixtures
+ *   - --hook=<key> scaffolds typecheck-clean for all 8 archetypes
+ *   - unknown --hook key exits non-zero listing valid keys
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,6 +20,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HOOK_ARCHETYPE_KEYS, HOOK_ARCHETYPES } from './hook-archetypes.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -151,5 +155,140 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
         throw new Error(`tsc --noEmit failed:\n${out}`);
       }
     });
+  });
+});
+
+// ── Hook archetype registry completeness ──────────────────────────────────────
+
+const HOOKS_MD_PATH = join(PROJECT_ROOT, '.claude', 'skills', 'produce', 'hooks.md');
+const hooksMd = readFileSync(HOOKS_MD_PATH, 'utf8');
+
+describe('hook-archetypes.mjs — registry completeness', () => {
+  it('HOOK_ARCHETYPE_KEYS count matches Reference fixture lines in hooks.md', () => {
+    const fixtureLineCount = (hooksMd.match(/\*\*Reference fixture:/g) ?? []).length;
+    expect(HOOK_ARCHETYPE_KEYS.length).toBe(fixtureLineCount);
+  });
+
+  it('every HOOK_ARCHETYPE_KEYS entry maps to a HOOK_ARCHETYPES entry with required fields', () => {
+    for (const key of HOOK_ARCHETYPE_KEYS) {
+      const arch = HOOK_ARCHETYPES[key];
+      expect(arch, `missing HOOK_ARCHETYPES entry for "${key}"`).toBeTruthy();
+      expect(typeof arch.title, `${key}.title must be string`).toBe('string');
+      expect(typeof arch.renderHookScene, `${key}.renderHookScene must be function`).toBe('function');
+      const scene = arch.renderHookScene({ themeVar: 'testTheme', timelineVar: 'testTimeline' });
+      expect(typeof scene, `${key}.renderHookScene() must return string`).toBe('string');
+      expect(scene.length, `${key}.renderHookScene() returned empty string`).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ── --hook flag validation ────────────────────────────────────────────────────
+
+describe('new-video.mjs — --hook flag validation', () => {
+  it('unknown --hook key exits non-zero and lists valid keys', () => {
+    let threw = false;
+    let stderr = '';
+    try {
+      execSync('node scripts/new-video.mjs badslug9 BadComp9 --hook=bad-unknown-key', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+      stderr = err.stderr?.toString() ?? '';
+    }
+    expect(threw, 'unknown --hook key should exit non-zero').toBe(true);
+    expect(stderr).toMatch(/bad-unknown-key/);
+    for (const key of HOOK_ARCHETYPE_KEYS) {
+      expect(stderr, `stderr should list valid key "${key}"`).toContain(key);
+    }
+  });
+
+  it('blank --hook= value exits non-zero', () => {
+    let threw = false;
+    try {
+      execSync('node scripts/new-video.mjs blankslug9 BlankComp9 --hook=', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+    }
+    expect(threw, 'blank --hook= should exit non-zero').toBe(true);
+  });
+});
+
+// ── Hook archetype scaffolds typecheck ────────────────────────────────────────
+
+const ARCH_TEST_CASES = HOOK_ARCHETYPE_KEYS.map((key, i) => ({
+  key,
+  slug:  `testarchscaff${String(i + 1).padStart(2, '0')}`,
+  comp:  `TestArchScaff${String(i + 1).padStart(2, '0')}`,
+}));
+
+describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
+  let rootSnapArch;
+
+  beforeAll(() => {
+    rootSnapArch = readFileSync(rootTsx, 'utf8');
+    // Clean up any leftover arch test dirs from a previous failed run.
+    for (const { slug } of ARCH_TEST_CASES) {
+      const vd = join(PROJECT_ROOT, 'src', 'videos', slug);
+      const pd = join(PROJECT_ROOT, 'public', slug);
+      if (existsSync(vd)) rmSync(vd, { recursive: true });
+      if (existsSync(pd)) rmSync(pd, { recursive: true });
+    }
+    // Scaffold all 8 archetypes into unique temp slugs.
+    for (const { key, slug, comp } of ARCH_TEST_CASES) {
+      execSync(`node scripts/new-video.mjs ${slug} ${comp} --hook=${key}`, {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    }
+  });
+
+  afterAll(() => {
+    for (const { slug } of ARCH_TEST_CASES) {
+      const vd = join(PROJECT_ROOT, 'src', 'videos', slug);
+      const pd = join(PROJECT_ROOT, 'public', slug);
+      if (existsSync(vd)) rmSync(vd, { recursive: true });
+      if (existsSync(pd)) rmSync(pd, { recursive: true });
+    }
+    writeFileSync(rootTsx, rootSnapArch);
+  });
+
+  it('all 8 archetype scaffolds typecheck clean (tsc --noEmit)', { timeout: 30000 }, () => {
+    try {
+      execSync('npx tsc --noEmit', {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      const out = [err.stdout, err.stderr].filter(Boolean).join('\n');
+      throw new Error(`tsc --noEmit failed on archetype scaffolds:\n${out}`);
+    }
+  });
+
+  it.each(ARCH_TEST_CASES)('--hook=$key emits archetype Hook.tsx with AmbientField', ({ key, slug }) => {
+    const hookSrc = readFileSync(
+      join(PROJECT_ROOT, 'src', 'videos', slug, 'scenes', 'Hook.tsx'),
+      'utf8',
+    );
+    expect(hookSrc, `Hook.tsx for ${key} should contain AmbientField`).toMatch(/AmbientField/);
+    expect(hookSrc, `Hook.tsx for ${key} should contain useTheme`).toMatch(/useTheme/);
+    expect(hookSrc, `Hook.tsx for ${key} should contain promise prop`).toMatch(/promise/);
+    expect(hookSrc, `Hook.tsx for ${key} should have re-derive bespoke header`).toMatch(/re-derive bespoke per Hard Rule 3/);
+  });
+
+  it.each(ARCH_TEST_CASES)('--hook=$key emits Main.tsx without top-level AmbientField', ({ key, slug }) => {
+    const mainSrc = readFileSync(
+      join(PROJECT_ROOT, 'src', 'videos', slug, 'Main.tsx'),
+      'utf8',
+    );
+    // Archetype Main.tsx does NOT import AmbientField (Hook.tsx has it).
+    expect(mainSrc, `Main.tsx for ${key} should not import AmbientField`).not.toMatch(/AmbientField/);
+    // byFrame is passed to Hook component.
+    expect(mainSrc, `Main.tsx for ${key} should pass byFrame to Hook`).toMatch(/byFrame/);
   });
 });
