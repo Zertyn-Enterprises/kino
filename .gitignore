@@ -28,6 +28,12 @@ out
 public/smoke
 public/review-tmp
 
+# scaffold-smoke temp artifacts (auto-removed by scripts/scaffold-smoke.mjs; gitignored as safety net)
+src/videos/scaffold-smoke/
+public/scaffold-smoke/
+out/review/ScaffoldSmoke/
+out/review/scaffold-smoke/
+
 # Editor / OS junk
 .DS_Store
 Thumbs.db
