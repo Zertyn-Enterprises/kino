@@ -94,7 +94,7 @@ export const RETENTION_PATTERNS = {
 // re-derive bespoke per Hard Rule 3 — replace all content with product-specific motion.
 // Pattern 1: Back-loaded climax. Body act: AmbientField energy ramps 0.4 → 0.9.
 // Introduce new motion layers at 35% and 70% body progress — never at a hardcoded frame.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -107,6 +107,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
   const ambientEnergy = interpolate(progress, [0, 1], [0.4, 0.9], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
   });
 
   // New layers at arc-fraction thresholds — never at a hardcoded frame.
@@ -116,6 +117,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
   const layer2Opacity = interpolate(frame, [0, 8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -176,7 +178,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
 // re-derive bespoke per Hard Rule 3 — replace with your product's climactic reveal.
 // Pattern 1: Back-loaded climax. Climax act: all elements fire simultaneously.
 // This scene carries role:'climax' — Flash + peak AmbientField (1.2).
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -187,6 +189,7 @@ export function Climax() {
   const arrivalP = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -345,7 +348,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
 // re-derive bespoke per Hard Rule 3 — replace with your product's climactic reveal.
 // Pattern 2: Mid-point re-hook punch. Climax act: energy peak after the punch.
 // AmbientField at 1.2 — must exceed punch's 1.0 spike.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -356,6 +359,7 @@ export function Climax() {
   const arrivalP = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -423,7 +427,7 @@ export function Climax() {
 // Pattern 3: Open loop + late payoff. Body act: question stays open throughout.
 // Each evidence beat hints but withholds. AmbientField energy 0.7→0.9 across the body.
 // Gate 2 PASS: the REVEAL (Climax scene) is the energy peak — supply --climax=<revealFrame>.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -436,12 +440,14 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
   const ambientEnergy = interpolate(progress, [0, 1], [0.7, 0.9], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
   });
 
   // Withheld element: blurred from full (teaseBlur) down to minimum as evidence accumulates.
   const blurPx = interpolate(progress, [0, 0.8], [12, 4], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
   });
 
   return (
@@ -508,7 +514,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
 // Pattern 3: Open loop + late payoff. Climax act: the loop CLOSES here.
 // This scene IS the energy peak — Flash + mask expansion + peak AmbientField (1.2).
 // Gate 2 PASS by construction: supply --climax=<frame where this scene starts>.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -520,11 +526,13 @@ export function Climax() {
   const maskWidth = interpolate(frame, [0, 20], [0, 1920], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   const textOpacity = interpolate(frame, [18, 30], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -604,7 +612,7 @@ export function Climax() {
 // Pattern 4: Pattern interrupt. Body act: standard flow then unexpected mode shift at ~65%.
 // IMPORTANT: interrupt must have visible motion (color shift / scale snap) — static frame fails gate 1.
 // Gate 3 PASS by construction: interrupt IS the re-hook anchor.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -626,11 +634,13 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
     ? interpolate(frame - interruptFrame, [0, 4], [1, 0], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
+        easing: Easing.out(Easing.cubic),
       })
     : frame > reEntryFrame
     ? interpolate(frame - reEntryFrame, [0, 6], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
+        easing: Easing.out(Easing.cubic),
       })
     : 1;
 
@@ -639,6 +649,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
     ? interpolate(frame - reEntryFrame, [0, 8], [1, 1.03], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
+        easing: Easing.out(Easing.cubic),
       })
     : 1;
 
@@ -697,7 +708,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
             source: `\
 // re-derive bespoke per Hard Rule 3 — replace with your product's climactic reveal.
 // Pattern 4: Pattern interrupt. Climax act: elevated tension after the interrupt.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -708,6 +719,7 @@ export function Climax() {
   const arrivalP = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -775,7 +787,7 @@ export function Climax() {
 // Pattern 5: Payoff seeding. Body act: same motif at 25%/50%/75% scale at 20%/40%/60% progress.
 // seedIntensity drives size AND AmbientField energy — same shape, growing each seed.
 // Gates 2+3 PASS by construction: climax ×1.0 is the pixel-delta peak; seeds are anchors.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -808,6 +820,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
     ? interpolate(frame - seedFrame, [0, 10], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
+        easing: Easing.out(Easing.cubic),
       })
     : 0;
 
@@ -851,7 +864,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
 // re-derive bespoke per Hard Rule 3 — replace with your product's full-scale climax motif.
 // Pattern 5: Payoff seeding. Climax act: same motif at ×1.0 scale — the recognition payoff.
 // AmbientField at 1.2 — must exceed body's 0.8 ceiling so climax IS the energy peak.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -862,6 +875,7 @@ export function Climax() {
   const arrival = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -977,7 +991,7 @@ export function Body({ ambientEnergyForAct = 0.6 }: { ambientEnergyForAct?: numb
             source: `\
 // re-derive bespoke per Hard Rule 3 — replace with your product's climactic reveal.
 // Pattern 6: Dead-air elimination. Climax act: all three layers at peak intensity.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -990,6 +1004,7 @@ export function Climax() {
   const arrivalP = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -1131,7 +1146,7 @@ export function Body({ durationInFrames = 720 }: { durationInFrames?: number }) 
 // Pattern 7: CTA tension/resolve. CTA scene: gesture completes; viewer exhales on the logo.
 // Gate 2 resolveRatio < 0.75 by construction: CTA settle energy is well below climax peak.
 // Gate 5 PASS: AmbientField fades to 0.3 in ending window — endingMeanEnergy < 1.5.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -1143,12 +1158,14 @@ export function Cta({ ctaUrl = "TODO: product URL" }: { ctaUrl?: string }) {
   const logoOpacity = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   // AmbientField fades 0.6 → 0.3 across the CTA settle — held territory, gate 5 PASS.
   const ambientEnergy = interpolate(frame, [0, 30], [0.6, 0.3], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
   });
 
   // Micro-motion: breath scale keeps gate-1 floor maintained.
@@ -1277,7 +1294,7 @@ export function Body({ ambientEnergyForAct = 0.7 }: { ambientEnergyForAct?: numb
 // Pattern 8: Loop-back ending. CTA returns to hook AmbientField energy in final 2 beats.
 // Gate 4 PASS by construction: matching bg + AmbientField energy → loopSeamDelta < 60.0.
 // Set HOOK_AMBIENT_ENERGY to match your hook scene's energy prop exactly.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -1296,6 +1313,7 @@ export function Cta({ ctaLabel = "TODO: product name or URL" }: { ctaLabel?: str
   const logoOpacity = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   const breathScale = 1 + 0.003 * Math.sin((frame / 60) * Math.PI * 2);
@@ -1409,7 +1427,7 @@ export function Body({ ambientEnergyForAct = 0.7 }: { ambientEnergyForAct?: numb
 // Pattern 9: Final-accent landing. Choose ONE ending mode per video.
 // hold:   AmbientField ≤ 0.35 in final 1.5s → endingMeanEnergy < 1.5 (gate 5 PASS)
 // accent: stamp-in at energy=1.0 at ACCENT_FRAME, settle ≤ 0.3 → endingMaxEnergy > 2.0
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -1431,6 +1449,7 @@ export function Cta({ ctaLabel = "TODO: product name or URL" }: { ctaLabel?: str
   const logoOpacity = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
   const breathScale = 1 + 0.003 * Math.sin((frame / 60) * Math.PI * 2);
 
@@ -1438,6 +1457,7 @@ export function Cta({ ctaLabel = "TODO: product name or URL" }: { ctaLabel?: str
     ? interpolate(frame, [ACCENT_FRAME, ACCENT_FRAME + 8], [0.88, 1.0], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
+        easing: Easing.out(Easing.cubic),
       })
     : 1.0;
 

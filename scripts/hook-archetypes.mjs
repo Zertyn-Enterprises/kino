@@ -55,7 +55,7 @@ export const HOOK_ARCHETYPES = {
       return `\
 // re-derive bespoke per Hard Rule 3 — replace LINES and copy with product-specific content.
 // Archetype 1: Mid-action demo. Ref: src/smoke/hooks/Hook01MidActionDemo.tsx
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -82,6 +82,7 @@ export function Hook({
   const scale = interpolate(frame, [15, 45], [1.0, 1.02], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.cubic),
   });
 
   // Promise text appears as the final terminal line near byFrame.
@@ -133,6 +134,7 @@ export function Hook({
                       interpolate(elapsed, [0, dur], [0, text.length], {
                         extrapolateLeft: "clamp",
                         extrapolateRight: "clamp",
+                        easing: Easing.inOut(Easing.quad),
                       }),
                     ),
                   );
@@ -185,7 +187,7 @@ export function Hook({
       return `\
 // re-derive bespoke per Hard Rule 3 — replace SUBCLAIM with product-specific copy.
 // Archetype 2: Bold / contrast claim. Ref: src/smoke/hooks/Hook02BoldClaim.tsx
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, KineticLine } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -207,6 +209,7 @@ export function Hook({
   const subP = interpolate(frame, [byFrame - 20, byFrame], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -319,6 +322,7 @@ export function Hook({
   const captionP = interpolate(frame, [90, 104], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -433,7 +437,7 @@ export function Hook({
       return `\
 // re-derive bespoke per Hard Rule 3 — replace the impossible element with your product's visual.
 // Archetype 4: Pattern interrupt. Ref: src/smoke/hooks/Hook04PatternInterrupt.tsx
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -459,6 +463,7 @@ export function Hook({
       interpolate(frame, [0, MAX_PCT], [MAX_PCT, 0], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
+        easing: Easing.inOut(Easing.quad),
       }),
     ),
   );
@@ -467,12 +472,14 @@ export function Hook({
   const slideX = interpolate(frame, [18, 45], [0, -32], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.cubic),
   });
 
   // Promise text fades in mid-hook (the "how did that happen?" reveal).
   const promiseOpacity = interpolate(frame, [byFrame - 15, byFrame], [0, 0.55], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -618,6 +625,7 @@ export function Hook({
   const labelOpacity = interpolate(frame, [byFrame - 15, byFrame], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -705,7 +713,7 @@ export function Hook({
 // Archetype 6: Payoff flash-forward. Ref: src/smoke/hooks/Hook06PayoffFlashForward.tsx
 // CRITICAL: frame 0 shows the END STATE — the only archetype where f0 is the destination.
 // No copy during the flash per archetype spec; first text appears after the hard cut.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField, Flash } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -799,6 +807,7 @@ export function Hook({
                       interpolate(frame - start, [0, dur], [0, text.length], {
                         extrapolateLeft: "clamp",
                         extrapolateRight: "clamp",
+                        easing: Easing.inOut(Easing.quad),
                       }),
                     ),
                   );
@@ -832,7 +841,7 @@ export function Hook({
 // re-derive bespoke per Hard Rule 3 — replace QUESTION and EVIDENCE with product-specific copy.
 // Archetype 7: Open question / indictment. Ref: src/videos/granipa/scenes/Hook.tsx
 // Arc F intentionally withholds positive promise — byFrame gate-6 timing is advisory for arc F.
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { AmbientField } from "../../../lib/fx";
 import { useTheme } from "../../../lib/theme";
 
@@ -863,6 +872,7 @@ export function Hook({
   const lineIn = interpolate(frame, [0, 8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   // Each evidence item stamps in with a scale+opacity interpolate.
@@ -871,6 +881,7 @@ export function Hook({
     return interpolate(frame, [at, at + 8], [0, 1], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
+      easing: Easing.out(Easing.cubic),
     });
   };
 
@@ -878,6 +889,7 @@ export function Hook({
   const confirmOpacity = interpolate(frame, [byFrame, byFrame + 8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -1037,6 +1049,7 @@ export function Hook({
   const promiseOpacity = interpolate(frame, [byFrame - 8, byFrame], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -1077,6 +1090,7 @@ export function Hook({
                     interpolate(frame - startAt, [0, dur], [0, text.length], {
                       extrapolateLeft: "clamp",
                       extrapolateRight: "clamp",
+                      easing: Easing.inOut(Easing.quad),
                     }),
                   ),
                 );
@@ -1175,6 +1189,7 @@ export function Hook({
           const fadeIn = interpolate(frame - showAt, [0, 6], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
+            easing: Easing.out(Easing.cubic),
           });
           return (
             <div

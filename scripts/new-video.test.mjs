@@ -17,11 +17,12 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_ARCHETYPE_KEYS, HOOK_ARCHETYPES } from './hook-archetypes.mjs';
 import { RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
+import { computeCodeCraftMetrics } from './code-craft-metrics.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -72,6 +73,19 @@ const PALETTE_SLOTS = ['bg', 'surface', 'text', 'textDim', 'accent'];
 
 function readGenerated(file) {
   return readFileSync(join(videoDir, file), 'utf8');
+}
+
+/** Collect scene files for a video slug and run C3-easing check. */
+function easingViolationsForSlug(slug) {
+  const scenesDir = join(PROJECT_ROOT, 'src', 'videos', slug, 'scenes');
+  const files = readdirSync(scenesDir)
+    .filter(name => /\.(tsx?|jsx?)$/.test(name))
+    .map(name => ({
+      path: `src/videos/${slug}/scenes/${name}`,
+      content: readFileSync(join(scenesDir, name), 'utf8'),
+    }));
+  const verdict = computeCodeCraftMetrics({ files });
+  return verdict.violations.filter(v => v.gate === 'C3-easing');
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -154,6 +168,13 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
       const src = readGenerated('scenes/Hook.tsx');
       expect(src).not.toMatch(/AmbientField/);
       expect(src).not.toMatch(/re-derive bespoke per Hard Rule 3/);
+    });
+  });
+
+  describe('C3-easing — no linear/absent-easing in scaffolded scenes', () => {
+    it('generic scaffold scenes have no C3-easing violations', () => {
+      const violations = easingViolationsForSlug(TEST_SLUG);
+      expect(violations, `C3-easing violations: ${JSON.stringify(violations)}`).toHaveLength(0);
     });
   });
 
@@ -429,6 +450,11 @@ describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
     // byFrame is passed to Hook component.
     expect(mainSrc, `Main.tsx for ${key} should pass byFrame to Hook`).toMatch(/byFrame/);
   });
+
+  it.each(ARCH_TEST_CASES)('--hook=$key Hook.tsx has no C3-easing violations', ({ key, slug }) => {
+    const violations = easingViolationsForSlug(slug);
+    expect(violations, `--hook=${key}: C3-easing violations: ${JSON.stringify(violations)}`).toHaveLength(0);
+  });
 });
 
 // ── --body flag validation ────────────────────────────────────────────────────
@@ -565,6 +591,11 @@ describe('new-video.mjs --body — scaffold content', () => {
     expect(src).not.toMatch(/import\s*\{[^}]*Hook[^}]*\}\s*from/);
   });
 
+  it.each(BODY_TEST_CASES)('--body=$key scenes have no C3-easing violations', ({ key, slug }) => {
+    const violations = easingViolationsForSlug(slug);
+    expect(violations, `--body=${key}: C3-easing violations: ${JSON.stringify(violations)}`).toHaveLength(0);
+  });
+
   it('all --body scaffolds typecheck clean (tsc --noEmit)', { timeout: 30000 }, () => {
     const bodyTsConfig = join(PROJECT_ROOT, 'tsconfig.body-tsc-test.json');
     writeFileSync(bodyTsConfig, JSON.stringify({
@@ -671,6 +702,11 @@ describe('new-video.mjs --hook + --body — compose correctly', () => {
   it('timeline.ts has rehookSeconds (retention gate-green by construction)', () => {
     const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
     expect(src).toContain('rehookSeconds');
+  });
+
+  it('hook+body scaffold scenes have no C3-easing violations', () => {
+    const violations = easingViolationsForSlug(HOOK_BODY_SLUG);
+    expect(violations, `hook+body: C3-easing violations: ${JSON.stringify(violations)}`).toHaveLength(0);
   });
 
   it('hook+body scaffold typechecks clean (tsc --noEmit)', { timeout: 30000 }, () => {
