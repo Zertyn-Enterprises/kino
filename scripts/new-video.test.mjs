@@ -152,6 +152,31 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
     });
   });
 
+  describe('regression lock (d) — no-flag path emits pure generic scaffold', () => {
+    it('timeline.ts has no role:\'climax\' or rehookSeconds', () => {
+      const src = readGenerated('timeline.ts');
+      expect(src).not.toContain('role: "climax"');
+      expect(src).not.toContain('rehookSeconds');
+    });
+
+    it('scenes/Body.tsx does not exist', () => {
+      expect(existsSync(join(videoDir, 'scenes', 'Body.tsx'))).toBe(false);
+    });
+
+    it('scenes/Climax.tsx does not exist', () => {
+      expect(existsSync(join(videoDir, 'scenes', 'Climax.tsx'))).toBe(false);
+    });
+
+    it('scenes/Cta.tsx does not exist', () => {
+      expect(existsSync(join(videoDir, 'scenes', 'Cta.tsx'))).toBe(false);
+    });
+
+    it('Main.tsx does not mount <Sequence (no body scenes wired)', () => {
+      const src = readGenerated('Main.tsx');
+      expect(src).not.toMatch(/<Sequence/);
+    });
+  });
+
   describe('TypeScript typecheck', () => {
     it('generated scaffold typechecks clean (tsc --noEmit)', { timeout: 15000 }, () => {
       try {
@@ -537,6 +562,21 @@ describe('new-video.mjs --hook + --body — compose correctly', () => {
 
   it('scenes/Climax.tsx exists (back-loaded-climax pattern)', () => {
     expect(existsSync(join(hookBodyDir, 'scenes', 'Climax.tsx'))).toBe(true);
+  });
+
+  it('timeline.ts has role:\'climax\' (retention gate-green by construction)', () => {
+    const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
+    expect(src).toContain('role: "climax"');
+  });
+
+  it('timeline.ts has role:\'hold\' (retention gate-green by construction)', () => {
+    const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
+    expect(src).toContain('role: "hold"');
+  });
+
+  it('timeline.ts has rehookSeconds (retention gate-green by construction)', () => {
+    const src = readFileSync(join(hookBodyDir, 'timeline.ts'), 'utf8');
+    expect(src).toContain('rehookSeconds');
   });
 
   it('hook+body scaffold typechecks clean (tsc --noEmit)', { timeout: 30000 }, () => {
