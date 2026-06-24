@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // Scaffold-smoke: render-verify the gate-green-by-construction scaffold claim.
-// Scaffolds a throwaway --hook/--body video, renders it via render-bearing gate
-// scripts, asserts all HARD gates + hook advisory 4+5 + retention dead-air PASS,
-// then tears down cleanly in finally (Root.tsx + registry restored, dirs removed).
+// Scaffolds a throwaway --hook/--body/--distinct video, exercises the real
+// identity-seed path (not a hardcoded stub), renders it via render-bearing gate
+// scripts, asserts all HARD gates + hook advisory 4+5 + retention dead-air PASS.
+// Also render-verifies each non-strips ambient motif (motes/grid-pulse/ember-rise)
+// through hook.sh frame-0 liveness + background-activity.
+// Tears down cleanly in finally (Root.tsx + registry restored, dirs removed).
 //
 // Usage: node scripts/scaffold-smoke.mjs
 //   No arguments. Writes to out/review/ScaffoldSmoke/ and out/review/scaffold-smoke/.
@@ -11,6 +14,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { computeIdentitySeed } from './identity-seed.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 void __filename; // used for is-main guard below
@@ -22,9 +26,8 @@ const COMP_ID  = 'ScaffoldSmoke';
 const HOOK_KEY = 'mid-action-demo';
 const BODY_KEY = 'back-loaded-climax';
 
-// Starter palette constants — must match what new-video.mjs writes to theme.ts.
-const STARTER_BG     = '#0a0a0f';
-const STARTER_ACCENT = '#7effc9';
+// Non-strips motifs to render-verify independently via hook.sh.
+const NON_STRIPS_MOTIFS = ['motes', 'grid-pulse', 'ember-rise'];
 
 // Paths
 const ROOT_TSX    = 'src/Root.tsx';
@@ -51,6 +54,55 @@ function cleanup() {
   for (const dir of [VIDEO_DIR, PUBLIC_DIR, OUT_COMP, OUT_SLUG]) {
     try { if (existsSync(dir)) rmSync(dir, { recursive: true }); } catch { /* best-effort */ }
   }
+}
+
+/** Reset filesystem to clean snapshot state between test passes. */
+function resetToSnapshot() {
+  writeFileSync(ROOT_TSX, rootTsxSnapshot);
+  writeFileSync(REGISTRY_MD, registrySnapshot);
+  for (const dir of [VIDEO_DIR, PUBLIC_DIR]) {
+    if (existsSync(dir)) rmSync(dir, { recursive: true });
+  }
+}
+
+// ── Registry entry builder ─────────────────────────────────────────────────────
+
+/**
+ * Append a seed-accurate registry entry for SLUG so:
+ *   - registry-completeness HARD gate passes (entry exists for buildable folder)
+ *   - registry-axis-drift HARD gate passes (bg/accent/luminance/grain match theme.ts)
+ *   - ≥4-axis anti-template HARD gate passes (seed was computed to guarantee this)
+ *
+ * Call AFTER new-video.mjs (which does not modify _registry.md) and BEFORE distinct.sh.
+ * Reads the current registry file to derive the correct section index.
+ */
+function appendSeedRegistryEntry(seed, ambientKey) {
+  const currentRegistry = readFileSync(REGISTRY_MD, 'utf8');
+  const existingCount = (currentRegistry.match(/^## \d+\s*·/gm) ?? []).length;
+  const today = new Date().toISOString().slice(0, 10);
+  const textureVal = seed.grainPct > 0
+    ? `filmic — grain ${seed.grainPct}%, vignette 0`
+    : `clean — grain 0%, vignette 0%`;
+  const registryEntry = `
+## ${existingCount + 1} · ${SLUG} / ${COMP_ID} (${today})
+
+> **Throwaway smoke-test fixture.** Auto-removed by scripts/scaffold-smoke.mjs.
+
+| field           | value                                               |
+| --------------- | --------------------------------------------------- |
+| product         | scaffold-smoke.mjs fixture                          |
+| arc             | ${seed.arc}                                         |
+| rhythm          | TODO(director)                                      |
+| luminance       | ${seed.luminance}                                   |
+| palette         | bg ${seed.bg} · accent ${seed.accent}               |
+| type            | ${seed.displayFamily} display / ${seed.bodyFamily} body |
+| signature moves | TODO(director)                                      |
+| texture         | ${textureVal}                                       |
+| transitions     | TODO(director)                                      |
+| music           | ${seed.bpmBpm}bpm TODO(director)                    |
+| ambient-motif   | ${ambientKey}                                       |
+`;
+  writeFileSync(REGISTRY_MD, currentRegistry.trimEnd() + '\n' + registryEntry);
 }
 
 // ── Gate runner ────────────────────────────────────────────────────────────────
@@ -109,8 +161,11 @@ function assertAdvisory(gateName, metricsPath, ids) {
 process.stdout.write(`\n=== scaffold-smoke ===\n`);
 process.stdout.write(`  slug=${SLUG}  comp=${COMP_ID}\n`);
 process.stdout.write(`  hook=${HOOK_KEY}  body=${BODY_KEY}\n`);
+process.stdout.write(`  distinct=true  motifs=${NON_STRIPS_MOTIFS.join(',')}\n`);
 
 let exitCode = 0;
+const allFailures = [];
+
 try {
   // 1. Remove any stale leftovers from a prior failed run.
   for (const dir of [VIDEO_DIR, PUBLIC_DIR, OUT_COMP, OUT_SLUG]) {
@@ -121,40 +176,33 @@ try {
   rootTsxSnapshot  = readFileSync(ROOT_TSX, 'utf8');
   registrySnapshot = readFileSync(REGISTRY_MD, 'utf8');
 
-  // 3. Scaffold the throwaway video (new-video.mjs modifies Root.tsx in-place).
-  process.stdout.write('\n==> Scaffolding...\n');
+  // ── Pass A: Full gate suite with --distinct (auto-selects non-strips motif) ──
+
+  process.stdout.write('\n=== Pass A: --hook --body --distinct (full gate suite) ===\n');
+
+  // 3. Compute the identity seed from the pre-scaffold registry.
+  //    new-video.mjs reads the same registry state, so the seed matches exactly.
+  const seed = computeIdentitySeed(registrySnapshot);
+  const autoMotif = seed.ambientMotifKey; // what --distinct auto-selected
+
+  process.stdout.write(`  seed: luminance=${seed.luminance} bg=${seed.bg} accent=${seed.accent}\n`);
+  process.stdout.write(`  seed: display=${seed.displayFamily} body=${seed.bodyFamily}\n`);
+  process.stdout.write(`  seed: arc=${seed.arc} bpm=${seed.bpmBpm} grain=${seed.grainPct}%\n`);
+  process.stdout.write(`  seed: ambient=${autoMotif} (auto-selected)\n`);
+
+  // 4. Scaffold with --distinct (generates anti-convergence theme.ts).
+  process.stdout.write('\n==> Scaffolding with --distinct...\n');
   const scaffoldOut = execFileSync(
     'node',
-    ['scripts/new-video.mjs', SLUG, COMP_ID, `--hook=${HOOK_KEY}`, `--body=${BODY_KEY}`],
+    ['scripts/new-video.mjs', SLUG, COMP_ID, `--hook=${HOOK_KEY}`, `--body=${BODY_KEY}`, '--distinct'],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
   );
   process.stdout.write(scaffoldOut);
 
-  // 4. Append _registry.md stub so distinct gate's completeness + drift HARD checks pass.
-  //    Derives 5 code-grounded axes from the scaffold's theme.ts values so registry-axis-drift=0.
-  //    4 non-derivable axes are TODO(director) tokens — rhythm+moves + transitions token-Jaccard
-  //    diverges from all 3 priors (relay/granipa/sereno), giving ≥4 differing axes.
-  const existingCount = (registrySnapshot.match(/^## \d+\s*·/gm) ?? []).length;
-  const today = new Date().toISOString().slice(0, 10);
-  const registryStub = `
-## ${existingCount + 1} · ${SLUG} / ${COMP_ID} (${today})
-
-> **Throwaway smoke-test fixture.** Auto-removed by scripts/scaffold-smoke.mjs.
-
-| field           | value                                         |
-| --------------- | --------------------------------------------- |
-| product         | scaffold-smoke.mjs fixture                    |
-| arc             | TODO(director)                                |
-| rhythm          | TODO(director)                                |
-| luminance       | dark                                          |
-| palette         | bg ${STARTER_BG} · accent ${STARTER_ACCENT}   |
-| type            | TODO display / TODO body                      |
-| signature moves | TODO(director)                                |
-| texture         | clean — grain 0%, vignette 0%                 |
-| transitions     | TODO(director)                                |
-| music           | TODO(director)                                |
-`;
-  writeFileSync(REGISTRY_MD, registrySnapshot.trimEnd() + '\n' + registryStub);
+  // 5. Append seed-accurate registry entry so distinct.sh completeness + drift gates pass.
+  //    Registry entry derives bg/accent/luminance/grain from the same seed as theme.ts,
+  //    so registry-axis-drift ΔE94 = 0 and band matches exactly.
+  appendSeedRegistryEntry(seed, autoMotif);
 
   // ── Render-bearing gates ─────────────────────────────────────────────────────
 
@@ -170,36 +218,82 @@ try {
   runGate('scripts/code-craft.sh', [COMP_ID, SLUG]);
   runGate('scripts/remotion-correct.sh', [COMP_ID, SLUG]);
 
-  // ── Assertion pass ───────────────────────────────────────────────────────────
+  // ── Assertion pass A ─────────────────────────────────────────────────────────
 
-  const failures = [];
+  const passAFailures = [];
 
   // HARD gates — all must pass.
-  failures.push(...assertHard('hook',             `${OUT_COMP}/hook/metrics.json`));
-  failures.push(...assertHard('retention',        `${OUT_COMP}/retention/metrics.json`));
-  failures.push(...assertHard('motion',           `${OUT_COMP}/motion/metrics.json`));
-  failures.push(...assertHard('legibility',       `${OUT_COMP}/legibility/metrics.json`));
-  failures.push(...assertHard('preflight',        `${OUT_COMP}/preflight/metrics.json`));
-  failures.push(...assertHard('distinct',         `${OUT_SLUG}/distinct/metrics.json`));
-  failures.push(...assertHard('code-craft',       `${OUT_COMP}/code-craft/metrics.json`));
-  failures.push(...assertHard('remotion-correct', `${OUT_COMP}/remotion-correct/metrics.json`));
+  passAFailures.push(...assertHard('hook',             `${OUT_COMP}/hook/metrics.json`));
+  passAFailures.push(...assertHard('retention',        `${OUT_COMP}/retention/metrics.json`));
+  passAFailures.push(...assertHard('motion',           `${OUT_COMP}/motion/metrics.json`));
+  passAFailures.push(...assertHard('legibility',       `${OUT_COMP}/legibility/metrics.json`));
+  passAFailures.push(...assertHard('preflight',        `${OUT_COMP}/preflight/metrics.json`));
+  passAFailures.push(...assertHard('distinct',         `${OUT_SLUG}/distinct/metrics.json`));
+  passAFailures.push(...assertHard('code-craft',       `${OUT_COMP}/code-craft/metrics.json`));
+  passAFailures.push(...assertHard('remotion-correct', `${OUT_COMP}/remotion-correct/metrics.json`));
 
   // By-construction advisory gates: hook 4+5 (AmbientField guarantees background-activity
   // + frame-0 liveness pass from frame 0).
-  failures.push(...assertAdvisory('hook', `${OUT_COMP}/hook/metrics.json`, [4, 5]));
+  passAFailures.push(...assertAdvisory('hook', `${OUT_COMP}/hook/metrics.json`, [4, 5]));
+
+  if (passAFailures.length > 0) {
+    process.stderr.write('\nPass A failures:\n');
+    for (const f of passAFailures) process.stderr.write(`  ${f}\n`);
+  } else {
+    process.stdout.write('\nPass A: all HARD gates + advisory 4+5 PASS\n');
+  }
+  allFailures.push(...passAFailures);
+
+  // ── Pass B–D: Each non-strips motif — scaffold + hook.sh only ─────────────────
+
+  for (const motif of NON_STRIPS_MOTIFS) {
+    process.stdout.write(`\n=== Pass: --ambient=${motif} hook gate ===\n`);
+
+    // Reset filesystem to clean state before each motif run.
+    resetToSnapshot();
+
+    // Scaffold with --distinct + explicit ambient override.
+    process.stdout.write(`\n==> Scaffolding with --distinct --ambient=${motif}...\n`);
+    const motifScaffoldOut = execFileSync(
+      'node',
+      ['scripts/new-video.mjs', SLUG, COMP_ID, `--hook=${HOOK_KEY}`, `--body=${BODY_KEY}`,
+       '--distinct', `--ambient=${motif}`],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
+    );
+    process.stdout.write(motifScaffoldOut);
+
+    // Render hook window and assert liveness + background-activity (advisory 4+5).
+    runGate('scripts/hook.sh', [COMP_ID]);
+
+    const motifFailures = [];
+    motifFailures.push(...assertHard(`hook[${motif}]`,     `${OUT_COMP}/hook/metrics.json`));
+    motifFailures.push(...assertAdvisory(`hook[${motif}]`, `${OUT_COMP}/hook/metrics.json`, [4, 5]));
+
+    if (motifFailures.length > 0) {
+      process.stderr.write(`\nPass ${motif} failures:\n`);
+      for (const f of motifFailures) process.stderr.write(`  ${f}\n`);
+    } else {
+      process.stdout.write(`Pass ${motif}: hook HARD gates + advisory 4+5 PASS\n`);
+    }
+    allFailures.push(...motifFailures);
+  }
 
   // ── Report ────────────────────────────────────────────────────────────────────
 
-  if (failures.length > 0) {
+  if (allFailures.length > 0) {
     process.stderr.write('\n=== scaffold-smoke FAIL ===\n');
-    for (const f of failures) process.stderr.write(`  ${f}\n`);
+    for (const f of allFailures) process.stderr.write(`  ${f}\n`);
     exitCode = 1;
   } else {
     process.stdout.write('\n=== scaffold-smoke PASS ===\n');
-    process.stdout.write('  All HARD gates pass.\n');
-    process.stdout.write('  Hook advisory 4+5 (AmbientField) pass.\n');
-    process.stdout.write('  Retention dead-air (HARD, --body by-construction) passes.\n');
-    process.stdout.write('  The --hook/--body scaffold is gate-green in pixels.\n');
+    process.stdout.write('  Pass A: all HARD gates pass on --distinct scaffold.\n');
+    process.stdout.write('  Pass A: distinct.sh HARD-passes on genuine identity-seed output.\n');
+    process.stdout.write('  Pass A: hook advisory 4+5 (AmbientField) pass.\n');
+    process.stdout.write('  Pass A: retention dead-air (HARD, --body by-construction) passes.\n');
+    for (const motif of NON_STRIPS_MOTIFS) {
+      process.stdout.write(`  Pass ${motif}: hook HARD gates + advisory 4+5 pass.\n`);
+    }
+    process.stdout.write('  The --hook/--body/--distinct/--ambient scaffold is gate-green in pixels.\n');
   }
 } catch (err) {
   process.stderr.write(`\nERROR: ${err.message}\n`);
