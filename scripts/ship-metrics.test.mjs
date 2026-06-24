@@ -1,7 +1,7 @@
 /**
  * Regression tests for computeShipVerdict.
  *
- * Twenty-three fixture sets:
+ * Twenty-four fixture sets:
  *   - Ship-ready:                     all gates hardGatesPass true, advisory fails present
  *                                     → shipReady true, blockers empty.
  *   - Blocked:                        hook hardGatesPass false → shipReady false, gate named in blockers.
@@ -19,6 +19,8 @@
  *   - Musicsync skip-mode:            musicsync all gates SKIP (no audio analysis) → shipReady true.
  *   - Musicsync hard fail:            musicsync hardGatesPass false → shipReady false.
  *   - Musicsync null:                 musicsync=null → graceful SKIP, does NOT block ship.
+ *   - Musicsync unverified:           musicsync verdict='unverified' → advisory, does NOT block ship,
+ *                                     musicsync.ran=true, musicsync.status='unverified'.
  *   - Payoff null:                    payoff=null → graceful SKIP, does NOT block ship.
  *   - Payoff hard fail:               payoff hardGatesPass false → shipReady false.
  *   - Payoff advisory-only:           payoff has P3 advisory fail only → shipReady true.
@@ -820,6 +822,69 @@ describe('computeShipVerdict — musicsync null (gate not run — graceful SKIP,
 
   it('musicsync advisory failures is empty', () => {
     expect(musicSyncNullVerdict.gates.musicsync.advisoryFailures).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 14b: musicsync unverified — music intent declared, analysis absent → advisory
+//
+// musicsync: { verdict: 'unverified', hardGatesPass: true, musicIntent: true, analysisPresent: false }
+//
+// Expected: shipReady=true, blockers=[], musicsync.ran=true, musicsync.status='unverified',
+//           musicsync.advisoryFailures=['Music sync unverified']
+// ---------------------------------------------------------------------------
+
+const musicSyncUnverifiedMetrics = {
+  verdict: 'unverified',
+  hardGatesPass: true,
+  musicIntent: true,
+  analysisPresent: false,
+  gates: [
+    { id: 1, name: 'Tempo lock',           hard: true,  advisory: false, pass: false, skip: false, status: 'unverified' },
+    { id: 2, name: 'Downbeat lock',        hard: true,  advisory: false, pass: false, skip: false, status: 'unverified' },
+    { id: 3, name: 'Climax on drop',       hard: false, advisory: true,  pass: false, skip: false, status: 'unverified' },
+    { id: 4, name: 'Cut-on-beat coverage', hard: false, advisory: true,  pass: false, skip: true },
+  ],
+  summary: { passed: 0, failed: 0, skipped: 1, unverified: 3 },
+};
+
+const musicSyncUnverifiedVerdict = computeShipVerdict({
+  hook:       hookMetrics({ hardGatesPass: true }),
+  retention:  hookMetrics({ hardGatesPass: true }),
+  contrast:   contrastMetrics({ hardGatesPass: true }),
+  motion:     hookMetrics({ hardGatesPass: true }),
+  legibility: hookMetrics({ hardGatesPass: true }),
+  codeCraft:  hookMetrics({ hardGatesPass: true }),
+  musicsync:  musicSyncUnverifiedMetrics,
+});
+
+describe('computeShipVerdict — musicsync unverified (music intent declared, analysis absent)', () => {
+  it('shipReady is true — unverified is advisory, not a hard blocker', () => {
+    expect(musicSyncUnverifiedVerdict.shipReady).toBe(true);
+  });
+
+  it('blockers is empty', () => {
+    expect(musicSyncUnverifiedVerdict.blockers).toHaveLength(0);
+  });
+
+  it('musicsync gate ran=true', () => {
+    expect(musicSyncUnverifiedVerdict.gates.musicsync.ran).toBe(true);
+  });
+
+  it('musicsync hardGatesPass=true', () => {
+    expect(musicSyncUnverifiedVerdict.gates.musicsync.hardGatesPass).toBe(true);
+  });
+
+  it('musicsync status is "unverified"', () => {
+    expect(musicSyncUnverifiedVerdict.gates.musicsync.status).toBe('unverified');
+  });
+
+  it('musicsync advisory failures includes Music sync unverified', () => {
+    expect(musicSyncUnverifiedVerdict.gates.musicsync.advisoryFailures).toContain('Music sync unverified');
+  });
+
+  it('musicsync justified is false — unverified requires attention', () => {
+    expect(musicSyncUnverifiedVerdict.gates.musicsync.justified).toBe(false);
   });
 });
 
