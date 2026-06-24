@@ -38,17 +38,34 @@ and prints `HARD GATES: PASS|FAIL`.
 
 ## Graceful SKIP mode
 
-When no `public/<slug>/*.analysis.json` exists — the normal state for the
-open-source example videos, which ship no bundled audio — all four gates report
-`skip: true` (not `fail`). The gate exits 0 and never blocks ship. This mirrors
-the "no preview URL → skip" and "no palette flags → skip" conventions on other gates.
+The gate has three states depending on music intent and whether an analysis file exists:
 
-SKIP is also triggered gate-by-gate:
+| State | Condition | Per-gate | Top-level verdict | Blocks ship? |
+|-------|-----------|----------|-------------------|-------------|
+| **skip** | No music intent AND no analysis (sereno) | `skip: true` | `'skip'`, `hardGatesPass: true` | No |
+| **unverified** | Music intent declared AND no analysis (relay, granipa before analysis) | MS1/MS2/MS3: `status: 'unverified'`; MS4: `skip: true` | `'unverified'`, `hardGatesPass: true` | No (advisory) |
+| **verified** | Analysis present | MS1/MS2: HARD pass/fail | `'pass'` or `'fail'` | Yes on HARD fail |
+
+**Music-intent detection (render-free):** the runner reads `src/videos/<slug>/Main.tsx` for
+`MusicBed` import/usage or `staticFile(...music...)` references, and checks
+`public/<slug>/MANIFEST.md` for an Audio section. Videos with no music composition
+(sereno) resolve to no-intent → `skip`. Music-scored videos (relay, granipa) resolve to
+intent → `unverified` when no `.analysis.json` is present.
+
+**Why three states?** A music-scored video whose analysis was never run previously silently
+skipped all four gates and shipped READY with beat-lock unchecked — a false-READY on the
+core virality lever. The `unverified` state emits a loud advisory (`MUSIC: UNVERIFIED ...`)
+and records `musicsync.status: 'unverified'` in `ship/report.json`, so the ship gate no
+longer silently passes unanalyzed music-scored videos.
+
+SKIP is also triggered gate-by-gate (independent of the top-level three-state logic):
 - MS3 skips when analysis has no `drops` array, or when `--climax=F` is not supplied.
 - MS4 skips when no cut frames are found in the timeline (degenerate case).
 
 **SKIP must never block ship.** A `musicsync.ran = false` entry in `ship/report.json`
 is the expected steady-state for any video whose `analyze-music.mjs` has not been run.
+`musicsync.status: 'unverified'` is the expected state for a music-scored video that has
+not yet been analyzed — it is advisory, not a hard blocker.
 
 ## Usage
 

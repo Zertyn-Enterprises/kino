@@ -28,11 +28,17 @@
 //          cut frames within CUT_BEAT_TOL_FRAMES of the detected beat grid ≥
 //          BEAT_COVERAGE_FLOOR.
 //
-// Graceful SKIP: all four gates are audio-dependent — when analysis is null (or bpm
-// is null for gates requiring the beat grid), gates report skip:true, not fail.
+// Three states:
+//   skip       — no musicIntent AND no analysis (sereno). Silent exit 0, never blocks.
+//   unverified — musicIntent:true AND no analysis. Per-gate status:'unverified' (not skip).
+//                hardGatesPass:true (advisory — does NOT block ship). Loud warning emitted.
+//   verified   — analysis present. MS1/MS2 are HARD pass/fail as normal.
+//
+// SKIP: all four gates are audio-dependent — when analysis is null (or bpm is null for
+// gates requiring the beat grid), gates report skip:true, not fail.
 // SKIP never blocks ship; mirrors the "no preview URL → skip" convention.
 //
-// Exit code (CLI): 0 when all HARD gates pass or skip; non-zero on HARD FAIL.
+// Exit code (CLI): 0 when all HARD gates pass or skip or unverified; non-zero on HARD FAIL.
 //
 // Thresholds calibrated for 30fps video on a tracked music bed:
 //   BPM_TOLERANCE        = 0.02  — ±2% of detected BPM; octave relations accepted.
@@ -105,13 +111,20 @@ function phaseDiff(declaredSec, detectedSec, beatPeriodSec) {
  * @param {object|null}   params.analysis       — .analysis.json object or null
  * @param {number|null}   [params.climaxFrame]  — declared climax frame, or null
  * @param {object}        [params.tolerances]   — optional threshold overrides
- * @returns {{ gates: Array, summary: object, hardGatesPass: boolean }}
+ * @param {boolean}       [params.musicIntent]  — true when the video declares music intent
+ *                                                (MusicBed import or music asset reference).
+ *                                                When true and analysis is absent, gates emit
+ *                                                status:'unverified' instead of skip:true, and
+ *                                                the top-level verdict is 'unverified' (advisory,
+ *                                                not a hard blocker). Default: false (legacy SKIP).
+ * @returns {{ musicIntent: boolean, analysisPresent: boolean, verdict: string, gates: Array, summary: object, hardGatesPass: boolean }}
  */
 export function computeMusicSync({
   timeline,
   analysis,
   climaxFrame = null,
   tolerances = {},
+  musicIntent = false,
 }) {
   const {
     bpmTolerance      = BPM_TOLERANCE,
@@ -133,11 +146,15 @@ export function computeMusicSync({
 
   // ── MS1: Tempo lock (HARD) ───────────────────────────────────────────────
   if (!hasBpm) {
+    const ms1Unverified = musicIntent && !hasAnalysis;
     gates.push({
       id: 1, name: 'Tempo lock', hard: true, advisory: false,
-      pass: false, skip: true, measured: null,
+      pass: false, skip: !ms1Unverified, measured: null,
+      ...(ms1Unverified ? { status: 'unverified' } : {}),
       threshold: { bpmTolerance },
-      skipReason: 'no audio analysis provided',
+      skipReason: ms1Unverified
+        ? 'music intent declared but analysis not run'
+        : 'no audio analysis provided',
     });
   } else {
     const detectedBpm = analysis.bpm;
@@ -169,11 +186,15 @@ export function computeMusicSync({
 
   // ── MS2: Downbeat lock (HARD) ────────────────────────────────────────────
   if (!hasBpm) {
+    const ms2Unverified = musicIntent && !hasAnalysis;
     gates.push({
       id: 2, name: 'Downbeat lock', hard: true, advisory: false,
-      pass: false, skip: true, measured: null,
+      pass: false, skip: !ms2Unverified, measured: null,
+      ...(ms2Unverified ? { status: 'unverified' } : {}),
       threshold: { downbeatFrameTol },
-      skipReason: 'no audio analysis provided',
+      skipReason: ms2Unverified
+        ? 'music intent declared but analysis not run'
+        : 'no audio analysis provided',
     });
   } else {
     const beatPeriodSec   = 60 / analysis.bpm;
@@ -197,12 +218,16 @@ export function computeMusicSync({
   const hasDrops    = hasAnalysis && Array.isArray(analysis.drops) && analysis.drops.length > 0;
   const hasClimaxF  = climaxFrame != null;
   if (!hasAnalysis || !hasDrops || !hasClimaxF) {
-    const skipReason = !hasAnalysis
-      ? 'no audio analysis provided'
-      : !hasDrops ? 'no drops in analysis' : 'no climax frame declared';
+    const ms3Unverified = musicIntent && !hasAnalysis;
+    const skipReason = ms3Unverified
+      ? 'music intent declared but analysis not run'
+      : !hasAnalysis
+        ? 'no audio analysis provided'
+        : !hasDrops ? 'no drops in analysis' : 'no climax frame declared';
     gates.push({
       id: 3, name: 'Climax on drop', hard: false, advisory: true,
-      pass: false, skip: true, measured: null,
+      pass: false, skip: !ms3Unverified, measured: null,
+      ...(ms3Unverified ? { status: 'unverified' } : {}),
       threshold: { climaxTolFrames },
       skipReason,
     });
@@ -266,15 +291,21 @@ export function computeMusicSync({
     });
   }
 
-  const hardGatesPass = gates.filter(g => g.hard).every(g => g.skip || g.pass);
+  const hardGatesPass = gates.filter(g => g.hard).every(g => g.skip || g.pass || g.status === 'unverified');
   const summary = {
-    passed:      gates.filter(g => !g.skip &&  g.pass).length,
-    failed:      gates.filter(g => !g.skip && !g.pass).length,
-    skipped:     gates.filter(g =>  g.skip).length,
+    passed:     gates.filter(g => !g.skip && g.status !== 'unverified' &&  g.pass).length,
+    failed:     gates.filter(g => !g.skip && g.status !== 'unverified' && !g.pass).length,
+    skipped:    gates.filter(g =>  g.skip).length,
+    unverified: gates.filter(g =>  g.status === 'unverified').length,
     declaredBpm,
     fps,
     totalCuts: cutFrames.length,
   };
 
-  return { gates, summary, hardGatesPass };
+  const analysisPresent = hasAnalysis;
+  const verdict = !analysisPresent && musicIntent ? 'unverified'
+    : !analysisPresent ? 'skip'
+    : hardGatesPass ? 'pass' : 'fail';
+
+  return { musicIntent, analysisPresent, verdict, gates, summary, hardGatesPass };
 }

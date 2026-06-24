@@ -73,7 +73,7 @@ if [ -n "$ANALYSIS" ]; then
   echo "Music analysis: $ANALYSIS"
   RUNNER_ARGS+=(--analysis="$ANALYSIS")
 else
-  echo "No analysis.json found in public/$SLUG/ — running in SKIP mode (degraded PASS)"
+  echo "No analysis.json found in public/$SLUG/ — checking music intent (SKIP or UNVERIFIED)"
 fi
 
 METRICS_EXIT=0

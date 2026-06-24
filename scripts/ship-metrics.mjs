@@ -88,10 +88,13 @@ export function computeShipVerdict({ hook, retention, contrast, motion = null, l
     legibility: summarize('legibility', legibility),
     codeCraft:  summarize('codeCraft', codeCraft),
     // musicsync=null is graceful SKIP (no analysis.json), not a hard blocker.
+    // musicsync.verdict='unverified' is advisory — music intent declared but analysis absent.
     // Only a real hardGatesPass:false verdict blocks ship.
     musicsync:  musicsync == null
       ? { ran: false, hardGatesPass: true, advisoryFailures: [], justified: true }
-      : summarize('musicsync', musicsync),
+      : musicsync.verdict === 'unverified'
+        ? { ran: true, hardGatesPass: true, status: 'unverified', advisoryFailures: ['Music sync unverified'], justified: false }
+        : summarize('musicsync', musicsync),
     // payoff=null is graceful SKIP (absent metrics), not a hard blocker.
     // Only a real hardGatesPass:false verdict blocks ship.
     payoff:     payoff == null

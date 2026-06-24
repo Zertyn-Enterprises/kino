@@ -571,3 +571,221 @@ describe('computeMusicSync — MS2 downbeat modulo (one beat earlier passes)', (
     expect(g.measured.phaseDiffSec).toBeCloseTo(0, 4);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Three-state fixtures (musicIntent parameter)
+//
+// State 1 — intent + analysis → verdict:'pass' or 'fail' (HARD verified path)
+// State 2 — intent + no-analysis → verdict:'unverified' (advisory, not a blocker)
+// State 3 — no-intent + no-analysis → verdict:'skip' (unchanged legacy behavior)
+//
+// These cover the new musicIntent input added to computeMusicSync.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// State 1a: musicIntent:true + analysis present → verified PASS
+//
+// Same bpm/downbeat/climax/cuts as aligned-PASS, plus musicIntent:true.
+// Expected: verdict='pass', hardGatesPass=true, analysisPresent=true.
+// ---------------------------------------------------------------------------
+
+describe('computeMusicSync — three-state: intent+analysis-PASS (musicIntent:true, analysis present)', () => {
+  const verdict = computeMusicSync({
+    timeline: baseTimeline,
+    analysis: cleanAnalysis,
+    climaxFrame: 45,
+    musicIntent: true,
+  });
+
+  it('verdict is "pass"', () => {
+    expect(verdict.verdict).toBe('pass');
+  });
+
+  it('musicIntent is true', () => {
+    expect(verdict.musicIntent).toBe(true);
+  });
+
+  it('analysisPresent is true', () => {
+    expect(verdict.analysisPresent).toBe(true);
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('MS1 passes (hard gate)', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+  });
+
+  it('MS2 passes (hard gate)', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(true);
+    expect(g.skip).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// State 1b: musicIntent:true + analysis present → verified FAIL
+//
+// Declared bpm=120 but detected bpm=100 (20% delta > 2% tolerance).
+// Expected: verdict='fail', hardGatesPass=false, analysisPresent=true.
+// ---------------------------------------------------------------------------
+
+describe('computeMusicSync — three-state: intent+analysis-FAIL (musicIntent:true, MS1 HARD FAIL)', () => {
+  const verdict = computeMusicSync({
+    timeline: baseTimeline,
+    analysis: { ...cleanAnalysis, bpm: 100 },
+    musicIntent: true,
+  });
+
+  it('verdict is "fail"', () => {
+    expect(verdict.verdict).toBe('fail');
+  });
+
+  it('hardGatesPass is false — MS1 hard fail', () => {
+    expect(verdict.hardGatesPass).toBe(false);
+  });
+
+  it('musicIntent is true', () => {
+    expect(verdict.musicIntent).toBe(true);
+  });
+
+  it('analysisPresent is true', () => {
+    expect(verdict.analysisPresent).toBe(true);
+  });
+
+  it('MS1 (tempo lock, hard) fails', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.pass).toBe(false);
+    expect(g.skip).toBe(false);
+    expect(g.measured.deltaPercent).toBeGreaterThan(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// State 2: musicIntent:true + analysis:null → verdict:'unverified'
+//
+// MS1/MS2/MS3 emit status:'unverified' (not skip:true); MS4 stays skip:true.
+// hardGatesPass=true because unverified is advisory, not a hard fail.
+// Summary: passed=0, failed=0, skipped=1 (MS4), unverified=3 (MS1/MS2/MS3).
+// ---------------------------------------------------------------------------
+
+describe('computeMusicSync — three-state: intent+no-analysis-UNVERIFIED (musicIntent:true, analysis:null)', () => {
+  const verdict = computeMusicSync({
+    timeline: baseTimeline,
+    analysis: null,
+    climaxFrame: 45,
+    musicIntent: true,
+  });
+
+  it('verdict is "unverified"', () => {
+    expect(verdict.verdict).toBe('unverified');
+  });
+
+  it('musicIntent is true', () => {
+    expect(verdict.musicIntent).toBe(true);
+  });
+
+  it('analysisPresent is false', () => {
+    expect(verdict.analysisPresent).toBe(false);
+  });
+
+  it('hardGatesPass is true — unverified is advisory, never blocks ship', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('MS1 (hard) is unverified — not skip, not pass', () => {
+    const g = verdict.gates.find(g => g.id === 1);
+    expect(g.hard).toBe(true);
+    expect(g.status).toBe('unverified');
+    expect(g.skip).toBe(false);
+    expect(g.pass).toBe(false);
+    expect(g.skipReason).toMatch(/music intent/i);
+  });
+
+  it('MS2 (hard) is unverified — not skip, not pass', () => {
+    const g = verdict.gates.find(g => g.id === 2);
+    expect(g.hard).toBe(true);
+    expect(g.status).toBe('unverified');
+    expect(g.skip).toBe(false);
+    expect(g.pass).toBe(false);
+  });
+
+  it('MS3 (advisory) is unverified — not skip', () => {
+    const g = verdict.gates.find(g => g.id === 3);
+    expect(g.advisory).toBe(true);
+    expect(g.status).toBe('unverified');
+    expect(g.skip).toBe(false);
+    expect(g.pass).toBe(false);
+  });
+
+  it('MS4 (advisory) still skips — cut-on-beat not listed for unverified in spec', () => {
+    const g = verdict.gates.find(g => g.id === 4);
+    expect(g.advisory).toBe(true);
+    expect(g.skip).toBe(true);
+    expect(g.status).not.toBe('unverified');
+  });
+
+  it('summary: 0 passed, 0 failed, 1 skipped (MS4), 3 unverified (MS1/MS2/MS3)', () => {
+    expect(verdict.summary.passed).toBe(0);
+    expect(verdict.summary.failed).toBe(0);
+    expect(verdict.summary.skipped).toBe(1);
+    expect(verdict.summary.unverified).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// State 3: musicIntent:false + analysis:null → verdict:'skip' (unchanged)
+//
+// Legacy behavior: all gates skip (sereno, audio-less open-source videos).
+// hardGatesPass=true. No gate has status:'unverified'.
+// ---------------------------------------------------------------------------
+
+describe('computeMusicSync — three-state: no-intent+no-analysis-SKIP (musicIntent:false, analysis:null)', () => {
+  const verdict = computeMusicSync({
+    timeline: baseTimeline,
+    analysis: null,
+    climaxFrame: 45,
+    musicIntent: false,
+  });
+
+  it('verdict is "skip"', () => {
+    expect(verdict.verdict).toBe('skip');
+  });
+
+  it('musicIntent is false', () => {
+    expect(verdict.musicIntent).toBe(false);
+  });
+
+  it('analysisPresent is false', () => {
+    expect(verdict.analysisPresent).toBe(false);
+  });
+
+  it('hardGatesPass is true', () => {
+    expect(verdict.hardGatesPass).toBe(true);
+  });
+
+  it('all four gates skip', () => {
+    for (const g of verdict.gates) {
+      expect(g.skip).toBe(true);
+    }
+  });
+
+  it('no gate has status unverified', () => {
+    for (const g of verdict.gates) {
+      expect(g.status).not.toBe('unverified');
+    }
+  });
+
+  it('summary: 0 passed, 0 failed, 4 skipped, 0 unverified', () => {
+    expect(verdict.summary.passed).toBe(0);
+    expect(verdict.summary.failed).toBe(0);
+    expect(verdict.summary.skipped).toBe(4);
+    expect(verdict.summary.unverified).toBe(0);
+  });
+});
