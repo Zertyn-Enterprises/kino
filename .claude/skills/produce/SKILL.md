@@ -212,6 +212,15 @@ on the pattern) from the pattern catalog. `--hook` and `--body` compose: pass bo
 to emit a full hook+body skeleton in a single command. Run the scaffold with an
 unknown key to print all valid keys.
 
+Pass `--distinct` to read `src/videos/_registry.md` and emit an anti-convergence
+identity seed: palette hex values (bg, surface, text, textDim, accent) + font
+pairing (display+body family) chosen deterministically from the registry such that
+`scripts/distinct.sh <slug>` passes — ≥4 axes differ from every prior entry, WCAG
+contrast HARD floors met, and the starter palette is NOT the dark-bg/teal-accent
+convergence attractor. The scaffold prints which axes are open (zero prior uses) and
+which prior slugs collide on the shared axes. `--distinct` composes with `--hook`
+and `--body`. Without `--distinct`, the generic dark/teal starter is emitted.
+
 Then **immediately run the preflight gate** to confirm the structural wiring before
 any render spend:
 ```bash
