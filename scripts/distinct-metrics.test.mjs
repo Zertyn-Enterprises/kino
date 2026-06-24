@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeDistinctMetrics,
   computeAxisDivergences,
+  computeDriftWarnings,
   computeRegistryDriftGate,
   computeNonDerivableCoverage,
   checkRegistryCompleteness,
@@ -513,6 +514,12 @@ describe('convergence drift advisory', () => {
     const driftGates = verdict.gates.filter(g => g.advisory && !g.pass);
     const monoDrift = driftGates.find(g => g.name.includes('mono-font'));
     expect(monoDrift).toBeDefined();
+  });
+
+  it('drift advisory fires for ambient-motif (both relay and granipa default to "strips")', () => {
+    const driftGates = verdict.gates.filter(g => g.advisory && !g.pass);
+    const motifDrift = driftGates.find(g => g.name.includes('ambient-motif'));
+    expect(motifDrift).toBeDefined();
   });
 
   it('drift advisory is advisory=true and does NOT affect hardGatesPass', () => {
@@ -1203,5 +1210,46 @@ describe('parseBpmBand — music-less strings return unknown', () => {
 
   it('"ambient sound design, no BPM" → unknown', () => {
     expect(parseBpmBand('ambient sound design, no BPM')).toBe('unknown');
+  });
+});
+
+// ── Fixture 24: computeDriftWarnings — ambient-motif drift unit tests ─────────────────────────
+
+// Minimal parsed entry stubs — only the fields computeDriftWarnings reads.
+function motifEntry(slug, motif) {
+  return { slug, parsed: { luminance: 'unknown', usesJetbrainsMono: false, accentHueBand: 'other', ambientMotif: motif } };
+}
+
+describe('computeDriftWarnings — ambient-motif drift', () => {
+  it('fires when ≥2 entries share "strips"', () => {
+    const warnings = computeDriftWarnings([motifEntry('a', 'strips'), motifEntry('b', 'strips')]);
+    expect(warnings.some(w => w.includes('ambient-motif drift'))).toBe(true);
+  });
+
+  it('fires for any shared motif, not just "strips"', () => {
+    const warnings = computeDriftWarnings([motifEntry('a', 'ember-rise'), motifEntry('b', 'ember-rise')]);
+    expect(warnings.some(w => w.includes('ambient-motif drift'))).toBe(true);
+  });
+
+  it('does NOT fire when entries use different motifs', () => {
+    const warnings = computeDriftWarnings([motifEntry('a', 'strips'), motifEntry('b', 'motes')]);
+    expect(warnings.some(w => w.includes('ambient-motif drift'))).toBe(false);
+  });
+
+  it('names the shared motif key and entry slugs in the warning', () => {
+    const warnings = computeDriftWarnings([motifEntry('alpha', 'grid-pulse'), motifEntry('beta', 'grid-pulse')]);
+    const warning = warnings.find(w => w.includes('ambient-motif drift'));
+    expect(warning).toBeDefined();
+    expect(warning).toContain('"grid-pulse"');
+    expect(warning).toContain('alpha');
+    expect(warning).toContain('beta');
+  });
+
+  it('is advisory-only — does not appear as a hard gate in computeDistinctMetrics', () => {
+    // Use REGISTRY_TWO (relay + granipa, both defaulting to "strips") — drift fires.
+    const verdict = computeDistinctMetrics({ registryText: REGISTRY_TWO, candidateSlug: 'relay' });
+    const motifGates = verdict.gates.filter(g => g.name.includes('ambient-motif'));
+    expect(motifGates.every(g => g.advisory === true && g.hard === false)).toBe(true);
+    expect(verdict.hardGatesPass).toBe(true);
   });
 });
