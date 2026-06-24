@@ -11,11 +11,13 @@ metrics.txt    — human-readable table (tee'd output)
 
 The script prints `PREFLIGHT: PASS|BLOCKED` and exits non-zero on HARD fail.
 
-Use `node scripts/new-video.mjs <slug> <CompId>` to scaffold a new video
-directory that is **hook-gate-green by construction** — correctly registered,
-all required files present, valid 7-char hex starter palette, AmbientField
-living-background layer, and a Hook scene with `promise.text` (satisfies P1,
-P2, and hook HARD/advisory gates from frame 0).
+Use `node scripts/new-video.mjs <slug> <CompId> [--hook=<key>]` to scaffold a
+new video directory that is **hook-gate-green by construction** — correctly
+registered, all required files present, valid 7-char hex starter palette,
+AmbientField living-background layer, and a Hook scene with `promise.text`
+(satisfies P1, P2, and hook HARD/advisory gates from frame 0). Pass
+`--hook=<key>` (one of the 8 archetype kebab slugs from `hooks.md`) to emit a
+gate-PASS archetype Hook.tsx from the catalog instead of the generic scaffold.
 
 ## How it works
 
