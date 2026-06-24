@@ -376,7 +376,7 @@ export function computeHookMetrics({ frame0, early, mid, final: finalFrame }) {
   return { gates, summary, hardGatesPass, focal };
 }
 
-function printHumanReadable({ gates }) {
+function printHumanReadable({ gates, focal }) {
   console.log('\n── Hook pixel metrics ─────────────────────────────────────');
   for (const gate of gates) {
     const adv    = gate.advisory ? ' (advisory)' : '';
@@ -409,7 +409,12 @@ function printHumanReadable({ gates }) {
       }
     }
   }
-  console.log('───────────────────────────────────────────────────────────\n');
+  console.log('───────────────────────────────────────────────────────────');
+  if (focal !== null && focal !== undefined) {
+    const band = focal >= 0.50 ? 'focal' : focal >= 0.20 ? 'mixed' : 'diffuse';
+    console.log(`NOTE  Focal clarity: ${focal.toFixed(2)} (${band}) — advisory director-judgment input for CONTESTED verdicts; see thumbnail.md`);
+  }
+  console.log('');
 }
 
 // CLI — only runs when this file is the entry point, not when imported.

@@ -385,6 +385,42 @@ describe('rankHookVariants — boundary: margin = DECISIVE_MARGIN → decisive (
   });
 });
 
+// ── focal field is not a ranking key ─────────────────────────────────────────
+//
+// The advisory focal score is director-judgment input for CONTESTED verdicts but
+// is deliberately excluded from rankHookVariants' deterministic sort key.
+// Proof: two variants with identical gates but opposite focal values must rank
+// by label tie-break only — the one with the LOWER focal but alphabetically
+// EARLIER label must win, showing focal plays no role in sort order.
+// ---------------------------------------------------------------------------
+
+describe('rankHookVariants — focal field excluded from ranking key', () => {
+  // Two variants with identical gates (same hardPassCount, same compositeScore).
+  // 'focal-test-a' has LOW focal (0.10); 'focal-test-z' has HIGH focal (0.90).
+  // If focal were a sort key, focal-test-z would rank first.
+  // Without focal in the key, focal-test-a ranks first (label tie-break: a < z).
+  const withLowFocalEarlyLabel  = { ...tieA, label: 'focal-test-a', focal: 0.10 };
+  const withHighFocalLateLabel  = { ...tieB, label: 'focal-test-z', focal: 0.90 };
+
+  it('label tie-break wins over focal — early label ranks first despite lower focal', () => {
+    const { ranking } = rankHookVariants([withHighFocalLateLabel, withLowFocalEarlyLabel]);
+    expect(ranking[0].label).toBe('focal-test-a');
+    expect(ranking[1].label).toBe('focal-test-z');
+  });
+
+  it('compositeScore is identical for both — focal does not enter the composite', () => {
+    const r1 = rankHookVariants([withLowFocalEarlyLabel]).ranking[0].compositeScore;
+    const r2 = rankHookVariants([withHighFocalLateLabel]).ranking[0].compositeScore;
+    expect(r1).toBe(r2);
+  });
+
+  it('reversing input order gives the same ranking — sort is deterministic without focal', () => {
+    const r1 = rankHookVariants([withLowFocalEarlyLabel, withHighFocalLateLabel]).ranking.map(r => r.label);
+    const r2 = rankHookVariants([withHighFocalLateLabel, withLowFocalEarlyLabel]).ranking.map(r => r.label);
+    expect(r1).toEqual(r2);
+  });
+});
+
 // ── Golden calibration — real hook-metrics JSON yields sensible ranking ───────
 //
 // Reads the committed AmbientCheck hook-metrics artifact and verifies the ranking
