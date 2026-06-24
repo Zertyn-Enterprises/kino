@@ -1154,3 +1154,123 @@ describe('new-video.mjs --ambient=motes — motif wired into Main.tsx', () => {
     }
   });
 });
+
+// ── --ambient=grid-pulse scaffold ─────────────────────────────────────────────
+
+describe('new-video.mjs --ambient=grid-pulse — motif wired into Main.tsx', () => {
+  const GP_SLUG = 'testambientgp01';
+  const GP_COMP = 'TestAmbientGp01';
+  const gpDir   = join(PROJECT_ROOT, 'src', 'videos', GP_SLUG);
+  const gpPub   = join(PROJECT_ROOT, 'public', GP_SLUG);
+  let rootSnapGp;
+
+  beforeAll(() => {
+    rootSnapGp = readFileSync(rootTsx, 'utf8');
+    if (existsSync(gpDir)) rmSync(gpDir, { recursive: true });
+    if (existsSync(gpPub)) rmSync(gpPub, { recursive: true });
+    execSync(
+      `node scripts/new-video.mjs ${GP_SLUG} ${GP_COMP} --ambient=grid-pulse`,
+      { cwd: PROJECT_ROOT, stdio: 'pipe' },
+    );
+  });
+
+  afterAll(() => {
+    if (existsSync(gpDir)) rmSync(gpDir, { recursive: true });
+    if (existsSync(gpPub)) rmSync(gpPub, { recursive: true });
+    writeFileSync(rootTsx, rootSnapGp);
+  });
+
+  it('Main.tsx imports GridPulse from lib/fx (not AmbientField)', () => {
+    const src = readFileSync(join(gpDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/import\s*\{\s*GridPulse\s*\}\s*from\s*["'].*lib\/fx["']/);
+    expect(src).not.toMatch(/import\s*\{[^}]*AmbientField[^}]*\}\s*from\s*["'].*lib\/fx["']/);
+  });
+
+  it('Main.tsx composes <GridPulse', () => {
+    const src = readFileSync(join(gpDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/<GridPulse/);
+  });
+
+  it('--hook + --ambient=grid-pulse applies alias import in Hook.tsx', () => {
+    const HOOKGP_SLUG = 'testhookgp01';
+    const HOOKGP_COMP = 'TestHookGp01';
+    const hookGpDir   = join(PROJECT_ROOT, 'src', 'videos', HOOKGP_SLUG);
+    const hookGpPub   = join(PROJECT_ROOT, 'public', HOOKGP_SLUG);
+    const rootSnap    = readFileSync(rootTsx, 'utf8');
+    if (existsSync(hookGpDir)) rmSync(hookGpDir, { recursive: true });
+    if (existsSync(hookGpPub)) rmSync(hookGpPub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${HOOKGP_SLUG} ${HOOKGP_COMP} --hook=bold-claim --ambient=grid-pulse`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const hookSrc = readFileSync(join(hookGpDir, 'scenes', 'Hook.tsx'), 'utf8');
+      expect(hookSrc).toMatch(/GridPulse\s+as\s+AmbientField/);
+      expect(hookSrc).toMatch(/AmbientField/);
+    } finally {
+      if (existsSync(hookGpDir)) rmSync(hookGpDir, { recursive: true });
+      if (existsSync(hookGpPub)) rmSync(hookGpPub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+});
+
+// ── --ambient=ember-rise scaffold ─────────────────────────────────────────────
+
+describe('new-video.mjs --ambient=ember-rise — motif wired into Main.tsx', () => {
+  const ER_SLUG = 'testambientember01';
+  const ER_COMP = 'TestAmbientEmber01';
+  const erDir   = join(PROJECT_ROOT, 'src', 'videos', ER_SLUG);
+  const erPub   = join(PROJECT_ROOT, 'public', ER_SLUG);
+  let rootSnapEr;
+
+  beforeAll(() => {
+    rootSnapEr = readFileSync(rootTsx, 'utf8');
+    if (existsSync(erDir)) rmSync(erDir, { recursive: true });
+    if (existsSync(erPub)) rmSync(erPub, { recursive: true });
+    execSync(
+      `node scripts/new-video.mjs ${ER_SLUG} ${ER_COMP} --ambient=ember-rise`,
+      { cwd: PROJECT_ROOT, stdio: 'pipe' },
+    );
+  });
+
+  afterAll(() => {
+    if (existsSync(erDir)) rmSync(erDir, { recursive: true });
+    if (existsSync(erPub)) rmSync(erPub, { recursive: true });
+    writeFileSync(rootTsx, rootSnapEr);
+  });
+
+  it('Main.tsx imports EmberRise from lib/fx (not AmbientField)', () => {
+    const src = readFileSync(join(erDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/import\s*\{\s*EmberRise\s*\}\s*from\s*["'].*lib\/fx["']/);
+    expect(src).not.toMatch(/import\s*\{[^}]*AmbientField[^}]*\}\s*from\s*["'].*lib\/fx["']/);
+  });
+
+  it('Main.tsx composes <EmberRise', () => {
+    const src = readFileSync(join(erDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/<EmberRise/);
+  });
+
+  it('--hook + --ambient=ember-rise applies alias import in Hook.tsx', () => {
+    const HOOKER_SLUG = 'testhooker01';
+    const HOOKER_COMP = 'TestHookEr01';
+    const hookErDir   = join(PROJECT_ROOT, 'src', 'videos', HOOKER_SLUG);
+    const hookErPub   = join(PROJECT_ROOT, 'public', HOOKER_SLUG);
+    const rootSnap    = readFileSync(rootTsx, 'utf8');
+    if (existsSync(hookErDir)) rmSync(hookErDir, { recursive: true });
+    if (existsSync(hookErPub)) rmSync(hookErPub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${HOOKER_SLUG} ${HOOKER_COMP} --hook=bold-claim --ambient=ember-rise`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const hookSrc = readFileSync(join(hookErDir, 'scenes', 'Hook.tsx'), 'utf8');
+      expect(hookSrc).toMatch(/EmberRise\s+as\s+AmbientField/);
+      expect(hookSrc).toMatch(/AmbientField/);
+    } finally {
+      if (existsSync(hookErDir)) rmSync(hookErDir, { recursive: true });
+      if (existsSync(hookErPub)) rmSync(hookErPub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+});
