@@ -32,6 +32,7 @@ scripts/preflight.sh <CompId> <slug>                                         # s
 node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>]     # scaffold new video skeleton (hook-gate-green by construction: P1/P2 + AmbientField + valid palette + Hook scene; --hook instantiates a gate-PASS archetype Hook.tsx from the 8-archetype catalog; --body instantiates retention-gate-green Body/Climax|Cta scenes from the 9-pattern catalog)
 npm run dogfood:check:rf                                                     # render-free dogfood — CI-enforced on every PR (code-craft/remotion-correct/distinct/preflight source gates only, no Chromium)
 npm run dogfood:check                                                        # full-render dogfood — run locally before merging gate-spine or src/lib changes (all 10 ship gates; too heavy for CI)
+npm run dogfood:scaffold                                                     # render-smoke a fresh --hook/--body scaffold — run locally before merging scaffold or src/lib changes; pixel-verifies gate-green-by-construction claim
 node scripts/gen-music.mjs <slug> "<brief>" --n=1 --seconds=34    # ElevenLabs music bed
 node scripts/analyze-music.mjs <slug> [--file=...]  # bpm/downbeat/energy → .analysis.json
 ```

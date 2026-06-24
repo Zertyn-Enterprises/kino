@@ -333,3 +333,9 @@ editing `timeline.ts`, not scenes.
   intentionally NOT wired into `.github/workflows/checks.yml` (full renders are too
   heavy/flaky for PR CI). See `scripts/CALIBRATION.md` for the full divergent-shape
   coverage map and pre-merge checklist.
+- If you modified the scaffold (`scripts/new-video.mjs`, `scripts/hook-archetypes.mjs`,
+  `scripts/retention-patterns.mjs`) or anything in `src/lib/`, also run
+  `npm run dogfood:scaffold` — this render-smokes a fresh `--hook/--body` scaffold
+  through all pixel-level HARD gates (hook 4+5, retention dead-air, motion M1,
+  legibility L1) plus the render-free source gates, confirming the gate-green-by-
+  construction claim holds in pixels. Local only; not wired into CI.
