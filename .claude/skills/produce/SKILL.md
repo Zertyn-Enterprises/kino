@@ -305,6 +305,10 @@ Commit after each scene passes (small commits = resumable production).
   code-craft + musicsync + payoff + remotion-correct + distinct); inspect
   `out/review/<Comp>/ship/report.json` for the machine verdict. See `ship.md`.
 - Render stills of frame 0 (thumbnail test) and the final frame (CTA hold).
+  Apply the `thumbnail.md` stop-the-scroll checklist to `frame0.png` at feed
+  scale: one focal subject wins, text ≤ 3 words at ≥ 72px weight ≥ 600, single
+  accent, silhouette test passes. Gate-2/gate-5 machine verdicts are the floor;
+  the checklist is the craft ceiling.
 - Fix at the timeline level if pacing is off (that's why it's one file).
 
 ### 6 — Rough cut with music (CHECKPOINT 2)
