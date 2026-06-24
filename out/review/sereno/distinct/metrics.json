@@ -2,28 +2,14 @@
   "hardGatesPass": true,
   "skip": false,
   "n": 3,
-  "candidateSlug": "relay",
+  "candidateSlug": "sereno",
   "priorSlugs": [
-    "granipa",
-    "sereno"
+    "relay",
+    "granipa"
   ],
   "perPrior": [
     {
-      "priorSlug": "granipa",
-      "differingAxes": [
-        "palette-accent",
-        "type",
-        "arc",
-        "rhythm+moves",
-        "transitions",
-        "music-bpm"
-      ],
-      "differingCount": 6,
-      "hardPass": true,
-      "collidingAxes": []
-    },
-    {
-      "priorSlug": "sereno",
+      "priorSlug": "relay",
       "differingAxes": [
         "palette-bg",
         "palette-accent",
@@ -36,13 +22,29 @@
       "differingCount": 7,
       "hardPass": true,
       "collidingAxes": []
+    },
+    {
+      "priorSlug": "granipa",
+      "differingAxes": [
+        "palette-bg",
+        "palette-accent",
+        "luminance",
+        "type",
+        "arc",
+        "rhythm+moves",
+        "texture",
+        "transitions"
+      ],
+      "differingCount": 8,
+      "hardPass": true,
+      "collidingAxes": []
     }
   ],
   "nonDerivableCoverage": {
     "arc": "ran",
     "rhythm+moves": "ran",
     "transitions": "ran",
-    "music-bpm": "ran"
+    "music-bpm": "coverage-gap"
   },
   "gates": [
     {

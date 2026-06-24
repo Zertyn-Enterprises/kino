@@ -56,6 +56,15 @@ const VIDEOS = [
     ],
     audioNotBundled: true,
   },
+  {
+    compId: 'SerenoLaunch',
+    slug: 'sereno',
+    paletteFlags: [
+      '--bg=#F7F5F0', '--surface=#EDEAE2', '--text=#1C1917',
+      '--textDim=#625E5B', '--accent=#3F6D50',
+    ],
+    audioNotBundled: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------

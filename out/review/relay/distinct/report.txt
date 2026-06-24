@@ -1,11 +1,13 @@
 
 ── Distinctiveness metrics ─────────────────────────────────────
-  Candidate: relay  |  Priors: granipa
+  Candidate: relay  |  Priors: granipa, sereno
 
   Registry-axis-drift: PASS
 
   vs granipa: PASS (6/9 axes differ)
     differ:  palette-accent, type, arc, rhythm+moves, transitions, music-bpm
+  vs sereno: PASS (7/9 axes differ)
+    differ:  palette-bg, palette-accent, luminance, type, arc, rhythm+moves, texture
 
   Convergence drift (advisory):
     ⚠  bg-luminance drift (2 entries: relay=dark, granipa=dark)

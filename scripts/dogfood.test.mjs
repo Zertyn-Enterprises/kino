@@ -362,8 +362,10 @@ describe('diff — blockers change detected', () => {
 // This wires the divergent-shape calibration coverage into the dogfood spine
 // guard: any gate-spine edit that accidentally false-blocks a legitimate
 // divergent shape will flip a PASS to FAIL here and fail `npm test`.
-// Calibration basis: scripts/CALIBRATION.md — zero mis-fires across all 9
-// metric modules on light-luminance, music-less, alternate-arc, restrained-motion axes.
+// Calibration basis: SerenoLaunch (sereno) — real composition, full ship-gate
+// executed against rendered frames (plan-9upjnl task 2). All 10 HARD gates PASS:
+// light-luminance (#F7F5F0), music-less (musicsync SKIP-NA), arc-C (no climax),
+// Playfair Display display type, no grain, restrained motion. Zero mis-fires.
 // ---------------------------------------------------------------------------
 
 describe('normalize — divergent-shape synthetic video (light-palette, music-less, alternate arc)', () => {

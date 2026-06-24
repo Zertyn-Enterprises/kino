@@ -23,6 +23,9 @@ import { Hook08MultiLayerLiveDemo } from "./smoke/hooks/Hook08MultiLayerLiveDemo
 import { SmokeClip } from "./smoke/SmokeClip";
 import { SmokeTest } from "./smoke/SmokeTest";
 
+import { SerenoLaunch } from "./videos/sereno/Main";
+import { serenoTimeline } from "./videos/sereno/timeline";
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
@@ -152,6 +155,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="SerenoLaunch"
+        component={SerenoLaunch}
+        durationInFrames={serenoTimeline.totalDurationInFrames}
+        fps={serenoTimeline.fps}
+        width={1920}
+        height={1080}
+        defaultProps={{ debug: false }}
       />
     </>
   );

@@ -83,9 +83,9 @@
         "textDim-on-surface": 6.45
       },
       "motion": {
-        "Easing presence.meanDelta": 0.717,
+        "Easing presence.meanDelta": 0.718,
         "Easing presence.peakDelta": 12.685,
-        "Easing presence.ratio": 17.681,
+        "Easing presence.ratio": 17.679,
         "Stutter/jank.cutsDetected": 7,
         "Stutter/jank.windows": 8,
         "Sustained life.minWindowMean": 0.0627,
@@ -106,7 +106,7 @@
         "Closing stability.maxTailDelta": 0.0757,
         "Closing stability.tailPairsChecked": 2,
         "Final-frame legibility.contrast": 19.85,
-        "Final-frame legibility.edgeDensity": 1.0416,
+        "Final-frame legibility.edgeDensity": 1.0402,
         "Payoff presence & dwell.holdRuns": 1,
         "Payoff presence & dwell.longestRunStart": 0,
         "Payoff presence & dwell.maxDwellFrames": 90
@@ -221,6 +221,118 @@
         "Closing stability.tailPairsChecked": 2,
         "Final-frame legibility.contrast": 20.96,
         "Final-frame legibility.edgeDensity": 1.6644,
+        "Payoff presence & dwell.holdRuns": 1,
+        "Payoff presence & dwell.longestRunStart": 0,
+        "Payoff presence & dwell.maxDwellFrames": 90
+      }
+    }
+  },
+  "SerenoLaunch": {
+    "shipReady": true,
+    "gates": {
+      "hook": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "retention": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "contrast": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "motion": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "legibility": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "codeCraft": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "musicsync": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "payoff": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "remotionCorrect": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      },
+      "distinct": {
+        "hardVerdict": "PASS",
+        "coverage": "ran"
+      }
+    },
+    "blockers": [],
+    "metrics": {
+      "hook": {
+        "Background activity.active": 3,
+        "Background activity.total": 16,
+        "Frame-0 contrast": 9.051677771619502,
+        "Frame-0 liveness.cells": 7,
+        "Frame-0 liveness.rows": 4,
+        "Frame-0 liveness.total": 16,
+        "Loop seam": 5.64999285036399,
+        "Motion by frame 10": 0.3410185993453603
+      },
+      "retention": {
+        "Dead-air.endFrame": 0,
+        "Dead-air.longestStaticSec": 0,
+        "Dead-air.startFrame": 0,
+        "Ending hold / no-limp-tail.endingMaxEnergy": 0.439,
+        "Ending hold / no-limp-tail.endingMeanEnergy": 0.401,
+        "Ending hold / no-limp-tail.windowPairs": 9,
+        "Ending hold / no-limp-tail.windowStartFrame": 490,
+        "Energy build-to-climax.boundaryFrame": 178,
+        "Energy build-to-climax.peakEnergy": 4.112,
+        "Energy build-to-climax.peakFrame": 270,
+        "Energy build-to-climax.rawPeakFrame": 415,
+        "Energy build-to-climax.resolveRatio": 0.429,
+        "Full-video loop seam.finalFrameIdx": 535,
+        "Full-video loop seam.frame0Idx": 0,
+        "Full-video loop seam.loopSeamDelta": 5.691,
+        "Re-hook cadence.longestFlatSec": 4,
+        "Re-hook cadence.longestFlatStartFrame": 0
+      },
+      "contrast": {
+        "accent-on-bg": 5.48,
+        "text-on-bg": 16.05,
+        "text-on-surface": 14.55,
+        "textDim-on-bg": 5.89,
+        "textDim-on-surface": 5.34
+      },
+      "motion": {
+        "Easing presence.meanDelta": 1.006,
+        "Easing presence.peakDelta": 14.395,
+        "Easing presence.ratio": 14.305,
+        "Stutter/jank.cutsDetected": 0,
+        "Stutter/jank.windows": 1,
+        "Sustained life.minWindowMean": 0.1062,
+        "Sustained life.minWindowStartPair": 17
+      },
+      "legibility": {
+        "Detail stability.intervals": 5,
+        "Detail stability.meanCv": 0.02,
+        "Reading-budget share.share": 0.408,
+        "Reading-budget share.totalFrames": 537,
+        "Reading-budget share.totalHeldFrames": 219,
+        "Text-flash floor.flashViolations": 0,
+        "Text-flash floor.l1EligibleIntervals": 3,
+        "Text-flash floor.textHoldIntervals": 5
+      },
+      "payoff": {
+        "Closing stability.maxTailDelta": 0.2621,
+        "Closing stability.tailPairsChecked": 2,
+        "Final-frame legibility.contrast": 19.39,
+        "Final-frame legibility.edgeDensity": 1.6543,
         "Payoff presence & dwell.holdRuns": 1,
         "Payoff presence & dwell.longestRunStart": 0,
         "Payoff presence & dwell.maxDwellFrames": 90
