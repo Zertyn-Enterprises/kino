@@ -175,18 +175,38 @@ const width = Math.max(13, ...ranking.map(v => v.label.length));
 const verdictLine = margin != null
   ? `Verdict: ${verdict} (margin ${margin.toFixed(4)})`
   : `Verdict: ${verdict}`;
+
+function focalLabel(f) {
+  if (f === null || f === undefined) return 'N/A';
+  const band = f >= 0.50 ? 'focal' : f >= 0.20 ? 'mixed' : 'diffuse';
+  return `${f.toFixed(2)} (${band})`;
+}
+const focalColWidth = Math.max(5, ...ranking.map(v => focalLabel(v.focal).length));
+
 const lines = [
   `Hook Tournament — ${comp}  (${ranking.length} variants)`,
   `Winner: ${winner.label}  (hard=${winner.hardPassCount}/3  composite=${winner.compositeScore.toFixed(4)})`,
   verdictLine,
   '',
-  `${'Rank'.padEnd(4)}  ${'Label'.padEnd(width)}  Hard  Composite`,
-  `${'────'.padEnd(4)}  ${'─'.repeat(width)}  ────  ─────────`,
+  `${'Rank'.padEnd(4)}  ${'Label'.padEnd(width)}  Hard  Composite  Focal`,
+  `${'────'.padEnd(4)}  ${'─'.repeat(width)}  ────  ─────────  ${'─'.repeat(focalColWidth)}`,
   ...ranking.map((v, idx) =>
-    `${String(idx + 1).padEnd(4)}  ${v.label.padEnd(width)}  ${String(v.hardPassCount).padStart(4)}  ${v.compositeScore.toFixed(4).padStart(9)}`
+    `${String(idx + 1).padEnd(4)}  ${v.label.padEnd(width)}  ${String(v.hardPassCount).padStart(4)}  ${v.compositeScore.toFixed(4).padStart(9)}  ${focalLabel(v.focal)}`
   ),
   '',
 ];
+
+if (verdict === 'contested') {
+  lines.push(
+    'NOTE  CONTESTED verdict — director decides on human substance gates:',
+    '      promise-by-2.5s, hook-pattern-committed, frame-0 thumbnail.',
+    '      Focal clarity scores above are advisory director-judgment input:',
+    '      higher score = stronger scroll-stopper candidate (dominant focal',
+    '      region vs uniform busyness). See thumbnail.md for poster-craft spec.',
+    '',
+  );
+}
+
 const summary = lines.join('\n');
 writeFileSync(`${tournamentOut}/summary.txt`, summary);
 process.stdout.write(summary);

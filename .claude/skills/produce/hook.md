@@ -39,6 +39,8 @@ the code's intent cannot excuse the pixels' reality.
 | Open loop closed | The question the hook poses is answered by the reveal — not forgotten (satisfied = delight; dangling = clickbait) |
 | Loop seam | `final.png` visually rhymes with `frame0.png` — compatible color field, similar energy level, or deliberate visual echo; autoplay restart is not jarring |
 
+**Advisory focal-clarity signal (NOT a gate — director judgment only):** `scripts/hook-metrics.mjs` computes an advisory `focal` score (0–1) from the same frame-0 4×4 luminance grid used by gates 2 and 5: `1 − (mean cell stddev / max cell stddev)`. A score ≥ 0.50 indicates a dominant focal region (scroll-stopper candidate); 0.20–0.49 is mixed; < 0.20 is diffuse (uniform busyness — convergence risk). This score appears in `metrics.txt` as a NOTE line and in hook-tournament `summary.txt` as an advisory column, explicitly labelled for director judgment on **CONTESTED** tournament verdicts. It does not affect the deterministic ranking key, exit code, or any PASS/FAIL gate. See `thumbnail.md` for the poster-craft spec this signal supports.
+
 ## 2. Captured metrics
 
 `scripts/hook.sh` writes `metrics.json` and `metrics.txt` to `out/review/<CompId>/hook/` on every run — these are the source of truth for measured gate values. No manual transcription needed or expected.

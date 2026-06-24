@@ -18,6 +18,10 @@ Machine-asserted gates (🤖) from `hook.md §1`:
 | 6 | Promise by 2.5s 🤖 | `promise.text` non-empty AND `promise.frame` ≤ round(2.5 × fps); fps derived from timeline.ts | **HARD** |
 | 7 | Text density 🤖 | `promise.wordCount` ≤ 6 | **HARD** |
 
+**Gates 2 + 5 are the machine floor for the thumbnail.** Passing them means contrast and liveness exist somewhere in the frame. The craft ceiling — one dominant focal subject, text legible at feed scale, mid-action signal, silhouette clarity — is specified in `thumbnail.md`. Read it alongside these gates when reviewing `frame0.png`; a frame can pass both machine gates and still fail as a scroll-stopper if contrast energy is spread uniformly rather than concentrated on a subject.
+
+**Advisory focal-clarity signal:** `hook.sh` prints an advisory `focal` score (0–1) in `metrics.txt` as a NOTE line. Score ≥ 0.50 = focal (dominant region); 0.20–0.49 = mixed; < 0.20 = diffuse (uniform busyness — convergence risk). In hook-tournament `summary.txt` the score appears per-variant with a NOTE block on CONTESTED verdicts, labelled as director-judgment input. It is not a gate and does not affect ranking or exit code. See `hook.md §1` and `thumbnail.md`.
+
 **Open-loop closure rule:** Gate 6 opens a curiosity gap — that gap MUST close. Declare `payoff: { text }` on the climax/CTA beat in `timeline.ts`; `scripts/payoff.sh` closure gate C1/C2 machine-asserts closure at ship time and HARD-fails when a declared promise has no matching payoff.
 
 **Ambient-field motif palette (all satisfy gates 4 + 5):**

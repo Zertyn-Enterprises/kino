@@ -17,6 +17,15 @@
 //                                Path B (concentrated focal): ≥LIVENESS_MIN_CELLS content cells AND
 //                                at least one cell stddev > FOCAL_STRENGTH_THRESHOLD.
 //
+// Advisory focal-clarity field (--json output, no gate, no exit-code effect):
+//   focal — 0–1 score from the frame-0 4×4 luminance grid: 1 − (mean cell stddev / max cell stddev).
+//   0 = uniform energy across all cells (diffuse/busy); approaching 1 = single dominant cell (poster-like).
+//   Interpretation band (advisory — director judgment only, not a pass/fail gate):
+//     focal   (≥ 0.50): one region clearly dominates — strong scroll-stopper potential
+//     mixed   (0.20–0.49): some focal structure, energy spreads across cells
+//     diffuse (< 0.20): uniform busyness — no focal hero, convergence risk (see thumbnail.md)
+//   null when frame0 is unavailable.
+//
 // Exit code: 0 when all HARD gates pass or are skipped; non-zero only on HARD gate FAIL.
 // Advisory gate failures (4, 5) never affect the exit code.
 //
@@ -215,6 +224,21 @@ export function hasSeparatedPair(cells) {
   return false;
 }
 
+// Advisory focal-clarity score: 1 − (mean cell stddev0 / max cell stddev0).
+// Measures how much one cell dominates relative to the average.
+// Returns 0 for uniform grids (max = mean) or flat frames (max = 0).
+export function computeFocalScore(cells) {
+  const n = cells.length;
+  if (n === 0) return 0;
+  let sum = 0, max = 0;
+  for (const c of cells) {
+    sum += c.stddev0;
+    if (c.stddev0 > max) max = c.stddev0;
+  }
+  if (max === 0) return 0;
+  return 1 - sum / n / max;
+}
+
 export function loadFrame(path) {
   if (!existsSync(path)) return null;
   try {
@@ -227,10 +251,11 @@ export function loadFrame(path) {
 /**
  * Pure computation: evaluate all five hook gates for the given decoded frames.
  * @param {{ frame0, early, mid, final }} frames — decoded PNG images (from loadFrame), or null
- * @returns {{ gates: Array, summary: Object, hardGatesPass: boolean }}
+ * @returns {{ gates: Array, summary: Object, hardGatesPass: boolean, focal: number|null }}
  *
  * Each gate entry: { id, name, hard, advisory, pass, skip, measured, threshold, skipReason? }
  * hardGatesPass is true when all hard gates (1–3) pass or are skipped (missing frame = not a FAIL).
+ * focal is the advisory focal-clarity score (0–1); null when frame0 is unavailable.
  */
 export function computeHookMetrics({ frame0, early, mid, final: finalFrame }) {
   const lum0 = frame0     ? toLuminance(frame0)     : null;
@@ -344,10 +369,14 @@ export function computeHookMetrics({ frame0, early, mid, final: finalFrame }) {
     skipped: gates.filter(g =>  g.skip).length,
   };
 
-  return { gates, summary, hardGatesPass };
+  const focal = lum0
+    ? computeFocalScore(computeGrid(lum0, null, frame0.width, frame0.height))
+    : null;
+
+  return { gates, summary, hardGatesPass, focal };
 }
 
-function printHumanReadable({ gates }) {
+function printHumanReadable({ gates, focal }) {
   console.log('\n── Hook pixel metrics ─────────────────────────────────────');
   for (const gate of gates) {
     const adv    = gate.advisory ? ' (advisory)' : '';
@@ -380,7 +409,12 @@ function printHumanReadable({ gates }) {
       }
     }
   }
-  console.log('───────────────────────────────────────────────────────────\n');
+  console.log('───────────────────────────────────────────────────────────');
+  if (focal !== null && focal !== undefined) {
+    const band = focal >= 0.50 ? 'focal' : focal >= 0.20 ? 'mixed' : 'diffuse';
+    console.log(`NOTE  Focal clarity: ${focal.toFixed(2)} (${band}) — advisory director-judgment input for CONTESTED verdicts; see thumbnail.md`);
+  }
+  console.log('');
 }
 
 // CLI — only runs when this file is the entry point, not when imported.
