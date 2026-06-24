@@ -11,19 +11,20 @@ repo (see `README.md`). They are intentional showcases, not stray drafts.
 
 Axes per entry:
 
-| field           | meaning                           |
-| --------------- | --------------------------------- |
-| slug / comp     | folder + composition id           |
-| product         | what was launched                 |
-| arc             | A–E from direction.md §4          |
-| rhythm          | the one-sentence rhythm signature |
-| luminance       | dark / light / tonal              |
-| palette         | bg + accent hexes                 |
-| type            | display family / body family      |
-| signature moves | the 2–3 bespoke motion behaviors  |
-| texture         | clean / filmic (grain %, leaks)   |
-| transitions     | dominant transition vocabulary    |
-| music           | bpm + character                   |
+| field           | meaning                                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| slug / comp     | folder + composition id                                                                                                    |
+| product         | what was launched                                                                                                          |
+| arc             | A–E from direction.md §4                                                                                                   |
+| rhythm          | the one-sentence rhythm signature                                                                                          |
+| luminance       | dark / light / tonal                                                                                                       |
+| palette         | bg + accent hexes                                                                                                          |
+| type            | display family / body family                                                                                               |
+| signature moves | the 2–3 bespoke motion behaviors                                                                                           |
+| texture         | clean / filmic (grain %, leaks)                                                                                            |
+| transitions     | dominant transition vocabulary                                                                                             |
+| music           | bpm + character                                                                                                            |
+| ambient-motif   | (optional) living-background motif: `strips` / `motes` / `grid-pulse` / `ember-rise` — omitting defaults to `strips` in drift checks |
 
 ---
 

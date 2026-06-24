@@ -7,7 +7,7 @@
  *   HOOK_ARCHETYPES      — map: slug → { title, signaturePrimitive,
  *                            ambientRecipe, arcFit, renderHookScene }
  *
- * renderHookScene({ themeVar, timelineVar }) returns a complete Hook.tsx source
+ * renderHookScene({ themeVar, timelineVar, ambientComponentName? }) returns a complete Hook.tsx source
  * string that is hook-gate-green by construction:
  *   • Reads all palette/font taste from useTheme() — zero hardcoded hex tokens
  *   • AmbientField living-background present (gates 4+5 PASS)
@@ -51,8 +51,8 @@ export const HOOK_ARCHETYPES = {
     ambientRecipe: { density: 40, energy: 1, opacity: 0.10 },
     arcFit: ['A', 'B'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace LINES and copy with product-specific content.
 // Archetype 1: Mid-action demo. Ref: src/smoke/hooks/Hook01MidActionDemo.tsx
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
@@ -168,6 +168,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -181,8 +182,8 @@ export function Hook({
     ambientRecipe: { density: 40, energy: 0.8, opacity: 0.05 },
     arcFit: ['C', 'F'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace SUBCLAIM with product-specific copy.
 // Archetype 2: Bold / contrast claim. Ref: src/smoke/hooks/Hook02BoldClaim.tsx
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
@@ -262,6 +263,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -275,8 +277,8 @@ export function Hook({
     ambientRecipe: { density: 30, energy: 0.6, opacity: 0.08 },
     arcFit: ['B', 'F'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace CMD and WAIT_COPY with product-specific copy.
 // Archetype 3: Dramatized pain. Ref: src/videos/relay/scenes/Hook.tsx
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
@@ -416,6 +418,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -429,8 +432,8 @@ export function Hook({
     ambientRecipe: { density: 40, energy: 1.2, opacity: 0.10 },
     arcFit: ['C', 'A'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace the impossible element with your product's visual.
 // Archetype 4: Pattern interrupt. Ref: src/smoke/hooks/Hook04PatternInterrupt.tsx
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
@@ -569,6 +572,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -582,8 +586,8 @@ export function Hook({
     ambientRecipe: { density: 40, energy: 1, opacity: 0.10 },
     arcFit: ['A', 'E'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace FROM/TO/PEAK_FRAME and context label.
 // Archetype 5: Number-counting. Ref: src/smoke/hooks/Hook05NumberCounting.tsx
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
@@ -686,6 +690,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -699,8 +704,8 @@ export function Hook({
     ambientRecipe: { density: 40, energy: 1, opacity: 0.10 },
     arcFit: ['B', 'D'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace LINES with your product's finished-state output.
 // Archetype 6: Payoff flash-forward. Ref: src/smoke/hooks/Hook06PayoffFlashForward.tsx
 // CRITICAL: frame 0 shows the END STATE — the only archetype where f0 is the destination.
@@ -814,6 +819,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -827,8 +833,8 @@ export function Hook({
     ambientRecipe: { density: 30, energy: 0.5, opacity: 0.06 },
     arcFit: ['F', 'C'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace QUESTION and EVIDENCE with product-specific copy.
 // Archetype 7: Open question / indictment. Ref: src/videos/granipa/scenes/Hook.tsx
 // Arc F intentionally withholds positive promise — byFrame gate-6 timing is advisory for arc F.
@@ -967,6 +973,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
@@ -980,8 +987,8 @@ export function Hook({
     ambientRecipe: { density: 50, energy: 1.2, opacity: 0.12 },
     arcFit: ['A', 'E'],
 
-    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar }) {
-      return `\
+    renderHookScene({ themeVar: _themeVar, timelineVar: _timelineVar, ambientComponentName = 'AmbientField' }) {
+      const src = `\
 // re-derive bespoke per Hard Rule 3 — replace all panel content with product-specific output.
 // Archetype 8: Multi-layer live demo. Ref: src/smoke/hooks/Hook08MultiLayerLiveDemo.tsx
 // CRITICAL: each panel MUST have an independent timeline (offset starts). Synchronized
@@ -1214,6 +1221,7 @@ export function Hook({
   );
 }
 `;
+      return ambientComponentName === 'AmbientField' ? src : src.replaceAll('AmbientField', ambientComponentName);
     },
   },
 
