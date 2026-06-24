@@ -20,7 +20,22 @@ Machine-asserted gates (🤖) from `hook.md §1`:
 
 **Open-loop closure rule:** Gate 6 opens a curiosity gap — that gap MUST close. Declare `payoff: { text }` on the climax/CTA beat in `timeline.ts`; `scripts/payoff.sh` closure gate C1/C2 machine-asserts closure at ship time and HARD-fails when a declared promise has no matching payoff.
 
-**Default `AmbientField` recipe (satisfies gates 4 + 5):**
+**Ambient-field motif palette (all satisfy gates 4 + 5):**
+
+Four motifs ship in `src/lib/fx.tsx`. All share the `AmbientMotifProps` surface
+(`color`, `colorDim?`, `density?`, `region?`, `energy?`, `seed?`). Pick via
+`--ambient=<key>` in `new-video.mjs`, or let `--distinct` auto-select to diverge
+from existing registry entries. Record the chosen key as `ambient-motif` in
+`_registry.md`; `distinct.sh` warns when ≥2 entries share a motif.
+
+| key | component | character | minimum recipe |
+|---|---|---|---|
+| `strips` | `AmbientField` | horizontal streaming strips | `density={40} energy={1}` |
+| `motes` | `MoteField` | drifting luminous particles | `density={80} energy={1.5}` |
+| `grid-pulse` | `GridPulse` | pulsing square grid | `density={40} energy={1}` |
+| `ember-rise` | `EmberRise` | upward-floating embers | `density={80} energy={1.5}` |
+
+`strips` example (default; also used via `itemH` tuning):
 
 ```tsx
 <AmbientField
@@ -31,7 +46,20 @@ Machine-asserted gates (🤖) from `hook.md §1`:
 />
 ```
 
-Distributes streaming strips across all 4 grid rows from frame 0. Gates 4 + 5
+Non-strips example (import alias keeps JSX unchanged in template-generated files):
+
+```tsx
+import { MoteField as AmbientField } from "../../../lib/fx";
+// …then in JSX:
+<AmbientField
+  color={theme.accent}
+  colorDim={theme.accentDim}
+  density={80}
+  energy={1.5}
+/>
+```
+
+Distributes activity across all 4 grid rows / full frame from frame 0. Gates 4 + 5
 PASS per `AmbientCheck` fixture (`src/smoke/AmbientCheck.tsx`). All archetypes
 below assume this layer is composed. When omitted, gates 4 + 5 require a named
 justification (see `hook.md §1` advisory protocol).

@@ -620,3 +620,357 @@ export const AmbientField: React.FC<{
     </AbsoluteFill>
   );
 };
+
+/* ── Shared motif prop surface ─────────────────────────────────────────── */
+
+/** Taste-free prop surface shared by all ambient-field motif components. */
+export type AmbientMotifProps = {
+  color: string;
+  colorDim?: string;
+  density?: number;
+  region?: AmbientRegion;
+  energy?: number;
+  seed?: string;
+};
+
+/* ── MoteField ─────────────────────────────────────────────────────────── */
+
+/**
+ * Drifting ambient motes: glowing circular particles distributed across four
+ * horizontal bands and scrolling at deterministic per-mote speeds.
+ *
+ * Gate guidance: density ≥ 40 + energy ≥ 1 produces hook gate-4/5 PASSes
+ * by construction (4-band distribution → frame-0 liveness ≥ 2 rows;
+ * horizontal drift → ≥ 2 separated active cells between frame 0 and mid).
+ */
+export const MoteField: React.FC<AmbientMotifProps> = ({
+  color,
+  colorDim,
+  density = 20,
+  region,
+  energy = 0.5,
+  seed = "mf",
+}) => {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+
+  const lw = region?.w ?? width;
+  const lh = region?.h ?? height;
+
+  // Same 4-band distribution as AmbientField — guarantees ≥ 2 row coverage
+  // at frame 0 (gate 5) when density ≥ 8.
+  const BANDS = 4;
+  const perBand = Math.ceil(density / BANDS);
+  const bandH = lh / BANDS;
+
+  const items = Array.from({ length: density }, (_, i) => {
+    const band = Math.floor((i * BANDS) / density);
+    const withinBand = i - Math.floor((band * density) / BANDS);
+
+    const baseY =
+      band * bandH +
+      ((withinBand + 0.5) / perBand) * bandH +
+      noise2D(`${seed}jy`, i * 6.1, 0) * bandH * 0.08;
+
+    // Horizontal base position and drift speed (mirrors AmbientField)
+    const baseX = Math.abs(noise2D(`${seed}bx`, i * 11.3, 0)) * lw;
+    const spd = 0.6 + Math.abs(noise2D(`${seed}sp`, i * 8.9, 0)) * 2.2;
+    const x = ((baseX + frame * energy * spd) % lw + lw) % lw;
+
+    // Mote diameter 12–44 px — large enough to contribute meaningful luminance
+    // delta per gate cell (480 × 270 px) even at moderate density.
+    const size = 12 + Math.abs(noise2D(`${seed}sz`, i * 4.7, 0)) * 32;
+
+    const op =
+      0.3 + 0.6 * Math.abs(noise2D(`${seed}op`, i * 0.9, frame * 0.01 * energy));
+
+    return (
+      <div
+        key={i}
+        style={{
+          position: "absolute",
+          left: Math.round(x - size / 2),
+          top: Math.round(Math.max(0, Math.min(lh - size, baseY - size / 2))),
+          width: Math.round(size),
+          height: Math.round(size),
+          borderRadius: "50%",
+          background: op > 0.65 ? color : (colorDim ?? color),
+          opacity: op,
+          pointerEvents: "none",
+        }}
+      />
+    );
+  });
+
+  if (region) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: region.x,
+          top: region.y,
+          width: lw,
+          height: lh,
+          overflow: "hidden",
+          pointerEvents: "none",
+        }}
+      >
+        {items}
+      </div>
+    );
+  }
+
+  return (
+    <AbsoluteFill style={{ overflow: "hidden", pointerEvents: "none" }}>
+      {items}
+    </AbsoluteFill>
+  );
+};
+
+/* ── GridPulse ─────────────────────────────────────────────────────────── */
+
+/**
+ * Pulsing grid: a 16 × 9 array of rectangular tiles covering the full frame,
+ * each with noise-driven opacity that changes over time.
+ *
+ * Gate guidance: energy ≥ 1 produces hook gate-4/5 PASSes by construction
+ * (tiles span all 9 rows from frame 0 → gate 5; sin-phase drift creates
+ * ≥ 2 separated high-delta cells between frame 0 and mid → gate 4).
+ * density scales tile opacity amplitude (density ≥ 20 is sufficient).
+ */
+export const GridPulse: React.FC<AmbientMotifProps> = ({
+  color,
+  colorDim,
+  density = 40,
+  region,
+  energy = 0.5,
+  seed = "gp",
+}) => {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+
+  const lw = region?.w ?? width;
+  const lh = region?.h ?? height;
+
+  // Fixed 16 × 9 tile grid — every row of gate cells (4 rows × 270 px) contains
+  // multiple tile rows, guaranteeing frame-0 liveness (gate 5) by construction.
+  const COLS = 16;
+  const ROWS = 9;
+  const tileW = lw / COLS;
+  const tileH = lh / ROWS;
+
+  // Opacity scale: density/40 so that default density=40 → scale=1.
+  const opScale = Math.min(1, density / 40);
+
+  const items: React.ReactNode[] = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      // Spatial noise gives each tile a unique base phase offset.
+      const phase = noise2D(`${seed}ph`, c * 0.7, r * 0.7) * Math.PI * 2;
+      // Sin-driven pulse: over 54 frames at speed 0.08, phase advances 4.32 rad —
+      // a near-half-cycle that guarantees tiles change significantly (gate 4).
+      const pulse = 0.5 + 0.5 * Math.sin(frame * 0.08 * energy + phase);
+      // Spatial variation at frame 0 creates per-cell stddev > 10 (gate 5).
+      const base = 0.1 + 0.7 * Math.abs(noise2D(`${seed}bs`, c * 0.5, r * 0.5));
+      const op = base * pulse * opScale;
+      if (op < 0.05) continue;
+
+      const c_ = base * pulse > 0.5 ? color : (colorDim ?? color);
+      items.push(
+        <div
+          key={`${r}-${c}`}
+          style={{
+            position: "absolute",
+            left: Math.round(c * tileW),
+            top: Math.round(r * tileH),
+            width: Math.round(tileW - 2),
+            height: Math.round(tileH - 2),
+            background: c_,
+            opacity: op,
+            pointerEvents: "none",
+          }}
+        />,
+      );
+    }
+  }
+
+  if (region) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: region.x,
+          top: region.y,
+          width: lw,
+          height: lh,
+          overflow: "hidden",
+          pointerEvents: "none",
+        }}
+      >
+        {items}
+      </div>
+    );
+  }
+
+  return (
+    <AbsoluteFill style={{ overflow: "hidden", pointerEvents: "none" }}>
+      {items}
+    </AbsoluteFill>
+  );
+};
+
+/* ── EmberRise ─────────────────────────────────────────────────────────── */
+
+/**
+ * Rising embers: small bright particles distributed across four horizontal
+ * bands, drifting upward at deterministic per-ember speeds and wrapping.
+ *
+ * Gate guidance: density ≥ 40 + energy ≥ 1 produces hook gate-4/5 PASSes
+ * by construction (4-band distribution → frame-0 liveness ≥ 2 rows;
+ * upward drift → ≥ 2 separated active cells between frame 0 and mid).
+ */
+export const EmberRise: React.FC<AmbientMotifProps> = ({
+  color,
+  colorDim,
+  density = 20,
+  region,
+  energy = 0.5,
+  seed = "er",
+}) => {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+
+  const lw = region?.w ?? width;
+  const lh = region?.h ?? height;
+
+  // Same 4-band distribution as AmbientField — guarantees ≥ 2 row coverage
+  // at frame 0 (gate 5) when density ≥ 8.
+  const BANDS = 4;
+  const perBand = Math.ceil(density / BANDS);
+  const bandH = lh / BANDS;
+
+  const items = Array.from({ length: density }, (_, i) => {
+    const band = Math.floor((i * BANDS) / density);
+    const withinBand = i - Math.floor((band * density) / BANDS);
+
+    const baseY =
+      band * bandH +
+      ((withinBand + 0.5) / perBand) * bandH +
+      noise2D(`${seed}jy`, i * 6.1, 0) * bandH * 0.08;
+
+    const baseX = Math.abs(noise2D(`${seed}bx`, i * 11.3, 0)) * lw;
+    // Horizontal sway via noise (gentle, not wrapping)
+    const sway = noise2D(`${seed}sw`, i * 3.7, frame * 0.006 * energy) * 30;
+    const x = Math.max(0, Math.min(lw - 8, baseX + sway));
+
+    // Rise speed 1–4 px/frame: in 54 frames moves 54–216 px, crossing cell
+    // boundaries reliably for gate 4.
+    const riseSpd = 1 + Math.abs(noise2D(`${seed}rs`, i * 8.9, 0)) * 3;
+    // y decreases (rises), wraps within full height
+    const y = ((baseY - frame * energy * riseSpd) % lh + lh) % lh;
+
+    // Ember size 12–44 px — large enough to register per-cell lum stddev >10
+    // for gate-5 liveness and mean-abs-delta >5 for gate-4 activity.
+    const size = 12 + Math.abs(noise2D(`${seed}sz`, i * 4.7, 0)) * 32;
+
+    const op =
+      0.4 + 0.5 * Math.abs(noise2D(`${seed}op`, i * 1.3, frame * 0.012 * energy));
+
+    return (
+      <div
+        key={i}
+        style={{
+          position: "absolute",
+          left: Math.round(x),
+          top: Math.round(y),
+          width: Math.round(size),
+          height: Math.round(size),
+          borderRadius: "50%",
+          background: op > 0.6 ? color : (colorDim ?? color),
+          opacity: op,
+          pointerEvents: "none",
+        }}
+      />
+    );
+  });
+
+  if (region) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: region.x,
+          top: region.y,
+          width: lw,
+          height: lh,
+          overflow: "hidden",
+          pointerEvents: "none",
+        }}
+      >
+        {items}
+      </div>
+    );
+  }
+
+  return (
+    <AbsoluteFill style={{ overflow: "hidden", pointerEvents: "none" }}>
+      {items}
+    </AbsoluteFill>
+  );
+};
+
+/* ── Ambient motif registry ────────────────────────────────────────────── */
+
+/** Metadata entry for a single ambient-field motif. */
+export type AmbientMotifDef = {
+  /** Human-readable motif name. */
+  title: string;
+  /** One-line description of the rendering primitive. */
+  signaturePrimitive: string;
+  /** Minimum props that produce hook gate-4/5 PASSes by construction. */
+  gateRecipe: { density: number; energy: number };
+  /** The React component implementing this motif. */
+  component: React.FC<AmbientMotifProps>;
+};
+
+/** Ordered list of all stable motif slugs. */
+export const AMBIENT_MOTIF_KEYS = [
+  "strips",
+  "motes",
+  "grid-pulse",
+  "ember-rise",
+] as const;
+
+export type AmbientMotifKey = (typeof AMBIENT_MOTIF_KEYS)[number];
+
+/** Registry of all ambient-field motifs. Mirrors hook-archetypes.mjs shape. */
+export const AMBIENT_MOTIFS: Record<AmbientMotifKey, AmbientMotifDef> = {
+  strips: {
+    title: "Horizontal strips",
+    signaturePrimitive:
+      "Scrolling horizontal strips distributed across 4 vertical bands",
+    gateRecipe: { density: 40, energy: 1 },
+    component: AmbientField as React.FC<AmbientMotifProps>,
+  },
+  motes: {
+    title: "Drifting motes",
+    signaturePrimitive:
+      "Noise-drifted circular motes distributed across 4 vertical bands",
+    gateRecipe: { density: 80, energy: 1.5 },
+    component: MoteField,
+  },
+  "grid-pulse": {
+    title: "Pulsing grid",
+    signaturePrimitive:
+      "Sin-phase pulsing rectangular tiles spanning the full frame (16 × 9)",
+    gateRecipe: { density: 40, energy: 1 },
+    component: GridPulse,
+  },
+  "ember-rise": {
+    title: "Rising embers",
+    signaturePrimitive:
+      "Upward-drifting spark particles distributed across 4 vertical bands",
+    gateRecipe: { density: 80, energy: 1.5 },
+    component: EmberRise,
+  },
+};

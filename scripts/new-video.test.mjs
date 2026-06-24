@@ -24,6 +24,7 @@ import { HOOK_ARCHETYPE_KEYS, HOOK_ARCHETYPES } from './hook-archetypes.mjs';
 import { RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
 import { computeContrastMetrics } from './contrast-metrics.mjs';
 import { computeIdentitySeed } from './identity-seed.mjs';
+import { AMBIENT_MOTIF_KEYS } from './ambient-motif-keys.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -1002,6 +1003,153 @@ describe('new-video.mjs --distinct — anti-convergence seed + render-free gates
     } finally {
       if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
       if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+
+  it('--distinct uses a non-strips ambient motif in Main.tsx', () => {
+    const src = readDistinctGenerated('Main.tsx');
+    // --distinct auto-selects a non-strips motif, so Main.tsx imports MoteField, GridPulse,
+    // or EmberRise directly — never the bare AmbientField symbol from fx.
+    expect(src).not.toMatch(/import\s*\{[^}]*AmbientField[^}]*\}\s*from\s*["'].*lib\/fx["']/);
+    // One of the non-strips components must be imported.
+    const hasNonStrips = ['MoteField', 'GridPulse', 'EmberRise'].some(c =>
+      src.includes(`import { ${c} }`),
+    );
+    expect(hasNonStrips, 'Main.tsx should import one of MoteField, GridPulse, EmberRise').toBe(true);
+  });
+});
+
+// ── --ambient flag validation ──────────────────────────────────────────────────
+
+describe('new-video.mjs — --ambient flag validation', () => {
+  it('unknown --ambient key exits non-zero and lists valid keys', () => {
+    let threw = false;
+    let stderr = '';
+    try {
+      execSync('node scripts/new-video.mjs badslug11 BadComp11 --ambient=bad-unknown-motif', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+      stderr = err.stderr?.toString() ?? '';
+    }
+    expect(threw, 'unknown --ambient key should exit non-zero').toBe(true);
+    expect(stderr).toMatch(/bad-unknown-motif/);
+    for (const key of AMBIENT_MOTIF_KEYS) {
+      expect(stderr, `stderr should list valid key "${key}"`).toContain(key);
+    }
+  });
+
+  it('blank --ambient= value exits non-zero', () => {
+    let threw = false;
+    try {
+      execSync('node scripts/new-video.mjs blankslug11 BlankComp11 --ambient=', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+    }
+    expect(threw, 'blank --ambient= should exit non-zero').toBe(true);
+  });
+
+  it('unknown --ambient key does not create any directories', () => {
+    try {
+      execSync('node scripts/new-video.mjs safeslug11 SafeComp11 --ambient=bad-motif', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch {
+      // expected failure
+    }
+    expect(existsSync(join(PROJECT_ROOT, 'src', 'videos', 'safeslug11'))).toBe(false);
+    expect(existsSync(join(PROJECT_ROOT, 'public', 'safeslug11'))).toBe(false);
+  });
+});
+
+// ── --ambient=motes scaffold ──────────────────────────────────────────────────
+
+describe('new-video.mjs --ambient=motes — motif wired into Main.tsx', () => {
+  const MOTES_SLUG = 'testambientmotes01';
+  const MOTES_COMP = 'TestAmbientMotes01';
+  const motesDir   = join(PROJECT_ROOT, 'src', 'videos', MOTES_SLUG);
+  const motesPub   = join(PROJECT_ROOT, 'public', MOTES_SLUG);
+  let rootSnapMotes;
+
+  beforeAll(() => {
+    rootSnapMotes = readFileSync(rootTsx, 'utf8');
+    if (existsSync(motesDir)) rmSync(motesDir, { recursive: true });
+    if (existsSync(motesPub)) rmSync(motesPub, { recursive: true });
+    execSync(
+      `node scripts/new-video.mjs ${MOTES_SLUG} ${MOTES_COMP} --ambient=motes`,
+      { cwd: PROJECT_ROOT, stdio: 'pipe' },
+    );
+  });
+
+  afterAll(() => {
+    if (existsSync(motesDir)) rmSync(motesDir, { recursive: true });
+    if (existsSync(motesPub)) rmSync(motesPub, { recursive: true });
+    writeFileSync(rootTsx, rootSnapMotes);
+  });
+
+  it('Main.tsx imports MoteField from lib/fx (not AmbientField)', () => {
+    const src = readFileSync(join(motesDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/import\s*\{\s*MoteField\s*\}\s*from\s*["'].*lib\/fx["']/);
+    expect(src).not.toMatch(/import\s*\{[^}]*AmbientField[^}]*\}\s*from\s*["'].*lib\/fx["']/);
+  });
+
+  it('Main.tsx composes <MoteField', () => {
+    const src = readFileSync(join(motesDir, 'Main.tsx'), 'utf8');
+    expect(src).toMatch(/<MoteField/);
+  });
+
+  it('--ambient=strips scaffold keeps AmbientField import identical to no-flag default', () => {
+    const STRIPS_SLUG = 'testambientstrips01';
+    const STRIPS_COMP = 'TestAmbientStrips01';
+    const stripsDir   = join(PROJECT_ROOT, 'src', 'videos', STRIPS_SLUG);
+    const stripsPub   = join(PROJECT_ROOT, 'public', STRIPS_SLUG);
+    const rootSnap    = readFileSync(rootTsx, 'utf8');
+    if (existsSync(stripsDir)) rmSync(stripsDir, { recursive: true });
+    if (existsSync(stripsPub)) rmSync(stripsPub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${STRIPS_SLUG} ${STRIPS_COMP} --ambient=strips`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const src = readFileSync(join(stripsDir, 'Main.tsx'), 'utf8');
+      // strips motif uses the original AmbientField component directly.
+      expect(src).toMatch(/import\s*\{[^}]*AmbientField[^}]*\}\s*from\s*["'].*lib\/fx["']/);
+      expect(src).toMatch(/<AmbientField/);
+    } finally {
+      if (existsSync(stripsDir)) rmSync(stripsDir, { recursive: true });
+      if (existsSync(stripsPub)) rmSync(stripsPub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+
+  it('--hook + --ambient=motes applies alias import in Hook.tsx', () => {
+    const HOOKAMB_SLUG = 'testhookambient01';
+    const HOOKAMB_COMP = 'TestHookAmbient01';
+    const hookAmbDir   = join(PROJECT_ROOT, 'src', 'videos', HOOKAMB_SLUG);
+    const hookAmbPub   = join(PROJECT_ROOT, 'public', HOOKAMB_SLUG);
+    const rootSnap     = readFileSync(rootTsx, 'utf8');
+    if (existsSync(hookAmbDir)) rmSync(hookAmbDir, { recursive: true });
+    if (existsSync(hookAmbPub)) rmSync(hookAmbPub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${HOOKAMB_SLUG} ${HOOKAMB_COMP} --hook=bold-claim --ambient=motes`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const hookSrc = readFileSync(join(hookAmbDir, 'scenes', 'Hook.tsx'), 'utf8');
+      // The alias import replaces bare AmbientField with "MoteField as AmbientField".
+      expect(hookSrc).toMatch(/MoteField\s+as\s+AmbientField/);
+      // JSX references remain <AmbientField (resolved to MoteField at runtime via alias).
+      expect(hookSrc).toMatch(/AmbientField/);
+    } finally {
+      if (existsSync(hookAmbDir)) rmSync(hookAmbDir, { recursive: true });
+      if (existsSync(hookAmbPub)) rmSync(hookAmbPub, { recursive: true });
       writeFileSync(rootTsx, rootSnap);
     }
   });

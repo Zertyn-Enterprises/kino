@@ -2,7 +2,7 @@
 // Scaffold a new video: src/videos/<slug>/ + public/<slug>/MANIFEST.md +
 // src/Root.tsx registration. Refuses if slug or CompId already exists.
 //
-// Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>] [--distinct]
+// Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>] [--distinct] [--ambient=<key>]
 //   slug       video slug: src/videos/<slug>/ (e.g. myproduct)
 //   CompId     Remotion composition ID: PascalCase (e.g. MyProductLaunch)
 //   --hook     optional archetype key from hook-archetypes.mjs; emits a
@@ -13,11 +13,16 @@
 //   --distinct read src/videos/_registry.md and emit an anti-convergence starter
 //              palette + font pairing (distinct-gate-green by construction).
 //              Without this flag, the generic dark/teal starter is emitted.
+//              Also auto-selects a non-strips ambient motif from the registry.
+//   --ambient  optional ambient-field motif key (strips/motes/grid-pulse/ember-rise);
+//              overrides the auto-selected motif when --distinct is used.
+//              Without --distinct, specifying --ambient still wires the chosen motif.
+//              Run with an unknown key to print valid keys.
 //
 // Generates a hook-gate-green scaffold by construction:
 //   P1: Root.tsx Composition registered with 1920×1080, fps 30, timeline binding
 //   P2: all required files present + non-empty scenes/
-//   Hook gates 4+5: AmbientField living-background (PASS from frame 0)
+//   Hook gates 4+5: ambient living-background (PASS from frame 0)
 //   Hook gates 1+2: valid starter palette (all 5 slots are real 7-char hex)
 //                   Hook scene renders promise.text as frame-0 focal element
 
@@ -27,22 +32,25 @@ import { fileURLToPath } from 'node:url';
 import { HOOK_ARCHETYPES, HOOK_ARCHETYPE_KEYS } from './hook-archetypes.mjs';
 import { RETENTION_PATTERNS, RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
 import { computeIdentitySeed } from './identity-seed.mjs';
+import { AMBIENT_MOTIF_KEYS, AMBIENT_MOTIF_COMPONENT_NAMES } from './ambient-motif-keys.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
 
-// Extract --hook=, --body=, and --distinct before the positional arg filter.
+// Extract --hook=, --body=, --distinct, and --ambient= before the positional arg filter.
 const rawArgs = process.argv.slice(2);
 const hookFlagArg = rawArgs.find(a => a.startsWith('--hook='));
 const hookKey = hookFlagArg ? hookFlagArg.slice('--hook='.length) : null;
 const bodyFlagArg = rawArgs.find(a => a.startsWith('--body='));
 const bodyKey = bodyFlagArg ? bodyFlagArg.slice('--body='.length) : null;
 const distinctFlag = rawArgs.includes('--distinct');
+const ambientFlagArg = rawArgs.find(a => a.startsWith('--ambient='));
+const ambientFlagKey = ambientFlagArg ? ambientFlagArg.slice('--ambient='.length) : null;
 
 const [slug, CompId] = rawArgs.filter(a => !a.startsWith('--'));
 
 if (!slug || !CompId) {
-  process.stderr.write('Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>] [--distinct]\n');
+  process.stderr.write('Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>] [--distinct] [--ambient=<key>]\n');
   process.exit(1);
 }
 
@@ -66,6 +74,16 @@ if (bodyKey !== null) {
   }
 }
 
+// Validate --ambient key before doing any filesystem work.
+if (ambientFlagKey !== null) {
+  if (!ambientFlagKey || !AMBIENT_MOTIF_COMPONENT_NAMES[ambientFlagKey]) {
+    process.stderr.write(
+      `ERROR: unknown --ambient key "${ambientFlagKey}"\nValid keys: ${AMBIENT_MOTIF_KEYS.join(', ')}\n`,
+    );
+    process.exit(1);
+  }
+}
+
 // ── Anti-convergence seed (--distinct) ───────────────────────────────────────
 
 let identitySeed = null;
@@ -78,6 +96,11 @@ if (distinctFlag) {
   const registryText = readFileSync(registryPath, 'utf8');
   identitySeed = computeIdentitySeed(registryText);
 }
+
+// ── Ambient motif resolution ──────────────────────────────────────────────────
+// Priority: --ambient flag > --distinct seed > default (strips → AmbientField).
+const ambientKey = ambientFlagKey ?? (identitySeed ? identitySeed.ambientMotifKey : null);
+const ambientComponent = AMBIENT_MOTIF_COMPONENT_NAMES[ambientKey ?? 'strips'];
 
 // ── Existence checks ──────────────────────────────────────────────────────────
 
@@ -106,6 +129,28 @@ const timelineVar = `${camelSlug}Timeline`;
 mkdirSync(videoDir, { recursive: true });
 mkdirSync(join(videoDir, 'scenes'), { recursive: true });
 mkdirSync(join(PROJECT_ROOT, 'public', slug), { recursive: true });
+
+// ── Ambient motif substitution helper ────────────────────────────────────────
+
+/**
+ * Substitute the AmbientField import in a generated scene source string with an
+ * import alias for the chosen motif component. JSX references (<AmbientField …/>)
+ * remain unchanged because the alias makes them resolve to the chosen component.
+ *
+ * Only operates on import statements (lines containing "import … { … AmbientField")
+ * so JSX prop names and other occurrences are left untouched.
+ *
+ * Example:
+ *   'import { AmbientField, Flash } from "../../../lib/fx"'
+ *   → 'import { MoteField as AmbientField, Flash } from "../../../lib/fx"'
+ */
+function substituteAmbientMotif(source, componentName) {
+  if (componentName === 'AmbientField') return source;
+  return source.replace(
+    /(\bimport\b[^;{]*\{[^}]*)\bAmbientField\b/g,
+    (_, pre) => `${pre}${componentName} as AmbientField`,
+  );
+}
 
 // ── Scaffold files ────────────────────────────────────────────────────────────
 
@@ -268,10 +313,28 @@ export const ${timelineVar} = buildTimeline({ fps: 30, bpm: 120 }, [
 );
 
 // Main.tsx: 4 cases — generic, hook-only, body-only, hook+body.
-// generic: AmbientField at top level (gate-1 PASS from frame 0).
-// hook-only: Hook.tsx provides AmbientField per-recipe (archetype scaffold).
-// body-only: AmbientField at top level for opening/cta_hold gaps + scene Sequences.
-// hook+body: AmbientField at top level for gaps + Hook + Body + Climax|Cta Sequences.
+// generic: ambient component at top level (gate-4/5 PASS from frame 0).
+// hook-only: Hook.tsx provides the ambient component per-recipe (archetype scaffold).
+// body-only: ambient component at top level for opening/cta_hold gaps + scene Sequences.
+// hook+body: ambient component at top level for gaps + Hook + Body + Climax|Cta Sequences.
+
+// Ambient component JSX for Main.tsx (direct import; no itemH for non-AmbientField motifs).
+const ambientMainImport = `import { ${ambientComponent} } from "../../lib/fx";`;
+const ambientMainJsx = ambientComponent === 'AmbientField'
+  ? `      <AmbientField
+        color={${themeVar}.palette.accent}
+        colorDim={${themeVar}.palette.textDim}
+        density={80}
+        energy={1.5}
+        itemH={8}
+      />`
+  : `      <${ambientComponent}
+        color={${themeVar}.palette.accent}
+        colorDim={${themeVar}.palette.textDim}
+        density={80}
+        energy={1.5}
+      />`;
+
 let mainTsx;
 if (bodyResult) {
   const bodyScenes = bodyResult.scenes; // [{filename, source}]
@@ -280,9 +343,9 @@ if (bodyResult) {
   const sceneId2   = CompB.toLowerCase();           // 'climax' or 'cta'
 
   if (hookKey) {
-    // hook + body: Hook provides AmbientField; top-level AmbientField covers gaps.
+    // hook + body: Hook provides ambient component; top-level ambient covers gaps.
     mainTsx = `import { AbsoluteFill, Sequence } from "remotion";
-import { AmbientField } from "../../lib/fx";
+${ambientMainImport}
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
 import { ${themeVar} } from "./theme";
@@ -296,13 +359,7 @@ const _sc = ${timelineVar}.scenes;
 export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => (
   <ThemeProvider value={${themeVar}}>
     <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
-      <AmbientField
-        color={${themeVar}.palette.accent}
-        colorDim={${themeVar}.palette.textDim}
-        density={80}
-        energy={1.5}
-        itemH={8}
-      />
+${ambientMainJsx}
       <Sequence from={_sc.hook.from} durationInFrames={_sc.hook.durationInFrames}>
         <Hook
           promise={${timelineVar}.structure?.promise?.text}
@@ -321,9 +378,9 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => (
 );
 `;
   } else {
-    // body-only: AmbientField at top level covers opening/cta_hold gaps.
+    // body-only: ambient component at top level covers opening/cta_hold gaps.
     mainTsx = `import { AbsoluteFill, Sequence } from "remotion";
-import { AmbientField } from "../../lib/fx";
+${ambientMainImport}
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
 import { ${themeVar} } from "./theme";
@@ -336,13 +393,7 @@ const _sc = ${timelineVar}.scenes;
 export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => (
   <ThemeProvider value={${themeVar}}>
     <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
-      <AmbientField
-        color={${themeVar}.palette.accent}
-        colorDim={${themeVar}.palette.textDim}
-        density={80}
-        energy={1.5}
-        itemH={8}
-      />
+${ambientMainJsx}
       <Sequence from={_sc.body.from} durationInFrames={_sc.body.durationInFrames}>
         <Body />
       </Sequence>
@@ -356,7 +407,7 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => (
 `;
   }
 } else if (hookKey) {
-  // hook-only: archetype Hook.tsx provides AmbientField per-recipe.
+  // hook-only: archetype Hook.tsx provides the ambient component per-recipe.
   mainTsx = `import { AbsoluteFill } from "remotion";
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
@@ -379,9 +430,9 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
 };
 `;
 } else {
-  // generic: AmbientField at top level + generic Hook.tsx focal element.
+  // generic: ambient component at top level + generic Hook.tsx focal element.
   mainTsx = `import { AbsoluteFill } from "remotion";
-import { AmbientField } from "../../lib/fx";
+${ambientMainImport}
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
 import { ${themeVar} } from "./theme";
@@ -392,13 +443,7 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
   return (
     <ThemeProvider value={${themeVar}}>
       <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
-        <AmbientField
-          color={${themeVar}.palette.accent}
-          colorDim={${themeVar}.palette.textDim}
-          density={80}
-          energy={1.5}
-          itemH={8}
-        />
+${ambientMainJsx}
         <Hook promise={${timelineVar}.structure?.promise?.text} />
         <DebugGrid enabled={debug} />
       </AbsoluteFill>
@@ -411,10 +456,11 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
 writeFileSync(join(videoDir, 'Main.tsx'), mainTsx);
 
 // Hook.tsx: archetype scene from renderHookScene, or generic focal scaffold.
+// For archetypes: substitute the ambient component if non-default (alias import).
 writeFileSync(
   join(videoDir, 'scenes', 'Hook.tsx'),
   hookKey
-    ? HOOK_ARCHETYPES[hookKey].renderHookScene({ themeVar, timelineVar })
+    ? substituteAmbientMotif(HOOK_ARCHETYPES[hookKey].renderHookScene({ themeVar, timelineVar }), ambientComponent)
     : `import { AbsoluteFill } from "remotion";
 import { useTheme } from "../../../lib/theme";
 
@@ -443,9 +489,13 @@ export function Hook({ promise }: { promise?: string }) {
 );
 
 // Body scenes: write each scene file from renderBodyScenes() when --body is set.
+// Substitute the ambient component if non-default (alias import keeps JSX refs valid).
 if (bodyResult) {
   for (const scene of bodyResult.scenes) {
-    writeFileSync(join(videoDir, 'scenes', scene.filename), scene.source);
+    writeFileSync(
+      join(videoDir, 'scenes', scene.filename),
+      substituteAmbientMotif(scene.source, ambientComponent),
+    );
   }
 }
 
@@ -514,13 +564,17 @@ const bodySceneLines = bodyResult
       .join('\n')
   : null;
 
+const ambientLabel = ambientComponent === 'AmbientField'
+  ? 'AmbientField'
+  : `${ambientComponent} (${ambientKey ?? 'strips'})`;
+
 const mainTsxNote = bodyResult
   ? (hookKey
-      ? `Hook + Body + ${bodyResult.scenes[1].filename.replace('.tsx','')} Sequences; AmbientField at top level`
-      : `Body + ${bodyResult.scenes[1].filename.replace('.tsx','')} Sequences; AmbientField at top level (gate-1 PASS)`)
+      ? `Hook + Body + ${bodyResult.scenes[1].filename.replace('.tsx','')} Sequences; ${ambientLabel} at top level`
+      : `Body + ${bodyResult.scenes[1].filename.replace('.tsx','')} Sequences; ${ambientLabel} at top level (gate-1 PASS)`)
   : (hookKey
-      ? 'archetype Hook scene; AmbientField in Hook.tsx'
-      : 'AmbientField + Hook scene; hook gates 4+5 PASS from frame 0');
+      ? `archetype Hook scene; ${ambientLabel} in Hook.tsx`
+      : `${ambientLabel} + Hook scene; hook gates 4+5 PASS from frame 0`);
 
 // --distinct summary line (printed before the file list).
 const distinctSummary = identitySeed
@@ -538,6 +592,7 @@ const distinctSummary = identitySeed
     accent:  ${identitySeed.accent}
     display: ${identitySeed.displayFamily} (${identitySeed.displayClass}) · body: ${identitySeed.bodyFamily} (${identitySeed.bodyClass})
     arc ${identitySeed.arc} · ${identitySeed.bpmBpm}bpm (${identitySeed.bpmBand}) · grain ${identitySeed.grainPct}% (${identitySeed.grainBand})
+    ambient: ${ambientKey ?? identitySeed.ambientMotifKey} (${ambientFlagKey ? 'explicit --ambient flag' : 'auto-selected from registry'})
     Open axes (zero prior uses): ${open}
     Colliders avoided: ${colliders}`;
     })()
