@@ -24,6 +24,7 @@ import { HOOK_ARCHETYPE_KEYS, HOOK_ARCHETYPES } from './hook-archetypes.mjs';
 import { RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
 import { computeContrastMetrics } from './contrast-metrics.mjs';
 import { computeIdentitySeed } from './identity-seed.mjs';
+import { AMBIENT_MOTIF_KEYS } from './ambient-motifs.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -1002,6 +1003,118 @@ describe('new-video.mjs --distinct — anti-convergence seed + render-free gates
     } finally {
       if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
       if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+});
+
+// ── --ambient flag validation ──────────────────────────────────────────────────
+
+describe('new-video.mjs — --ambient flag validation', () => {
+  it('unknown --ambient key exits non-zero and lists valid keys', () => {
+    let threw = false;
+    let stderr = '';
+    try {
+      execSync('node scripts/new-video.mjs badslug11 BadComp11 --ambient=bad-unknown-key', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch (err) {
+      threw = true;
+      stderr = err.stderr?.toString() ?? '';
+    }
+    expect(threw, 'unknown --ambient key should exit non-zero').toBe(true);
+    expect(stderr).toMatch(/bad-unknown-key/);
+    for (const key of AMBIENT_MOTIF_KEYS) {
+      expect(stderr, `stderr should list valid key "${key}"`).toContain(key);
+    }
+  });
+
+  it('blank --ambient= value exits non-zero', () => {
+    let threw = false;
+    try {
+      execSync('node scripts/new-video.mjs blankslug11 BlankComp11 --ambient=', {
+        cwd: PROJECT_ROOT,
+        stdio: 'pipe',
+      });
+    } catch {
+      threw = true;
+    }
+    expect(threw, 'blank --ambient= should exit non-zero').toBe(true);
+  });
+});
+
+// ── --ambient scaffold wiring ──────────────────────────────────────────────────
+
+describe('new-video.mjs --ambient — scaffold wiring', () => {
+  it('--ambient=motes body scaffold: Main.tsx imports MoteField not AmbientField', () => {
+    const SLUG = 'testambientmotes01';
+    const COMP = 'TestAmbientMotes01';
+    const dir  = join(PROJECT_ROOT, 'src', 'videos', SLUG);
+    const pub  = join(PROJECT_ROOT, 'public', SLUG);
+    const rootSnap = readFileSync(rootTsx, 'utf8');
+    if (existsSync(dir)) rmSync(dir, { recursive: true });
+    if (existsSync(pub)) rmSync(pub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${SLUG} ${COMP} --body=back-loaded-climax --ambient=motes`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const src = readFileSync(join(dir, 'Main.tsx'), 'utf8');
+      expect(src, 'Main.tsx should import MoteField from lib/fx').toMatch(/MoteField/);
+      expect(src, 'Main.tsx should compose <MoteField').toMatch(/<MoteField/);
+      expect(src, 'Main.tsx should not use AmbientField (replaced by MoteField)').not.toMatch(/AmbientField/);
+    } finally {
+      if (existsSync(dir)) rmSync(dir, { recursive: true });
+      if (existsSync(pub)) rmSync(pub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+
+  it('--ambient=motes --hook scaffold: Hook.tsx uses MoteField not AmbientField', () => {
+    const SLUG = 'testambientmoteshook01';
+    const COMP = 'TestAmbientMotesHook01';
+    const dir  = join(PROJECT_ROOT, 'src', 'videos', SLUG);
+    const pub  = join(PROJECT_ROOT, 'public', SLUG);
+    const rootSnap = readFileSync(rootTsx, 'utf8');
+    if (existsSync(dir)) rmSync(dir, { recursive: true });
+    if (existsSync(pub)) rmSync(pub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${SLUG} ${COMP} --hook=bold-claim --ambient=motes`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const hookSrc = readFileSync(join(dir, 'scenes', 'Hook.tsx'), 'utf8');
+      expect(hookSrc, 'Hook.tsx should use MoteField').toMatch(/MoteField/);
+      expect(hookSrc, 'Hook.tsx should not use AmbientField (replaced by MoteField)').not.toMatch(/AmbientField/);
+      const mainSrc = readFileSync(join(dir, 'Main.tsx'), 'utf8');
+      expect(mainSrc, 'Main.tsx (hook-only path) should not import MoteField directly').not.toMatch(/MoteField/);
+      expect(mainSrc, 'Main.tsx (hook-only path) should not import AmbientField').not.toMatch(/AmbientField/);
+    } finally {
+      if (existsSync(dir)) rmSync(dir, { recursive: true });
+      if (existsSync(pub)) rmSync(pub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+
+  it('--ambient=strips (explicit) uses AmbientField — same as default', () => {
+    const SLUG = 'testambientstrips01';
+    const COMP = 'TestAmbientStrips01';
+    const dir  = join(PROJECT_ROOT, 'src', 'videos', SLUG);
+    const pub  = join(PROJECT_ROOT, 'public', SLUG);
+    const rootSnap = readFileSync(rootTsx, 'utf8');
+    if (existsSync(dir)) rmSync(dir, { recursive: true });
+    if (existsSync(pub)) rmSync(pub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${SLUG} ${COMP} --body=back-loaded-climax --ambient=strips`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      const src = readFileSync(join(dir, 'Main.tsx'), 'utf8');
+      expect(src, 'Main.tsx (--ambient=strips) should use AmbientField').toMatch(/AmbientField/);
+    } finally {
+      if (existsSync(dir)) rmSync(dir, { recursive: true });
+      if (existsSync(pub)) rmSync(pub, { recursive: true });
       writeFileSync(rootTsx, rootSnap);
     }
   });

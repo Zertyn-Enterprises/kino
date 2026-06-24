@@ -456,6 +456,20 @@ export function computeDriftWarnings(allEntries) {
     warnings.push(`accent-hue drift (${blueTeal.length} entries have blue/teal accent: ${blueTeal.map(e => e.slug).join(', ')})`);
   }
 
+  // ambient-motif: 'strips' (AmbientField) is the default living-background.
+  // Entries without an 'ambient-motif' registry field default to 'strips'.
+  const motifGroups = {};
+  for (const entry of allEntries) {
+    const motif = (entry.fields.get('ambient-motif') ?? 'strips').trim().toLowerCase();
+    if (!motifGroups[motif]) motifGroups[motif] = [];
+    motifGroups[motif].push(entry.slug);
+  }
+  for (const [motif, slugs] of Object.entries(motifGroups)) {
+    if (slugs.length >= N_DRIFT_THRESHOLD) {
+      warnings.push(`ambient-motif drift (${slugs.length} entries use ${motif}: ${slugs.join(', ')})`);
+    }
+  }
+
   return warnings;
 }
 

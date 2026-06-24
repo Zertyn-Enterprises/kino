@@ -137,6 +137,23 @@ function computeCollidersByAxis(priors, chosen) {
 
 // ── Core export ───────────────────────────────────────────────────────────────
 
+// Ambient motif keys in preference order for --distinct auto-selection.
+// Mirrors AMBIENT_MOTIF_KEYS from ambient-motifs.mjs (no React import needed here).
+const AMBIENT_MOTIF_KEYS_SEED = ['strips', 'motes', 'grid-pulse', 'ember-rise'];
+
+/** Pick the least-registry-crowded ambient motif key deterministically. */
+function pickAmbientMotifKey(priors, hash) {
+  const counts = Object.fromEntries(AMBIENT_MOTIF_KEYS_SEED.map(k => [k, 0]));
+  for (const { fields } of priors) {
+    const m = (fields.get('ambient-motif') ?? 'strips').trim().toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(counts, m)) counts[m]++;
+    else counts.strips++; // unknown motif key → count as strips
+  }
+  const minCount = Math.min(...Object.values(counts));
+  const leastCrowded = AMBIENT_MOTIF_KEYS_SEED.filter(k => counts[k] === minCount);
+  return leastCrowded[hash % leastCrowded.length];
+}
+
 /**
  * Generate a deterministic anti-convergence identity seed from _registry.md.
  *
@@ -149,6 +166,7 @@ function computeCollidersByAxis(priors, chosen) {
  *   arc: string,
  *   bpmBand: string, bpmBpm: number,
  *   grainBand: string, grainPct: number,
+ *   ambientMotifKey: string,
  *   openAxes: string[],
  *   collidersByAxis: Object<string, string[]>
  * }}
@@ -217,6 +235,7 @@ export function computeIdentitySeed(registryText) {
               bpmBpm:        BPM_BPM_BY_BAND[bpmBand],
               grainBand,
               grainPct:      GRAIN_PCT_BY_BAND[grainBand],
+              ambientMotifKey: pickAmbientMotifKey(priors, hash),
               openAxes:      computeOpenAxes(axes, chosen),
               collidersByAxis: computeCollidersByAxis(priors, chosen),
             };
@@ -270,6 +289,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   arc        ${seed.arc}
   bpm        ${seed.bpmBpm} bpm (${seed.bpmBand})
   grain      ${seed.grainPct}% (${seed.grainBand})
+  ambient    ${seed.ambientMotifKey} (least-crowded motif in registry)
 
   Open axes (zero prior uses): ${open}
   Colliders: ${colliders}

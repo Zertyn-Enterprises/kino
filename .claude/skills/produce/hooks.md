@@ -20,21 +20,34 @@ Machine-asserted gates (🤖) from `hook.md §1`:
 
 **Open-loop closure rule:** Gate 6 opens a curiosity gap — that gap MUST close. Declare `payoff: { text }` on the climax/CTA beat in `timeline.ts`; `scripts/payoff.sh` closure gate C1/C2 machine-asserts closure at ship time and HARD-fails when a declared promise has no matching payoff.
 
-**Default `AmbientField` recipe (satisfies gates 4 + 5):**
+**Ambient motif palette (all satisfy gates 4 + 5 by construction):**
+
+Pick one per video; record in `_registry.md` `ambient-motif` field. `--ambient=<key>` threads the choice into the scaffold.
+
+| Key | Component | Gate recipe | Visual character |
+|-----|-----------|-------------|-----------------|
+| `strips` | `AmbientField` | density ≥ 40, energy ≥ 1 | Scrolling horizontal strips — default (pre-existing videos) |
+| `motes` | `MoteField` | density ≥ 80, energy ≥ 1.5 | Noise-drifted circular motes across 4 bands |
+| `grid-pulse` | `GridPulse` | density ≥ 40, energy ≥ 1 | Sin-phase pulsing tiles (16 × 9 grid) |
+| `ember-rise` | `EmberRise` | density ≥ 80, energy ≥ 1.5 | Upward-drifting spark particles across 4 bands |
+
+Smoke fixtures: `src/smoke/AmbientCheck.tsx` (strips), `MoteCheck.tsx`, `GridPulseCheck.tsx`, `EmberRiseCheck.tsx`. All four verified gate-4/5 PASS.
 
 ```tsx
-<AmbientField
-  color={theme.accent}
-  colorDim={theme.accentDim}
-  density={40}
-  energy={1}
-/>
+// strips — default recipe
+<AmbientField color={theme.accent} colorDim={theme.textDim} density={40} energy={1} />
+
+// motes
+<MoteField color={theme.accent} colorDim={theme.textDim} density={80} energy={1.5} />
+
+// grid-pulse
+<GridPulse color={theme.accent} colorDim={theme.textDim} density={40} energy={1} />
+
+// ember-rise
+<EmberRise color={theme.accent} colorDim={theme.textDim} density={80} energy={1.5} />
 ```
 
-Distributes streaming strips across all 4 grid rows from frame 0. Gates 4 + 5
-PASS per `AmbientCheck` fixture (`src/smoke/AmbientCheck.tsx`). All archetypes
-below assume this layer is composed. When omitted, gates 4 + 5 require a named
-justification (see `hook.md §1` advisory protocol).
+All motifs share the same prop surface (`color/colorDim/density/energy/region/seed`). The distinctiveness gate's advisory ambient-motif drift check fires when ≥ 2 registry entries share the same motif — use `--distinct` or `--ambient` to diverge automatically. When omitted, gates 4 + 5 require a named justification (see `hook.md §1` advisory protocol).
 
 *(Timing note: at 120 bpm, beat 1 = 15 frames; at 122 bpm, beat 1 ≈ 14.75 frames.
 All beat counts below are relative — derive frame numbers from your video's
