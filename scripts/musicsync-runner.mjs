@@ -23,6 +23,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeMusicSync } from './musicsync-metrics.mjs';
+import { detectMusicIntent } from './detect-music-intent.mjs';
 
 // ---------------------------------------------------------------------------
 // Parse CLI args
@@ -53,38 +54,6 @@ if (!timelinePath) {
     'Usage: node scripts/musicsync-runner.mjs --timeline=<path> [--analysis=<path>] [--climax=F] [--json]\n',
   );
   process.exit(1);
-}
-
-// ---------------------------------------------------------------------------
-// Detect music intent from source files (render-free)
-//
-// Returns true when the video's Main.tsx imports/uses MusicBed or references a
-// music staticFile, or when public/<slug>/MANIFEST.md has an Audio section.
-// sereno (no MusicBed, no track) → false.  relay/granipa (MusicBed + staticFile) → true.
-// ---------------------------------------------------------------------------
-
-function detectMusicIntent(timelinePath) {
-  const absTimeline = resolve(process.cwd(), timelinePath);
-  const slugDir     = dirname(absTimeline);
-  const slug        = basename(slugDir);
-  const mainTsxPath = join(slugDir, 'Main.tsx');
-  const manifestPath = resolve(process.cwd(), `public/${slug}/MANIFEST.md`);
-
-  if (existsSync(mainTsxPath)) {
-    const source = readFileSync(mainTsxPath, 'utf8');
-    if (source.includes('MusicBed') || /staticFile\([^)]*music/i.test(source)) {
-      return true;
-    }
-  }
-
-  if (existsSync(manifestPath)) {
-    const manifest = readFileSync(manifestPath, 'utf8');
-    if (/^#{1,6}\s+Audio/im.test(manifest)) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // ---------------------------------------------------------------------------
