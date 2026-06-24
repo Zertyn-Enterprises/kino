@@ -225,12 +225,17 @@ All 1129 tests pass (1131 total; 2 intentionally skipped). `npm run lint` green.
 
 ---
 
-## Lock (plan-9upjnl task 3 — final calibration record)
+## Lock (plan-9upjnl complete — n=3 regression lock verified)
 
 **Status:** Complete. All 59 divergent-shape fixtures from plan-3i2law/Task 1 are permanent
 regression tests in `npm test`. The Fixture K synthetic report is backed by the real
-SerenoLaunch composition (plan-9upjnl task 1). Zero gate-source files were modified across
-all plan-9upjnl tasks — zero mis-fires confirmed against real rendered frames (§Executed-Proof).
+SerenoLaunch composition (plan-9upjnl task 1; finalised with real ship-gate results by task 2).
+Zero gate-source files were modified across all plan-9upjnl tasks — zero mis-fires confirmed
+against real rendered frames (§Executed-Proof).
+
+**plan-9upjnl task 4 final gate verification (h-ee0e5305):**
+`npm run dogfood:check:rf` PASS, `npm test` 1129 passing / 2 skipped, `npm run lint` PASS.
+SerenoLaunch ship verdict: READY (all 10 HARD gates pass). Plan-9upjnl complete.
 
 ### Spine guard: n=3 corpus coverage
 
@@ -250,8 +255,9 @@ all plan-9upjnl tasks — zero mis-fires confirmed against real rendered frames 
 through `normalize()` and `diff()` — any gate-spine edit that accidentally
 false-blocks a light-palette, music-less, or restrained-motion shape will
 flip a PASS verdict to FAIL in this fixture and fail `npm test`.
-Plan-9upjnl task 1 updated the Fixture K comment to reference the real SerenoLaunch
-composition; it is no longer a fictional placeholder.
+Plan-9upjnl task 1 wired SerenoLaunch into the dogfood corpus and added the initial Fixture K
+entry. Task 2 finalised Fixture K with the real ship-gate execution results; the comment now
+references the actual rendered-frame verdicts rather than a fictional placeholder.
 
 ### Pre-merge checklist for gate-spine or src/lib changes
 
