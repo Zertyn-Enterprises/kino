@@ -21,6 +21,8 @@
  *   - Musicsync null:                 musicsync=null → graceful SKIP, does NOT block ship.
  *   - Musicsync unverified:           musicsync verdict='unverified' → advisory, does NOT block ship,
  *                                     musicsync.ran=true, musicsync.status='unverified'.
+ *   - Musicsync unverified (remediations passthrough): unverified produces one advisory remediation
+ *                                     entry with fix mentioning analyze-music.mjs.
  *   - Payoff null:                    payoff=null → graceful SKIP, does NOT block ship.
  *   - Payoff hard fail:               payoff hardGatesPass false → shipReady false.
  *   - Payoff advisory-only:           payoff has P3 advisory fail only → shipReady true.
@@ -885,6 +887,39 @@ describe('computeShipVerdict — musicsync unverified (music intent declared, an
 
   it('musicsync justified is false — unverified requires attention', () => {
     expect(musicSyncUnverifiedVerdict.gates.musicsync.justified).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture 14b (remediations): musicsync unverified → advisory entry passes through
+//             to report.json.remediations with the exact analyze-music.mjs command.
+//
+// musicsync.verdict='unverified' → advisoryFailures=['Music sync unverified']
+//   → buildRemediations returns one advisory entry with fix mentioning analyze-music.mjs
+//
+// Expected: remediations.length=1, severity='advisory', gate='musicsync',
+//           fix mentions 'analyze-music.mjs'; shipReady remains true.
+// ---------------------------------------------------------------------------
+
+describe('computeShipVerdict().remediations — musicsync unverified passthrough (advisory entry)', () => {
+  it('remediations has exactly one entry', () => {
+    expect(musicSyncUnverifiedVerdict.remediations).toHaveLength(1);
+  });
+
+  it('entry severity is advisory', () => {
+    expect(musicSyncUnverifiedVerdict.remediations[0].severity).toBe('advisory');
+  });
+
+  it('entry gate is musicsync', () => {
+    expect(musicSyncUnverifiedVerdict.remediations[0].gate).toBe('musicsync');
+  });
+
+  it('entry fix mentions analyze-music.mjs', () => {
+    expect(musicSyncUnverifiedVerdict.remediations[0].fix).toMatch(/analyze-music\.mjs/);
+  });
+
+  it('shipReady remains true — unverified advisory never blocks', () => {
+    expect(musicSyncUnverifiedVerdict.shipReady).toBe(true);
   });
 });
 
