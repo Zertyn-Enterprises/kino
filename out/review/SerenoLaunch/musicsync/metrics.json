@@ -1,4 +1,7 @@
 {
+  "musicIntent": false,
+  "analysisPresent": false,
+  "verdict": "skip",
   "gates": [
     {
       "id": 1,
@@ -58,6 +61,7 @@
     "passed": 0,
     "failed": 0,
     "skipped": 4,
+    "unverified": 0,
     "declaredBpm": 60,
     "fps": 30,
     "totalCuts": 4

@@ -1,0 +1,12 @@
+
+── Music-sync verdict ──────────────────────────────────────
+MS1 Tempo lock             [HARD]     UNVERIFIED — music intent declared but analysis not run
+MS2 Downbeat lock          [HARD]     UNVERIFIED — music intent declared but analysis not run
+MS3 Climax on drop         [advisory] UNVERIFIED — music intent declared but analysis not run
+MS4 Cut-on-beat coverage   [advisory] SKIP — no audio analysis provided
+───────────────────────────────────────────────────────────
+Summary  passed=0 failed=0 skipped=1 unverified=3  bpm=120 fps=30 cuts=8
+
+MUSIC: UNVERIFIED (declared but unanalyzed — run `node scripts/analyze-music.mjs relay`)
+HARD GATES: PASS
+
