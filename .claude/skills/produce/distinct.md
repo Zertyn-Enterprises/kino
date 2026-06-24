@@ -154,6 +154,21 @@ justification if advisory fires on the new video.
 gate not invoked). When `metrics.json` is present, `hardGatesPass:false` blocks
 ship. This matches musicsync/payoff/remotionCorrect behaviour.
 
+## Scaffold: --distinct flag (distinct-gate-green by construction)
+
+Pass `--distinct` to `node scripts/new-video.mjs` to emit an anti-convergence
+starter identity instead of the generic dark/teal palette:
+
+```bash
+node scripts/new-video.mjs <slug> <CompId> --distinct [--hook=<key>] [--body=<key>]
+```
+
+The scaffold reads `src/videos/_registry.md`, computes a deterministic seed via
+`scripts/identity-seed.mjs`, and emits a `theme.ts` whose palette and font families
+pass `scripts/distinct.sh` HARD gates by construction (≥4 axes differ from every
+prior entry, WCAG contrast HARD floors met). The scaffold prints a summary of which
+axes are open and which priors collide. Still re-derive bespoke taste per Hard Rule 3.
+
 ## Treatment checklist (run at stage 2)
 
 Run before finalising the treatment — uses derived axes automatically when

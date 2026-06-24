@@ -22,6 +22,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_ARCHETYPE_KEYS, HOOK_ARCHETYPES } from './hook-archetypes.mjs';
 import { RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
+import { computeContrastMetrics } from './contrast-metrics.mjs';
+import { computeIdentitySeed } from './identity-seed.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -174,6 +176,13 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
     it('Main.tsx does not mount <Sequence (no body scenes wired)', () => {
       const src = readGenerated('Main.tsx');
       expect(src).not.toMatch(/<Sequence/);
+    });
+
+    it('theme.ts uses the generic dark/teal default palette (not an anti-convergence seed)', () => {
+      const src = readGenerated('theme.ts');
+      expect(src).toContain('"#0a0a0f"'); // bg default
+      expect(src).toContain('"#7effc9"'); // accent default
+      expect(src).toContain('"TODO"');    // font families are TODO
     });
   });
 
@@ -728,5 +737,272 @@ describe('new-video.mjs --hook + --body — render-free HARD gate assertions', (
     const m = readMetrics(`out/review/${GATE_COMP}/remotion-correct/metrics.json`);
     expect(m, 'remotion-correct metrics.json missing').not.toBeNull();
     expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+  });
+});
+
+// ── --distinct flag validation ─────────────────────────────────────────────────
+
+describe('new-video.mjs — --distinct flag validation', () => {
+  it('unknown flag alongside --distinct does not break arg parsing', () => {
+    // --distinct is a boolean flag; it should not conflict with --hook or --body.
+    // This test verifies the flag is recognized without triggering an error.
+    // We just test that the scaffold exits non-zero when slug/CompId are missing,
+    // since we cannot scaffold inside this narrow test.
+    let threw = false;
+    try {
+      execSync('node scripts/new-video.mjs --distinct', { cwd: PROJECT_ROOT, stdio: 'pipe' });
+    } catch (err) {
+      threw = true;
+      const stderr = err.stderr?.toString() ?? '';
+      // Should show usage with --distinct in it, not an unknown-flag error.
+      expect(stderr).toMatch(/--distinct/);
+    }
+    expect(threw, '--distinct with no slug/CompId should exit non-zero').toBe(true);
+  });
+});
+
+// ── --distinct scaffold: gate-green by construction ────────────────────────────
+
+// Derive the WCAG luminance class from a bg hex — matches what distinct.sh derives
+// from theme.ts. Used to build registry stubs that pass the drift check.
+function hexToLuminanceClass(hex) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  const toL = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const Y = 0.2126 * toL(r) + 0.7152 * toL(g) + 0.0722 * toL(b);
+  return Y < 0.05 ? 'dark' : Y < 0.18 ? 'tonal' : 'light';
+}
+
+describe('new-video.mjs --distinct — anti-convergence seed + render-free gates', () => {
+  const DISTINCT_SLUG = 'testdistinctseed01';
+  const DISTINCT_COMP = 'TestDistinctSeed01';
+  const distinctDir   = join(PROJECT_ROOT, 'src', 'videos', DISTINCT_SLUG);
+  const distinctPub   = join(PROJECT_ROOT, 'public', DISTINCT_SLUG);
+  const outSlug       = join(PROJECT_ROOT, 'out', 'review', DISTINCT_SLUG);
+  const outComp       = join(PROJECT_ROOT, 'out', 'review', DISTINCT_COMP);
+  const registryMd    = join(PROJECT_ROOT, 'src', 'videos', '_registry.md');
+
+  let rootSnapDistinct;
+  let registrySnapDistinct;
+  /** @type {ReturnType<typeof computeIdentitySeed>} */
+  let seed;
+
+  beforeAll(() => {
+    rootSnapDistinct     = readFileSync(rootTsx, 'utf8');
+    registrySnapDistinct = readFileSync(registryMd, 'utf8');
+
+    // Pre-compute the seed from the original registry (before any stubs are added).
+    seed = computeIdentitySeed(registrySnapDistinct);
+
+    if (existsSync(distinctDir)) rmSync(distinctDir, { recursive: true });
+    if (existsSync(distinctPub)) rmSync(distinctPub, { recursive: true });
+
+    execSync(
+      `node scripts/new-video.mjs ${DISTINCT_SLUG} ${DISTINCT_COMP} --distinct`,
+      { cwd: PROJECT_ROOT, stdio: 'pipe' },
+    );
+
+    // Derive the ACTUAL luminance class from the seed's bg hex — this is what
+    // distinct.sh derives from theme.ts via themeToAxes. We must use this value
+    // (not seed.luminance) in the stub so the registry-axis-drift check passes.
+    const derivedLuminance = hexToLuminanceClass(seed.bg);
+    const grainPct = seed.grainPct;
+    const grainBand = grainPct === 0 ? 'clean — grain 0%' : `grain ${grainPct}%`;
+
+    // Append stubs so registry-completeness and registry-axis-drift both pass.
+    // Two stubs needed: one for TEST_SLUG (always present during the file run, created
+    // by the module-level beforeAll) and one for DISTINCT_SLUG (the candidate).
+    const existingCount = (registrySnapDistinct.match(/^## \d+\s*·/gm) ?? []).length;
+
+    // TEST_SLUG prior stub: generic dark palette from the no-flag scaffold.
+    const priorStub = [
+      '',
+      `## ${existingCount + 1} · ${TEST_SLUG} / ${TEST_COMP}`,
+      '',
+      '> Render-free gate vitest fixture. Auto-removed by new-video.test.mjs.',
+      '',
+      '| field           | value                                             |',
+      '| --------------- | ------------------------------------------------- |',
+      '| product         | render-free gate fixture (prior)                  |',
+      '| arc             | A · TODO(director)                                |',
+      '| rhythm          | TODO(director)                                    |',
+      '| luminance       | dark                                              |',
+      '| palette         | bg #0a0a0f · accent #7effc9                       |',
+      '| type            | TODO display / TODO body                          |',
+      '| signature moves | TODO(director)                                    |',
+      '| texture         | clean — grain 0%, vignette 0%                     |',
+      '| transitions     | TODO(director)                                    |',
+      '| music           | TODO(director)                                    |',
+    ].join('\n');
+
+    // DISTINCT_SLUG candidate stub: derived values matching the generated theme.ts.
+    const candidateStub = [
+      '',
+      `## ${existingCount + 2} · ${DISTINCT_SLUG} / ${DISTINCT_COMP}`,
+      '',
+      '> Render-free gate vitest fixture. Auto-removed by new-video.test.mjs.',
+      '',
+      '| field           | value                                             |',
+      '| --------------- | ------------------------------------------------- |',
+      `| product         | render-free distinct gate fixture                 |`,
+      `| arc             | ${seed.arc} · TODO(director)                      |`,
+      '| rhythm          | TODO(director)                                    |',
+      `| luminance       | ${derivedLuminance}                               |`,
+      `| palette         | bg ${seed.bg} · accent ${seed.accent}             |`,
+      `| type            | ${seed.displayFamily} display / ${seed.bodyFamily} body |`,
+      '| signature moves | TODO(director)                                    |',
+      `| texture         | ${grainBand}, vignette 0%                         |`,
+      '| transitions     | TODO(director)                                    |',
+      `| music           | ${seed.bpmBpm}bpm (${seed.bpmBand}) TODO(director)|`,
+    ].join('\n');
+
+    writeFileSync(registryMd, registrySnapDistinct.trimEnd() + '\n' + priorStub + '\n' + candidateStub);
+
+    // Run render-free gates (may exit non-zero on advisory; hardGatesPass checked in tests).
+    for (const cmd of [
+      `bash scripts/preflight.sh ${DISTINCT_COMP} ${DISTINCT_SLUG}`,
+      `bash scripts/distinct.sh ${DISTINCT_SLUG}`,
+    ]) {
+      try {
+        execSync(cmd, { cwd: PROJECT_ROOT, stdio: 'pipe', encoding: 'utf8' });
+      } catch { /* advisory fails may cause non-zero exit */ }
+    }
+  }, 30000);
+
+  afterAll(() => {
+    if (existsSync(distinctDir)) rmSync(distinctDir, { recursive: true });
+    if (existsSync(distinctPub)) rmSync(distinctPub, { recursive: true });
+    if (existsSync(outSlug))    rmSync(outSlug, { recursive: true });
+    if (existsSync(outComp))    rmSync(outComp, { recursive: true });
+    writeFileSync(rootTsx, rootSnapDistinct);
+    writeFileSync(registryMd, registrySnapDistinct);
+  });
+
+  function readDistinctGenerated(file) {
+    return readFileSync(join(distinctDir, file), 'utf8');
+  }
+
+  function readDistinctMetrics(relPath) {
+    try { return JSON.parse(readFileSync(join(PROJECT_ROOT, relPath), 'utf8')); } catch { return null; }
+  }
+
+  describe('theme.ts — anti-convergence seed values', () => {
+    it('palette slots are valid 7-char hex', () => {
+      const src = readDistinctGenerated('theme.ts');
+      for (const slot of ['bg', 'surface', 'text', 'textDim', 'accent']) {
+        const m = src.match(new RegExp(`${slot}:\\s*["']([^"']+)["']`));
+        expect(m, `${slot} not found in theme.ts`).toBeTruthy();
+        expect(HEX7.test(m[1]), `${slot} = "${m[1]}" is not a valid 7-char hex`).toBe(true);
+      }
+    });
+
+    it('bg is NOT the generic default #0a0a0f', () => {
+      const src = readDistinctGenerated('theme.ts');
+      expect(src).not.toContain('"#0a0a0f"');
+    });
+
+    it('accent is NOT the generic default #7effc9', () => {
+      const src = readDistinctGenerated('theme.ts');
+      expect(src).not.toContain('"#7effc9"');
+    });
+
+    it('font families are NOT "TODO"', () => {
+      const src = readDistinctGenerated('theme.ts');
+      // Both display and body families should be real names from the seed.
+      expect(src).not.toMatch(/family:\s*["']TODO["']/);
+    });
+
+    it('contains anti-convergence seed comment', () => {
+      const src = readDistinctGenerated('theme.ts');
+      expect(src).toContain('anti-convergence seed — refine to taste');
+    });
+  });
+
+  describe('render-free HARD gates', () => {
+    it('preflight P1/P2 HARD passes', () => {
+      const m = readDistinctMetrics(`out/review/${DISTINCT_COMP}/preflight/metrics.json`);
+      expect(m, 'preflight metrics.json missing').not.toBeNull();
+      expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+    });
+
+    it('distinct HARD passes (≥4 axes differ from all priors)', () => {
+      const m = readDistinctMetrics(`out/review/${DISTINCT_SLUG}/distinct/metrics.json`);
+      expect(m, 'distinct metrics.json missing').not.toBeNull();
+      expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+    });
+
+    it('contrast HARD passes for the seed palette', () => {
+      // Verify the seed's palette passes WCAG contrast floors programmatically.
+      const result = computeContrastMetrics({
+        bg:      seed.bg,
+        surface: seed.surface,
+        text:    seed.text,
+        textDim: seed.textDim,
+        accent:  seed.accent,
+      });
+      expect(result.hardGatesPass, JSON.stringify(result)).toBe(true);
+    });
+  });
+
+  it('--distinct and --hook compose: scaffold exits 0 with both flags', () => {
+    const COMPOSE_SLUG = 'testdistincthook01';
+    const COMPOSE_COMP = 'TestDistinctHook01';
+    const composeDir   = join(PROJECT_ROOT, 'src', 'videos', COMPOSE_SLUG);
+    const composePub   = join(PROJECT_ROOT, 'public', COMPOSE_SLUG);
+    const rootSnap     = readFileSync(rootTsx, 'utf8');
+
+    if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
+    if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${COMPOSE_SLUG} ${COMPOSE_COMP} --distinct --hook=bold-claim`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      // Verify the Hook.tsx from the archetype is present (AmbientField).
+      const hookSrc = readFileSync(join(composeDir, 'scenes', 'Hook.tsx'), 'utf8');
+      expect(hookSrc).toMatch(/AmbientField/);
+      // And theme.ts has seed palette (not generic default).
+      const themeSrc = readFileSync(join(composeDir, 'theme.ts'), 'utf8');
+      expect(themeSrc).not.toContain('"#7effc9"');
+      expect(themeSrc).toContain('anti-convergence seed');
+    } finally {
+      if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
+      if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
+  });
+
+  it('--distinct and --body compose: seed palette + retention structure both present', () => {
+    const COMPOSE_SLUG = 'testdistinctbody01';
+    const COMPOSE_COMP = 'TestDistinctBody01';
+    const composeDir   = join(PROJECT_ROOT, 'src', 'videos', COMPOSE_SLUG);
+    const composePub   = join(PROJECT_ROOT, 'public', COMPOSE_SLUG);
+    const rootSnap     = readFileSync(rootTsx, 'utf8');
+
+    if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
+    if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+    try {
+      execSync(
+        `node scripts/new-video.mjs ${COMPOSE_SLUG} ${COMPOSE_COMP} --distinct --body=back-loaded-climax`,
+        { cwd: PROJECT_ROOT, stdio: 'pipe' },
+      );
+      // theme.ts has seed palette (not generic dark/teal default).
+      const themeSrc = readFileSync(join(composeDir, 'theme.ts'), 'utf8');
+      expect(themeSrc).not.toContain('"#0a0a0f"');
+      expect(themeSrc).not.toContain('"#7effc9"');
+      expect(themeSrc).toContain('anti-convergence seed');
+      // timeline.ts has retention structure from --body (gate-green by construction).
+      const timelineSrc = readFileSync(join(composeDir, 'timeline.ts'), 'utf8');
+      expect(timelineSrc).toContain('role: "climax"');
+      expect(timelineSrc).toContain('rehookSeconds');
+      // scenes/Body.tsx exists (body pattern applied).
+      expect(existsSync(join(composeDir, 'scenes', 'Body.tsx'))).toBe(true);
+    } finally {
+      if (existsSync(composeDir)) rmSync(composeDir, { recursive: true });
+      if (existsSync(composePub)) rmSync(composePub, { recursive: true });
+      writeFileSync(rootTsx, rootSnap);
+    }
   });
 });
