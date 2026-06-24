@@ -11,19 +11,20 @@ repo (see `README.md`). They are intentional showcases, not stray drafts.
 
 Axes per entry:
 
-| field           | meaning                           |
-| --------------- | --------------------------------- |
-| slug / comp     | folder + composition id           |
-| product         | what was launched                 |
-| arc             | A–E from direction.md §4          |
-| rhythm          | the one-sentence rhythm signature |
-| luminance       | dark / light / tonal              |
-| palette         | bg + accent hexes                 |
-| type            | display family / body family      |
-| signature moves | the 2–3 bespoke motion behaviors  |
-| texture         | clean / filmic (grain %, leaks)   |
-| transitions     | dominant transition vocabulary    |
-| music           | bpm + character                   |
+| field           | meaning                                                     |
+| --------------- | ----------------------------------------------------------- |
+| slug / comp     | folder + composition id                                     |
+| product         | what was launched                                           |
+| arc             | A–E from direction.md §4                                    |
+| rhythm          | the one-sentence rhythm signature                           |
+| luminance       | dark / light / tonal                                        |
+| palette         | bg + accent hexes                                           |
+| type            | display family / body family                                |
+| signature moves | the 2–3 bespoke motion behaviors                            |
+| texture         | clean / filmic (grain %, leaks)                             |
+| transitions     | dominant transition vocabulary                              |
+| music           | bpm + character                                             |
+| ambient-motif   | strips / motes / grid-pulse / ember-rise (advisory; drift warning when ≥2 share a motif) |
 
 ---
 
@@ -41,6 +42,7 @@ Axes per entry:
 | texture         | filmic — grain 5%, vignette 0.3, no light leaks                                                                  |
 | transitions     | hard cuts only, all on downbeats                                                                                 |
 | music           | 120bpm character (audio not bundled — see `public/relay/MANIFEST.md`); drop at beat 16, biggest hit beat 48     |
+| ambient-motif   | strips                                                                                                           |
 
 ## 2 · granipa / GranipaLaunch (2026-06-16)
 
@@ -56,6 +58,7 @@ Axes per entry:
 | texture         | filmic — grain 4%, vignette 0.28, almost no leaks                                                                                                                                                                                |
 | transitions     | contained internal motions + one wide pullback at the sovereignty moment                                                                                                                                                         |
 | music           | warm assured modern, ~98–122bpm character (audio not bundled — see `public/granipa/MANIFEST.md`); home bloom aligned to the reveal                                                                                              |
+| ambient-motif   | strips                                                                                                                                                                                                                           |
 
 ## 3 · sereno / SerenoLaunch (2026-06-23) — calibration fixture (not a shipped sample)
 
@@ -75,3 +78,4 @@ Axes per entry:
 | texture         | clean — grain 0%, vignette 0%                                                            |
 | transitions     | hard cuts only, unaccented                                                               |
 | music           | no music — ambient nature sound only                                                     |
+| ambient-motif   | strips                                                                                   |

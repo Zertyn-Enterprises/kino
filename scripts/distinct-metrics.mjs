@@ -316,6 +316,8 @@ export function parseRegistry(markdownText) {
     const textureStr = fields.get('texture') ?? '';
     const transStr = fields.get('transitions') ?? '';
     const musicStr = fields.get('music') ?? '';
+    // ambient-motif: absent → treat as 'strips' (default for all pre-motif-tracking entries)
+    const ambientMotif = (fields.get('ambient-motif') ?? '').trim() || 'strips';
 
     records.push({
       slug,
@@ -333,6 +335,7 @@ export function parseRegistry(markdownText) {
         // for drift checks
         usesJetbrainsMono: typeStr.toLowerCase().includes('jetbrains mono'),
         accentHueBand:    accent ? hueToFamily(hexToHue(accent)) : 'unknown',
+        ambientMotif,
       },
     });
   }
@@ -454,6 +457,21 @@ export function computeDriftWarnings(allEntries) {
   const blueTeal = allEntries.filter(e => e.parsed.accentHueBand === 'blue-teal');
   if (blueTeal.length >= N_DRIFT_THRESHOLD) {
     warnings.push(`accent-hue drift (${blueTeal.length} entries have blue/teal accent: ${blueTeal.map(e => e.slug).join(', ')})`);
+  }
+
+  // ambient-motif: 'strips' is the default — warn when ≥N entries share any single motif.
+  const motifCounts = {};
+  for (const entry of allEntries) {
+    const motif = entry.parsed.ambientMotif ?? 'strips';
+    motifCounts[motif] = (motifCounts[motif] ?? 0) + 1;
+  }
+  for (const [motif, count] of Object.entries(motifCounts)) {
+    if (count >= N_DRIFT_THRESHOLD) {
+      const slugs = allEntries
+        .filter(e => (e.parsed.ambientMotif ?? 'strips') === motif)
+        .map(e => e.slug);
+      warnings.push(`ambient-motif drift (${count} entries use "${motif}": ${slugs.join(', ')})`);
+    }
   }
 
   return warnings;
