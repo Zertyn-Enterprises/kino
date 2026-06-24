@@ -206,6 +206,12 @@ scaffold. The archetype's Hook.tsx includes its own `AmbientField` with the
 per-archetype recipe, so the Main.tsx omits the top-level AmbientField. Run
 the scaffold with an unknown key to print all valid keys.
 
+Pass `--body=<key>` (one of the 9 kebab slugs from `retention-patterns.md`) to
+emit retention-gate-green body scenes (Body.tsx + Climax.tsx or Cta.tsx, depending
+on the pattern) from the pattern catalog. `--hook` and `--body` compose: pass both
+to emit a full hook+body skeleton in a single command. Run the scaffold with an
+unknown key to print all valid keys.
+
 Then **immediately run the preflight gate** to confirm the structural wiring before
 any render spend:
 ```bash
