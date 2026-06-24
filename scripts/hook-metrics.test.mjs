@@ -24,7 +24,7 @@
 import { describe, expect, it } from "vitest";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { computeHookMetrics, loadFrame } from "./hook-metrics.mjs";
+import { computeHookMetrics, computeFocalScore, loadFrame } from "./hook-metrics.mjs";
 
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -397,6 +397,82 @@ describe("computeHookMetrics — gate 4 regression guard: single weak region fai
 });
 
 // ---------------------------------------------------------------------------
+// Tests: advisory focal-clarity score
+//
+// computeFocalScore = 1 − (mean cell stddev0 / max cell stddev0)
+// Interpretation band: focal ≥ 0.50 | mixed 0.20–0.49 | diffuse < 0.20
+//
+// Synthetic focal (terminalFrame0): 2 active cells (stddev=75) out of 16 flat cells
+//   mean = 2*75/16 = 9.375; max = 75; score = 1 − 9.375/75 = 0.875 → focal
+// Synthetic uniform-busyness: checkerboard across all 16 cells → every cell stddev=127.5
+//   mean = max → score = 1 − 1 = 0.0 → diffuse
+// Flat frame: max=0 → score = 0 (edge case guard) → diffuse
+// ---------------------------------------------------------------------------
+
+// All 16 cells alternating 0/255 — every 4×4 cell has stddev=127.5 (uniform busyness).
+const uniformBusyFrame = makeFrame((x, y) => ((x + y) % 2 === 0 ? 0 : 255));
+
+describe("computeFocalScore — direct unit: focal vs diffuse discrimination", () => {
+  it("single dominant cell (stddev=75, 15 flat) → score ≥ 0.80", () => {
+    // Cell (1,1) only active; 15 cells flat → mean = 75/16 = 4.6875; score = 1 − 4.6875/75 = 0.9375
+    const oneCell = makeFrame((x, y) => {
+      const row = Math.floor(y / 4);
+      const col = Math.floor(x / 4);
+      return row === 1 && col === 1 ? ((x + y) % 2 === 0 ? 200 : 50) : 100;
+    });
+    const verdict = computeHookMetrics({
+      frame0: oneCell,
+      early: makeFrame(() => 255),
+      mid: oneCell,
+      final: oneCell,
+    });
+    expect(verdict.focal).toBeGreaterThanOrEqual(0.80);
+  });
+
+  it("uniform-busyness frame (all 16 cells equal stddev) → score < 0.05 (diffuse)", () => {
+    const verdict = computeHookMetrics({
+      frame0: uniformBusyFrame,
+      early: makeFrame(() => 255),
+      mid: uniformBusyFrame,
+      final: uniformBusyFrame,
+    });
+    // All cells identical stddev → mean = max → score = 0.0
+    expect(verdict.focal).toBeLessThan(0.05);
+  });
+
+  it("flat frame (max stddev=0) → score = 0 (edge case)", () => {
+    const verdict = computeHookMetrics({
+      frame0: flatFrame,
+      early: makeFrame(() => 255),
+      mid: flatFrame,
+      final: flatFrame,
+    });
+    expect(verdict.focal).toBe(0);
+  });
+
+  it("two-cell focal frame (terminalFrame0) → score ≥ 0.50 (focal band)", () => {
+    // cells (1,0),(1,1) stddev=75; 14 flat → mean=9.375; score=0.875
+    const verdict = computeHookMetrics({
+      frame0: terminalFrame0,
+      early: makeFrame(() => 255),
+      mid: terminalFrame0,
+      final: terminalFrame0,
+    });
+    expect(verdict.focal).toBeGreaterThanOrEqual(0.50);
+  });
+
+  it("focal is null when frame0 is missing", () => {
+    const verdict = computeHookMetrics({
+      frame0: null,
+      early: makeFrame(() => 255),
+      mid: flatFrame,
+      final: flatFrame,
+    });
+    expect(verdict.focal).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tests: reference videos (skip if frames not yet rendered)
 //
 // Updated verdicts after focal-liveness recalibration:
@@ -442,6 +518,13 @@ describe(
         expect(g.measured.rows).toBe(1);
       },
     );
+
+    it.skipIf(!relayAvailable)(
+      "focal advisory reads ≥ 0.50 (focal band) — terminal region dominates frame-0",
+      () => {
+        expect(verdict.focal).toBeGreaterThanOrEqual(0.50);
+      },
+    );
   },
 );
 
@@ -475,6 +558,13 @@ describe(
         const g = verdict.gates.find((g) => g.id === 5);
         expect(g.pass).toBe(true);
         expect(g.measured.rows).toBe(1);
+      },
+    );
+
+    it.skipIf(!granipaAvailable)(
+      "focal advisory reads ≥ 0.50 (focal band) — text-band region dominates frame-0",
+      () => {
+        expect(verdict.focal).toBeGreaterThanOrEqual(0.50);
       },
     );
   },
