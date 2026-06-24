@@ -48,6 +48,7 @@
     "dogfood": "node scripts/dogfood.mjs --update",
     "dogfood:check": "node scripts/dogfood.mjs --check",
     "dogfood:rf": "node scripts/dogfood.mjs --render-free --update",
-    "dogfood:check:rf": "node scripts/dogfood.mjs --render-free --check"
+    "dogfood:check:rf": "node scripts/dogfood.mjs --render-free --check",
+    "dogfood:scaffold": "node scripts/scaffold-smoke.mjs"
   }
 }

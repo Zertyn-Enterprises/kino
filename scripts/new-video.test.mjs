@@ -605,3 +605,128 @@ describe('new-video.mjs --hook + --body — compose correctly', () => {
     }
   });
 });
+
+// ── Render-free HARD gate assertions (preflight / distinct / code-craft / remotion-correct) ──
+
+describe('new-video.mjs --hook + --body — render-free HARD gate assertions', () => {
+  const GATE_SLUG = 'testhookbodygates';
+  const GATE_COMP = 'TestHookBodyGates';
+  const gateDir    = join(PROJECT_ROOT, 'src', 'videos', GATE_SLUG);
+  const gatePub    = join(PROJECT_ROOT, 'public', GATE_SLUG);
+  const outComp    = join(PROJECT_ROOT, 'out', 'review', GATE_COMP);
+  const outSlug    = join(PROJECT_ROOT, 'out', 'review', GATE_SLUG);
+  const registryMd = join(PROJECT_ROOT, 'src', 'videos', '_registry.md');
+
+  let rootSnapGate;
+  let registrySnap;
+
+  beforeAll(() => {
+    rootSnapGate = readFileSync(rootTsx, 'utf8');
+    registrySnap = readFileSync(registryMd, 'utf8');
+
+    if (existsSync(gateDir)) rmSync(gateDir, { recursive: true });
+    if (existsSync(gatePub)) rmSync(gatePub, { recursive: true });
+
+    execSync(
+      `node scripts/new-video.mjs ${GATE_SLUG} ${GATE_COMP} --hook=mid-action-demo --body=back-loaded-climax`,
+      { cwd: PROJECT_ROOT, stdio: 'pipe' },
+    );
+
+    // Append registry stubs so distinct's registry-completeness HARD check passes.
+    // Two stubs needed: one for GATE_SLUG (candidate — axes match starter palette
+    // so registry-axis-drift = 0) and one for TEST_SLUG (prior only — axis-drift
+    // is not checked for priors, so values are set deliberately different on ≥4
+    // axes so the ≥4-axes-distinct HARD check passes against it).
+    const existingCount = (registrySnap.match(/^## \d+\s*·/gm) ?? []).length;
+    // TEST_SLUG prior stub: differ on luminance, palette-bg, palette-accent, type, texture.
+    const priorStub = [
+      '',
+      `## ${existingCount + 1} · ${TEST_SLUG} / ${TEST_COMP}`,
+      '',
+      '> Render-free gate vitest fixture. Auto-removed by new-video.test.mjs.',
+      '',
+      '| field           | value                                             |',
+      '| --------------- | ------------------------------------------------- |',
+      '| product         | render-free gate fixture (prior)                  |',
+      '| arc             | linear                                            |',
+      '| rhythm          | TODO(director)                                    |',
+      '| luminance       | light                                             |',
+      '| palette         | bg #f5f5f5 · accent #e63946                       |',
+      '| type            | Playfair display / Open Sans body                 |',
+      '| signature moves | TODO(director)                                    |',
+      '| texture         | rich — grain 40%, vignette 70%                    |',
+      '| transitions     | TODO(director)                                    |',
+      '| music           | TODO(director)                                    |',
+    ].join('\n');
+    // GATE_SLUG candidate stub: exact starter palette so registry-axis-drift = 0.
+    const candidateStub = [
+      '',
+      `## ${existingCount + 2} · ${GATE_SLUG} / ${GATE_COMP}`,
+      '',
+      '> Render-free gate vitest fixture. Auto-removed by new-video.test.mjs.',
+      '',
+      '| field           | value                                       |',
+      '| --------------- | ------------------------------------------- |',
+      '| product         | render-free gate fixture                    |',
+      '| arc             | TODO(director)                              |',
+      '| rhythm          | TODO(director)                              |',
+      '| luminance       | dark                                        |',
+      '| palette         | bg #0a0a0f · accent #7effc9                 |',
+      '| type            | TODO display / TODO body                    |',
+      '| signature moves | TODO(director)                              |',
+      '| texture         | clean — grain 0%, vignette 0%               |',
+      '| transitions     | TODO(director)                              |',
+      '| music           | TODO(director)                              |',
+    ].join('\n');
+    writeFileSync(registryMd, registrySnap.trimEnd() + '\n' + priorStub + '\n' + candidateStub);
+
+    // Run render-free gates (may exit non-zero on advisory fails; hardGatesPass checked in it()).
+    for (const cmd of [
+      `bash scripts/preflight.sh ${GATE_COMP} ${GATE_SLUG}`,
+      `bash scripts/distinct.sh ${GATE_SLUG}`,
+      `bash scripts/code-craft.sh ${GATE_COMP} ${GATE_SLUG}`,
+      `bash scripts/remotion-correct.sh ${GATE_COMP} ${GATE_SLUG}`,
+    ]) {
+      try {
+        execSync(cmd, { cwd: PROJECT_ROOT, stdio: 'pipe', encoding: 'utf8' });
+      } catch { /* advisory fails may cause non-zero exit; hardGatesPass checked below */ }
+    }
+  }, 60000);
+
+  afterAll(() => {
+    if (existsSync(gateDir)) rmSync(gateDir, { recursive: true });
+    if (existsSync(gatePub)) rmSync(gatePub, { recursive: true });
+    if (existsSync(outComp)) rmSync(outComp, { recursive: true });
+    if (existsSync(outSlug)) rmSync(outSlug, { recursive: true });
+    writeFileSync(rootTsx, rootSnapGate);
+    writeFileSync(registryMd, registrySnap);
+  });
+
+  function readMetrics(relPath) {
+    try { return JSON.parse(readFileSync(join(PROJECT_ROOT, relPath), 'utf8')); } catch { return null; }
+  }
+
+  it('preflight P1/P2 HARD passes (no render)', () => {
+    const m = readMetrics(`out/review/${GATE_COMP}/preflight/metrics.json`);
+    expect(m, 'preflight metrics.json missing').not.toBeNull();
+    expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+  });
+
+  it('distinct HARD passes (no render)', () => {
+    const m = readMetrics(`out/review/${GATE_SLUG}/distinct/metrics.json`);
+    expect(m, 'distinct metrics.json missing').not.toBeNull();
+    expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+  });
+
+  it('code-craft HARD passes (no render)', () => {
+    const m = readMetrics(`out/review/${GATE_COMP}/code-craft/metrics.json`);
+    expect(m, 'code-craft metrics.json missing').not.toBeNull();
+    expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+  });
+
+  it('remotion-correct HARD passes (no render)', () => {
+    const m = readMetrics(`out/review/${GATE_COMP}/remotion-correct/metrics.json`);
+    expect(m, 'remotion-correct metrics.json missing').not.toBeNull();
+    expect(m.hardGatesPass, JSON.stringify(m)).toBe(true);
+  });
+});
