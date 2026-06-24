@@ -189,7 +189,7 @@ status table:
 | # | scene id | beats | status |   <!-- pending → built → reviewed -->
 ```
 
-**Scaffold step:** run `node scripts/new-video.mjs <slug> <CompId> [--hook=<key>]`
+**Scaffold step:** run `node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>]`
 to generate the video skeleton (treatment.md with `Status: DRAFT`, storyboard.md
 with the status table header, theme.ts with a neutral valid-hex starter palette
 (all 5 slots are real 7-char hex, TODO-commented for the director), timeline.ts

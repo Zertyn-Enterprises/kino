@@ -20,19 +20,22 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOOK_ARCHETYPES, HOOK_ARCHETYPE_KEYS } from './hook-archetypes.mjs';
+import { RETENTION_PATTERNS, RETENTION_PATTERN_KEYS } from './retention-patterns.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
 
-// Extract --hook= before the existing -- filter so it isn't lost.
+// Extract --hook= and --body= before the existing -- filter so they aren't lost.
 const rawArgs = process.argv.slice(2);
 const hookFlagArg = rawArgs.find(a => a.startsWith('--hook='));
 const hookKey = hookFlagArg ? hookFlagArg.slice('--hook='.length) : null;
+const bodyFlagArg = rawArgs.find(a => a.startsWith('--body='));
+const bodyKey = bodyFlagArg ? bodyFlagArg.slice('--body='.length) : null;
 
 const [slug, CompId] = rawArgs.filter(a => !a.startsWith('--'));
 
 if (!slug || !CompId) {
-  process.stderr.write('Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>]\n');
+  process.stderr.write('Usage: node scripts/new-video.mjs <slug> <CompId> [--hook=<key>] [--body=<key>]\n');
   process.exit(1);
 }
 
@@ -41,6 +44,16 @@ if (hookKey !== null) {
   if (!hookKey || !HOOK_ARCHETYPES[hookKey]) {
     process.stderr.write(
       `ERROR: unknown --hook key "${hookKey}"\nValid keys: ${HOOK_ARCHETYPE_KEYS.join(', ')}\n`,
+    );
+    process.exit(1);
+  }
+}
+
+// Validate --body key before doing any filesystem work.
+if (bodyKey !== null) {
+  if (!bodyKey || !RETENTION_PATTERNS[bodyKey]) {
+    process.stderr.write(
+      `ERROR: unknown --body key "${bodyKey}"\nValid keys: ${RETENTION_PATTERN_KEYS.join(', ')}\n`,
     );
     process.exit(1);
   }
@@ -182,22 +195,116 @@ export const ${themeVar} = defineTheme({
 });
 `);
 
-// Minimal two-scene timeline: director replaces bpm + scene list from treatment.
-writeFileSync(join(videoDir, 'timeline.ts'), `import { buildTimeline } from "../../lib/timeline";
+// timeline.ts: body-pattern timelineSrc when --body set; minimal 2-beat generic otherwise.
+const bodyResult = bodyKey
+  ? RETENTION_PATTERNS[bodyKey].renderBodyScenes({ themeVar, timelineVar })
+  : null;
+
+writeFileSync(
+  join(videoDir, 'timeline.ts'),
+  bodyResult
+    ? bodyResult.timelineSrc
+    : `import { buildTimeline } from "../../lib/timeline";
 
 // TODO: update bpm + scenes to match your treatment.
 export const ${timelineVar} = buildTimeline({ fps: 30, bpm: 120 }, [
   { id: "hook", beats: 10, promise: { text: "TODO: ≤6-word outcome/number by frame 75", byFrame: 60 } },
   { id: "cta", beats: 8, payoff: { text: "TODO: one-line resolution of the hook promise" } },
 ] as const);
-`);
+`,
+);
 
-// Main.tsx: generic scaffold includes AmbientField; archetype scaffold omits it
-// (the archetype Hook.tsx provides its own per-recipe AmbientField).
-writeFileSync(
-  join(videoDir, 'Main.tsx'),
-  hookKey
-    ? `import { AbsoluteFill } from "remotion";
+// Main.tsx: 4 cases — generic, hook-only, body-only, hook+body.
+// generic: AmbientField at top level (gate-1 PASS from frame 0).
+// hook-only: Hook.tsx provides AmbientField per-recipe (archetype scaffold).
+// body-only: AmbientField at top level for opening/cta_hold gaps + scene Sequences.
+// hook+body: AmbientField at top level for gaps + Hook + Body + Climax|Cta Sequences.
+let mainTsx;
+if (bodyResult) {
+  const bodyScenes = bodyResult.scenes; // [{filename, source}]
+  const compBFile  = bodyScenes[1].filename;       // 'Climax.tsx' or 'Cta.tsx'
+  const CompB      = compBFile.replace('.tsx', ''); // 'Climax' or 'Cta'
+  const sceneId2   = CompB.toLowerCase();           // 'climax' or 'cta'
+
+  if (hookKey) {
+    // hook + body: Hook provides AmbientField; top-level AmbientField covers gaps.
+    mainTsx = `import { AbsoluteFill, Sequence } from "remotion";
+import { AmbientField } from "../../lib/fx";
+import { DebugGrid } from "../../lib/DebugGrid";
+import { ThemeProvider } from "../../lib/theme";
+import { ${themeVar} } from "./theme";
+import { ${timelineVar} } from "./timeline";
+import { Hook } from "./scenes/Hook";
+import { Body } from "./scenes/Body";
+import { ${CompB} } from "./scenes/${compBFile.replace('.tsx', '')}";
+
+const _sc = ${timelineVar}.scenes;
+
+export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => (
+  <ThemeProvider value={${themeVar}}>
+    <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
+      <AmbientField
+        color={${themeVar}.palette.accent}
+        colorDim={${themeVar}.palette.textDim}
+        density={80}
+        energy={1.5}
+        itemH={8}
+      />
+      <Sequence from={_sc.hook.from} durationInFrames={_sc.hook.durationInFrames}>
+        <Hook
+          promise={${timelineVar}.structure?.promise?.text}
+          byFrame={${timelineVar}.structure?.promise?.frame}
+        />
+      </Sequence>
+      <Sequence from={_sc.body.from} durationInFrames={_sc.body.durationInFrames}>
+        <Body />
+      </Sequence>
+      <Sequence from={_sc.${sceneId2}.from} durationInFrames={_sc.${sceneId2}.durationInFrames}>
+        <${CompB} />
+      </Sequence>
+      <DebugGrid enabled={debug} />
+    </AbsoluteFill>
+  </ThemeProvider>
+);
+`;
+  } else {
+    // body-only: AmbientField at top level covers opening/cta_hold gaps.
+    mainTsx = `import { AbsoluteFill, Sequence } from "remotion";
+import { AmbientField } from "../../lib/fx";
+import { DebugGrid } from "../../lib/DebugGrid";
+import { ThemeProvider } from "../../lib/theme";
+import { ${themeVar} } from "./theme";
+import { ${timelineVar} } from "./timeline";
+import { Body } from "./scenes/Body";
+import { ${CompB} } from "./scenes/${compBFile.replace('.tsx', '')}";
+
+const _sc = ${timelineVar}.scenes;
+
+export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => (
+  <ThemeProvider value={${themeVar}}>
+    <AbsoluteFill style={{ background: ${themeVar}.palette.bg }}>
+      <AmbientField
+        color={${themeVar}.palette.accent}
+        colorDim={${themeVar}.palette.textDim}
+        density={80}
+        energy={1.5}
+        itemH={8}
+      />
+      <Sequence from={_sc.body.from} durationInFrames={_sc.body.durationInFrames}>
+        <Body />
+      </Sequence>
+      <Sequence from={_sc.${sceneId2}.from} durationInFrames={_sc.${sceneId2}.durationInFrames}>
+        <${CompB} />
+      </Sequence>
+      <DebugGrid enabled={debug} />
+    </AbsoluteFill>
+  </ThemeProvider>
+);
+`;
+  }
+} else if (hookKey) {
+  // hook-only: archetype Hook.tsx provides AmbientField per-recipe.
+  mainTsx = `import { AbsoluteFill } from "remotion";
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
 import { ${themeVar} } from "./theme";
@@ -217,8 +324,10 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
     </ThemeProvider>
   );
 };
-`
-    : `import { AbsoluteFill } from "remotion";
+`;
+} else {
+  // generic: AmbientField at top level + generic Hook.tsx focal element.
+  mainTsx = `import { AbsoluteFill } from "remotion";
 import { AmbientField } from "../../lib/fx";
 import { DebugGrid } from "../../lib/DebugGrid";
 import { ThemeProvider } from "../../lib/theme";
@@ -243,8 +352,10 @@ export const ${CompId}: React.FC<{ debug?: boolean }> = ({ debug = false }) => {
     </ThemeProvider>
   );
 };
-`,
-);
+`;
+}
+
+writeFileSync(join(videoDir, 'Main.tsx'), mainTsx);
 
 // Hook.tsx: archetype scene from renderHookScene, or generic focal scaffold.
 writeFileSync(
@@ -277,6 +388,13 @@ export function Hook({ promise }: { promise?: string }) {
 }
 `,
 );
+
+// Body scenes: write each scene file from renderBodyScenes() when --body is set.
+if (bodyResult) {
+  for (const scene of bodyResult.scenes) {
+    writeFileSync(join(videoDir, 'scenes', scene.filename), scene.source);
+  }
+}
 
 writeFileSync(join(PROJECT_ROOT, 'public', slug, 'MANIFEST.md'), `# Assets — ${slug}
 
@@ -333,18 +451,37 @@ writeFileSync(rootTsxPath, updatedRoot);
 const archLabel = hookKey
   ? `archetype ${HOOK_ARCHETYPES[hookKey].title} (--hook=${hookKey})`
   : null;
+const bodyLabel = bodyKey
+  ? `pattern ${RETENTION_PATTERNS[bodyKey].title} (--body=${bodyKey})`
+  : null;
 
-process.stdout.write(`Scaffolded ${CompId} (${slug}) — hook-gate-green by construction:
+const bodySceneLines = bodyResult
+  ? bodyResult.scenes
+      .map(s => `  src/videos/${slug}/scenes/${s.filename}`)
+      .join('\n')
+  : null;
+
+const mainTsxNote = bodyResult
+  ? (hookKey
+      ? `Hook + Body + ${bodyResult.scenes[1].filename.replace('.tsx','')} Sequences; AmbientField at top level`
+      : `Body + ${bodyResult.scenes[1].filename.replace('.tsx','')} Sequences; AmbientField at top level (gate-1 PASS)`)
+  : (hookKey
+      ? 'archetype Hook scene; AmbientField in Hook.tsx'
+      : 'AmbientField + Hook scene; hook gates 4+5 PASS from frame 0');
+
+process.stdout.write(`Scaffolded ${CompId} (${slug}) — gate-green by construction:
   src/videos/${slug}/treatment.md
   src/videos/${slug}/storyboard.md
   src/videos/${slug}/theme.ts        (valid 7-char hex palette — TODO-commented for director)
-  src/videos/${slug}/timeline.ts
-  src/videos/${slug}/Main.tsx        (${hookKey ? 'archetype Hook scene; AmbientField in Hook.tsx' : 'AmbientField + Hook scene; hook gates 4+5 PASS from frame 0'})
+  src/videos/${slug}/timeline.ts     (${bodyLabel ? `retention pattern — role:'climax' + role:'hold' + rehookSeconds` : '2-beat generic — replace bpm + scenes from treatment'})
+  src/videos/${slug}/Main.tsx        (${mainTsxNote})
   src/videos/${slug}/scenes/Hook.tsx (${archLabel ?? 'renders promise.text as focal element'})
-  public/${slug}/MANIFEST.md
+${bodySceneLines ? bodySceneLines + '\n' : ''}  public/${slug}/MANIFEST.md
   src/Root.tsx  — ${CompId} registered
 
 Next: scripts/hook.sh ${CompId}
       scripts/preflight.sh ${CompId} ${slug}${hookKey ? `
-      Hook archetype: ${archLabel} — re-derive bespoke copy/motion per Hard Rule 3` : ''}
+      Hook archetype: ${archLabel} — re-derive bespoke copy/motion per Hard Rule 3` : ''}${bodyLabel ? `
+      Body pattern: ${bodyLabel} — re-derive bespoke content per Hard Rule 3
+      scripts/retention.sh ${CompId} --slug=${slug}` : ''}
 `);
