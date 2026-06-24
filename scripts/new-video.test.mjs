@@ -29,18 +29,22 @@ const PROJECT_ROOT = join(__dirname, '..');
 const TEST_SLUG = 'testscaffhookgreen';
 const TEST_COMP = 'TestScaffHookGreen';
 
-const videoDir = join(PROJECT_ROOT, 'src', 'videos', TEST_SLUG);
-const publicDir = join(PROJECT_ROOT, 'public', TEST_SLUG);
-const rootTsx  = join(PROJECT_ROOT, 'src', 'Root.tsx');
+const videoDir    = join(PROJECT_ROOT, 'src', 'videos', TEST_SLUG);
+const publicDir   = join(PROJECT_ROOT, 'public', TEST_SLUG);
+const rootTsx     = join(PROJECT_ROOT, 'src', 'Root.tsx');
+const registryPath = join(PROJECT_ROOT, 'src', 'videos', '_registry.md');
 
 // ── Setup / Teardown ─────────────────────────────────────────────────────────
 
 /** @type {string} */
 let rootOriginal;
+/** @type {string} */
+let registryOriginal;
 
 beforeAll(() => {
-  // Snapshot Root.tsx so we can restore it after the test.
-  rootOriginal = readFileSync(rootTsx, 'utf8');
+  // Snapshot Root.tsx and _registry.md before scaffold so we can restore after.
+  rootOriginal     = readFileSync(rootTsx, 'utf8');
+  registryOriginal = readFileSync(registryPath, 'utf8');
 
   // Remove any leftover from a failed previous run.
   if (existsSync(videoDir)) rmSync(videoDir, { recursive: true });
@@ -56,8 +60,9 @@ afterAll(() => {
   // Remove generated dirs.
   if (existsSync(videoDir)) rmSync(videoDir, { recursive: true });
   if (existsSync(publicDir)) rmSync(publicDir, { recursive: true });
-  // Restore Root.tsx to pre-scaffold state.
+  // Restore Root.tsx and _registry.md to pre-scaffold state.
   writeFileSync(rootTsx, rootOriginal);
+  writeFileSync(registryPath, registryOriginal);
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -193,6 +198,86 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
   });
 });
 
+// ── _registry.md stub ────────────────────────────────────────────────────────
+
+describe('new-video.mjs — _registry.md stub', () => {
+  it('appends an entry for the scaffolded slug', () => {
+    const registry = readFileSync(registryPath, 'utf8');
+    expect(registry).toMatch(new RegExp(`^## \\d+\\s*·\\s*${TEST_SLUG}\\b`, 'm'));
+  });
+
+  it('entry has all required fields', () => {
+    const registry = readFileSync(registryPath, 'utf8');
+    const required = ['product', 'arc', 'rhythm', 'luminance', 'palette', 'type',
+      'signature moves', 'texture', 'transitions', 'music'];
+    for (const field of required) {
+      expect(registry, `registry should have field "${field}"`).toMatch(
+        new RegExp(`\\|\\s*${field}\\s*\\|`, 'i'),
+      );
+    }
+  });
+
+  it('palette bg in entry matches theme.ts bg hex', () => {
+    const registry = readFileSync(registryPath, 'utf8');
+    const themeSrc = readGenerated('theme.ts');
+    const m = themeSrc.match(/bg:\s*["']([#0-9a-fA-F]{7})["']/);
+    expect(m, 'theme.ts must have a bg hex').toBeTruthy();
+    expect(registry).toContain(`bg ${m[1]}`);
+  });
+
+  it('palette accent in entry matches theme.ts accent hex', () => {
+    const registry = readFileSync(registryPath, 'utf8');
+    const themeSrc = readGenerated('theme.ts');
+    const m = themeSrc.match(/accent:\s*["']([#0-9a-fA-F]{7})["']/);
+    expect(m, 'theme.ts must have an accent hex').toBeTruthy();
+    expect(registry).toContain(`accent ${m[1]}`);
+  });
+
+  it('luminance in entry matches computed luminance from theme.ts bg', () => {
+    const registry = readFileSync(registryPath, 'utf8');
+    const themeSrc = readGenerated('theme.ts');
+    const bgM = themeSrc.match(/bg:\s*["']([#0-9a-fA-F]{7})["']/);
+    expect(bgM, 'theme.ts must have a bg hex').toBeTruthy();
+    const bg = bgM[1].replace('#', '');
+    const r = parseInt(bg.slice(0, 2), 16) / 255;
+    const g = parseInt(bg.slice(2, 4), 16) / 255;
+    const b = parseInt(bg.slice(4, 6), 16) / 255;
+    const toLinear = c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    const Y = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    const expectedLuminance = Y >= 0.18 ? 'light' : Y >= 0.05 ? 'tonal' : 'dark';
+    const entryM = registry.match(
+      new RegExp(`## \\d+\\s*·\\s*${TEST_SLUG}[\\s\\S]*?(?=\\n## |$)`),
+    );
+    expect(entryM, 'registry entry not found').toBeTruthy();
+    expect(entryM[0]).toMatch(new RegExp(`\\|\\s*luminance\\s*\\|\\s*${expectedLuminance}`));
+  });
+
+  it('registry-completeness and registry-axis-drift both PASS for scaffolded slug', () => {
+    let stdout = '';
+    try {
+      stdout = execSync(
+        `node scripts/distinct-metrics.mjs ${TEST_SLUG} --json`,
+        { cwd: PROJECT_ROOT, encoding: 'utf8', stdio: 'pipe' },
+      );
+    } catch (err) {
+      stdout = err.stdout ?? '';
+      throw new Error(`distinct-metrics.mjs exited non-zero:\n${stdout}`);
+    }
+    const verdict = JSON.parse(stdout);
+    // Completeness gate is only present in the array when it FAILS; absence = PASS.
+    const completenessFailGate = verdict.gates.find(
+      g => g.name === 'HARD: registry-completeness' && !g.pass,
+    );
+    expect(completenessFailGate, 'registry-completeness should not fail').toBeUndefined();
+    // Drift gate is always present when theme.ts is loadable.
+    const driftGate = verdict.gates.find(g => g.name === 'HARD: registry-axis-drift');
+    expect(driftGate, 'registry-axis-drift gate should be present').toBeTruthy();
+    expect(driftGate.pass, 'registry-axis-drift should PASS').toBe(true);
+    // Overall hard gates must pass.
+    expect(verdict.hardGatesPass, `distinct HARD GATES must PASS; verdict: ${JSON.stringify(verdict.gates)}`).toBe(true);
+  });
+});
+
 // ── Hook archetype registry completeness ──────────────────────────────────────
 
 const HOOKS_MD_PATH = join(PROJECT_ROOT, '.claude', 'skills', 'produce', 'hooks.md');
@@ -263,9 +348,11 @@ const ARCH_TEST_CASES = HOOK_ARCHETYPE_KEYS.map((key, i) => ({
 
 describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
   let rootSnapArch;
+  let registrySnapArch;
 
   beforeAll(() => {
-    rootSnapArch = readFileSync(rootTsx, 'utf8');
+    rootSnapArch     = readFileSync(rootTsx, 'utf8');
+    registrySnapArch = readFileSync(registryPath, 'utf8');
     // Clean up any leftover arch test dirs from a previous failed run.
     for (const { slug } of ARCH_TEST_CASES) {
       const vd = join(PROJECT_ROOT, 'src', 'videos', slug);
@@ -290,6 +377,7 @@ describe('new-video.mjs --hook — archetype scaffolds typecheck', () => {
       if (existsSync(pd)) rmSync(pd, { recursive: true });
     }
     writeFileSync(rootTsx, rootSnapArch);
+    writeFileSync(registryPath, registrySnapArch);
   });
 
   it('all 8 archetype scaffolds typecheck clean (tsc --noEmit)', { timeout: 30000 }, () => {
@@ -403,9 +491,11 @@ const BODY_TEST_CASES = [
 
 describe('new-video.mjs --body — scaffold content', () => {
   let rootSnapBody;
+  let registrySnapBody;
 
   beforeAll(() => {
-    rootSnapBody = readFileSync(rootTsx, 'utf8');
+    rootSnapBody     = readFileSync(rootTsx, 'utf8');
+    registrySnapBody = readFileSync(registryPath, 'utf8');
     for (const { slug } of BODY_TEST_CASES) {
       const vd = join(PROJECT_ROOT, 'src', 'videos', slug);
       const pd = join(PROJECT_ROOT, 'public', slug);
@@ -428,6 +518,7 @@ describe('new-video.mjs --body — scaffold content', () => {
       if (existsSync(pd)) rmSync(pd, { recursive: true });
     }
     writeFileSync(rootTsx, rootSnapBody);
+    writeFileSync(registryPath, registrySnapBody);
   });
 
   it.each(BODY_TEST_CASES)('--body=$key: timeline.ts has role:\'climax\'', ({ slug }) => {
@@ -509,9 +600,11 @@ describe('new-video.mjs --hook + --body — compose correctly', () => {
   const hookBodyDir    = join(PROJECT_ROOT, 'src', 'videos', HOOK_BODY_SLUG);
   const hookBodyPub    = join(PROJECT_ROOT, 'public', HOOK_BODY_SLUG);
   let rootSnapHookBody;
+  let registrySnapHookBody;
 
   beforeAll(() => {
-    rootSnapHookBody = readFileSync(rootTsx, 'utf8');
+    rootSnapHookBody     = readFileSync(rootTsx, 'utf8');
+    registrySnapHookBody = readFileSync(registryPath, 'utf8');
     if (existsSync(hookBodyDir)) rmSync(hookBodyDir, { recursive: true });
     if (existsSync(hookBodyPub)) rmSync(hookBodyPub, { recursive: true });
     execSync(
@@ -524,6 +617,7 @@ describe('new-video.mjs --hook + --body — compose correctly', () => {
     if (existsSync(hookBodyDir)) rmSync(hookBodyDir, { recursive: true });
     if (existsSync(hookBodyPub)) rmSync(hookBodyPub, { recursive: true });
     writeFileSync(rootTsx, rootSnapHookBody);
+    writeFileSync(registryPath, registrySnapHookBody);
   });
 
   it('Main.tsx imports Hook from scenes/Hook', () => {

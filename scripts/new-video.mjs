@@ -25,6 +25,31 @@ import { RETENTION_PATTERNS, RETENTION_PATTERN_KEYS } from './retention-patterns
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
 
+// ── Starter palette constants ────────────────────────────────────────────────
+// Written into theme.ts AND the _registry.md stub so both stay in sync.
+// Change here propagates to both outputs automatically.
+const STARTER_BG             = '#0a0a0f';
+const STARTER_SURFACE        = '#16161e';
+const STARTER_TEXT           = '#e8e8f0';
+const STARTER_TEXT_DIM       = '#6b6b80';
+const STARTER_ACCENT         = '#7effc9';
+const STARTER_GRAIN_OPACITY  = 0;
+const STARTER_DISPLAY_FAMILY = 'TODO';
+const STARTER_BODY_FAMILY    = 'TODO';
+
+/** Classify a bg hex as dark / tonal / light using WCAG 2 relative luminance. */
+function computeLuminanceClass(hex) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  const toLinear = c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  const Y = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  if (Y >= 0.18) return 'light';
+  if (Y >= 0.05) return 'tonal';
+  return 'dark';
+}
+
 // Extract --hook= and --body= before the existing -- filter so they aren't lost.
 const rawArgs = process.argv.slice(2);
 const hookFlagArg = rawArgs.find(a => a.startsWith('--hook='));
@@ -170,15 +195,15 @@ import { defineTheme } from "../../lib/theme";
 export const ${themeVar} = defineTheme({
   name: "${slug}",
   palette: {
-    bg: "#0a0a0f",      // TODO: set video background color
-    surface: "#16161e", // TODO: set surface/card color
-    text: "#e8e8f0",    // TODO: set primary text color
-    textDim: "#6b6b80", // TODO: set secondary/muted text color
-    accent: "#7effc9",  // TODO: set accent/brand color
+    bg: "${STARTER_BG}",      // TODO: set video background color
+    surface: "${STARTER_SURFACE}", // TODO: set surface/card color
+    text: "${STARTER_TEXT}",    // TODO: set primary text color
+    textDim: "${STARTER_TEXT_DIM}", // TODO: set secondary/muted text color
+    accent: "${STARTER_ACCENT}",  // TODO: set accent/brand color
   },
   fonts: {
-    display: { family: "TODO", weight: 700 },
-    body: { family: "TODO", weight: 500 },
+    display: { family: "${STARTER_DISPLAY_FAMILY}", weight: 700 },
+    body: { family: "${STARTER_BODY_FAMILY}", weight: 500 },
   },
   radius: { sm: 4, md: 8, lg: 16 },
   motion: {
@@ -191,7 +216,7 @@ export const ${themeVar} = defineTheme({
     staggerFrames: 4,
     holdFrames: 12,
   },
-  texture: { grainOpacity: 0, vignette: 0 },
+  texture: { grainOpacity: ${STARTER_GRAIN_OPACITY}, vignette: 0 },
 });
 `);
 
@@ -445,6 +470,42 @@ const updatedRoot =
   afterExport.slice(fragCloseIdx + 1);        // "    </>\n  );\n};\n"
 
 writeFileSync(rootTsxPath, updatedRoot);
+
+// ── _registry.md: append stub entry ──────────────────────────────────────────
+// Derives 5 code-grounded axes from the just-written theme.ts values so that
+// distinct.sh passes registry-completeness HARD + registry-axis-drift HARD by
+// construction. The 4 non-derivable axes are TODO(director) placeholders.
+
+const registryPath = join(PROJECT_ROOT, 'src', 'videos', '_registry.md');
+const registryContent = readFileSync(registryPath, 'utf8');
+const existingEntryCount = (registryContent.match(/^## \d+\s*·/gm) ?? []).length;
+
+const starterLuminance = computeLuminanceClass(STARTER_BG);
+const starterGrainDesc = STARTER_GRAIN_OPACITY <= 0
+  ? 'clean — grain 0%, vignette 0%'
+  : `filmic — grain ${Math.round(STARTER_GRAIN_OPACITY * 100)}%, vignette 0`;
+const starterTypeDesc  = `${STARTER_DISPLAY_FAMILY} display / ${STARTER_BODY_FAMILY} body`;
+
+const today = new Date().toISOString().slice(0, 10);
+
+const registryStub = `
+## ${existingEntryCount + 1} · ${slug} / ${CompId} (${today})
+
+| field           | value                                   |
+| --------------- | --------------------------------------- |
+| product         | TODO(director)                          |
+| arc             | TODO(director)                          |
+| rhythm          | TODO(director)                          |
+| luminance       | ${starterLuminance}                     |
+| palette         | bg ${STARTER_BG} · accent ${STARTER_ACCENT} |
+| type            | ${starterTypeDesc}                      |
+| signature moves | TODO(director)                          |
+| texture         | ${starterGrainDesc}                     |
+| transitions     | TODO(director)                          |
+| music           | TODO(director)                          |
+`;
+
+writeFileSync(registryPath, registryContent.trimEnd() + '\n' + registryStub);
 
 // ── Done ──────────────────────────────────────────────────────────────────────
 
