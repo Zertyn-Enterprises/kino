@@ -869,8 +869,9 @@ export const EmberRise: React.FC<AmbientMotifProps> = ({
     // y decreases (rises), wraps within full height
     const y = ((baseY - frame * energy * riseSpd) % lh + lh) % lh;
 
-    // Ember size 3–10 px
-    const size = 3 + Math.abs(noise2D(`${seed}sz`, i * 4.7, 0)) * 7;
+    // Ember size 12–44 px — large enough to register per-cell lum stddev >10
+    // for gate-5 liveness and mean-abs-delta >5 for gate-4 activity.
+    const size = 12 + Math.abs(noise2D(`${seed}sz`, i * 4.7, 0)) * 32;
 
     const op =
       0.4 + 0.5 * Math.abs(noise2D(`${seed}op`, i * 1.3, frame * 0.012 * energy));
@@ -955,7 +956,7 @@ export const AMBIENT_MOTIFS: Record<AmbientMotifKey, AmbientMotifDef> = {
     title: "Drifting motes",
     signaturePrimitive:
       "Noise-drifted circular motes distributed across 4 vertical bands",
-    gateRecipe: { density: 40, energy: 1 },
+    gateRecipe: { density: 80, energy: 1.5 },
     component: MoteField,
   },
   "grid-pulse": {
@@ -969,7 +970,7 @@ export const AMBIENT_MOTIFS: Record<AmbientMotifKey, AmbientMotifDef> = {
     title: "Rising embers",
     signaturePrimitive:
       "Upward-drifting spark particles distributed across 4 vertical bands",
-    gateRecipe: { density: 40, energy: 1 },
+    gateRecipe: { density: 80, energy: 1.5 },
     component: EmberRise,
   },
 };

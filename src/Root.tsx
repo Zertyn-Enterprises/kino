@@ -14,6 +14,9 @@ import { granipaTimeline } from "./videos/granipa/timeline";
 import { RelayLaunch } from "./videos/relay/Main";
 import { relayTimeline } from "./videos/relay/timeline";
 import { AmbientCheck } from "./smoke/AmbientCheck";
+import { MoteCheck } from "./smoke/MoteCheck";
+import { GridPulseCheck } from "./smoke/GridPulseCheck";
+import { EmberRiseCheck } from "./smoke/EmberRiseCheck";
 import { Hook01MidActionDemo } from "./smoke/hooks/Hook01MidActionDemo";
 import { Hook02BoldClaim } from "./smoke/hooks/Hook02BoldClaim";
 import { Hook04PatternInterrupt } from "./smoke/hooks/Hook04PatternInterrupt";
@@ -103,6 +106,30 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="AmbientCheck"
         component={AmbientCheck}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="MoteCheck"
+        component={MoteCheck}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="GridPulseCheck"
+        component={GridPulseCheck}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="EmberRiseCheck"
+        component={EmberRiseCheck}
         durationInFrames={120}
         fps={30}
         width={1920}
