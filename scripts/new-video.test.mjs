@@ -140,6 +140,15 @@ describe('new-video.mjs — hook-gate-green scaffold', () => {
       const src = readGenerated('scenes/Hook.tsx');
       expect(src).toMatch(/promise/);
     });
+
+    it('is the generic placeholder — no AmbientField (AmbientField lives in Main.tsx) and no re-derive header', () => {
+      // (d) Verifies that the no-flag path emits the generic Hook, not an archetype Hook.
+      // Every archetype Hook.tsx has AmbientField + the "re-derive bespoke" header.
+      // The generic placeholder has neither — AmbientField is in Main.tsx instead.
+      const src = readGenerated('scenes/Hook.tsx');
+      expect(src).not.toMatch(/AmbientField/);
+      expect(src).not.toMatch(/re-derive bespoke per Hard Rule 3/);
+    });
   });
 
   describe('TypeScript typecheck', () => {
