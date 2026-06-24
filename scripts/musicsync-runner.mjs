@@ -20,9 +20,10 @@ import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeMusicSync } from './musicsync-metrics.mjs';
+import { detectMusicIntent } from './detect-music-intent.mjs';
 
 // ---------------------------------------------------------------------------
 // Parse CLI args
@@ -113,22 +114,30 @@ function loadAnalysis(path) {
 // Human-readable output
 // ---------------------------------------------------------------------------
 
-function printHumanReadable(verdict) {
+function printHumanReadable(verdict, slug) {
   const { gates, summary, hardGatesPass } = verdict;
   console.log('\n── Music-sync verdict ──────────────────────────────────────');
   for (const g of gates) {
-    const status = g.skip ? 'SKIP' : (g.pass ? 'PASS' : 'FAIL');
+    const status = g.status === 'unverified' ? 'UNVERIFIED'
+      : g.skip ? 'SKIP'
+      : (g.pass ? 'PASS' : 'FAIL');
     const label  = g.advisory ? '[advisory]' : '[HARD]    ';
-    const detail = g.skip
+    const detail = (g.skip || g.status === 'unverified')
       ? ` — ${g.skipReason}`
       : ` — ${JSON.stringify(g.measured)}`;
     console.log(`MS${g.id} ${g.name.padEnd(22)} ${label} ${status}${detail}`);
   }
   console.log('───────────────────────────────────────────────────────────');
+  const unverifiedCount = summary.unverified ?? 0;
   console.log(
     `Summary  passed=${summary.passed} failed=${summary.failed} skipped=${summary.skipped}` +
+    (unverifiedCount > 0 ? ` unverified=${unverifiedCount}` : '') +
     `  bpm=${summary.declaredBpm} fps=${summary.fps} cuts=${summary.totalCuts}`,
   );
+  if (verdict.verdict === 'unverified') {
+    const slugArg = slug || '<slug>';
+    console.log(`\nMUSIC: UNVERIFIED (declared but unanalyzed — run \`node scripts/analyze-music.mjs ${slugArg}\`)`);
+  }
   console.log(`HARD GATES: ${hardGatesPass ? 'PASS' : 'FAIL'}\n`);
 }
 
@@ -138,13 +147,15 @@ function printHumanReadable(verdict) {
 
 const timeline = await loadTimeline(timelinePath);
 const analysis = loadAnalysis(analysisPath);
+const musicIntent = detectMusicIntent(timelinePath);
+const slug = basename(dirname(resolve(process.cwd(), timelinePath)));
 
-const verdict = computeMusicSync({ timeline, analysis, climaxFrame, tolerances });
+const verdict = computeMusicSync({ timeline, analysis, climaxFrame, tolerances, musicIntent });
 
 if (jsonMode) {
   process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
 } else {
-  printHumanReadable(verdict);
+  printHumanReadable(verdict, slug);
 }
 
 process.exit(verdict.hardGatesPass ? 0 : 1);

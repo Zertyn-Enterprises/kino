@@ -1,4 +1,7 @@
 {
+  "musicIntent": true,
+  "analysisPresent": false,
+  "verdict": "unverified",
   "gates": [
     {
       "id": 1,
@@ -6,12 +9,13 @@
       "hard": true,
       "advisory": false,
       "pass": false,
-      "skip": true,
+      "skip": false,
       "measured": null,
+      "status": "unverified",
       "threshold": {
         "bpmTolerance": 0.02
       },
-      "skipReason": "no audio analysis provided"
+      "skipReason": "music intent declared but analysis not run"
     },
     {
       "id": 2,
@@ -19,12 +23,13 @@
       "hard": true,
       "advisory": false,
       "pass": false,
-      "skip": true,
+      "skip": false,
       "measured": null,
+      "status": "unverified",
       "threshold": {
         "downbeatFrameTol": 1
       },
-      "skipReason": "no audio analysis provided"
+      "skipReason": "music intent declared but analysis not run"
     },
     {
       "id": 3,
@@ -32,12 +37,13 @@
       "hard": false,
       "advisory": true,
       "pass": false,
-      "skip": true,
+      "skip": false,
       "measured": null,
+      "status": "unverified",
       "threshold": {
         "climaxTolFrames": 3
       },
-      "skipReason": "no audio analysis provided"
+      "skipReason": "music intent declared but analysis not run"
     },
     {
       "id": 4,
@@ -57,7 +63,8 @@
   "summary": {
     "passed": 0,
     "failed": 0,
-    "skipped": 4,
+    "skipped": 1,
+    "unverified": 3,
     "declaredBpm": 120,
     "fps": 30,
     "totalCuts": 8

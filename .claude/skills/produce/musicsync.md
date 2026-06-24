@@ -38,17 +38,34 @@ and prints `HARD GATES: PASS|FAIL`.
 
 ## Graceful SKIP mode
 
-When no `public/<slug>/*.analysis.json` exists — the normal state for the
-open-source example videos, which ship no bundled audio — all four gates report
-`skip: true` (not `fail`). The gate exits 0 and never blocks ship. This mirrors
-the "no preview URL → skip" and "no palette flags → skip" conventions on other gates.
+The gate has three states depending on music intent and whether an analysis file exists:
 
-SKIP is also triggered gate-by-gate:
+| State | Condition | Per-gate | Top-level verdict | Blocks ship? |
+|-------|-----------|----------|-------------------|-------------|
+| **skip** | No music intent AND no analysis (sereno) | `skip: true` | `'skip'`, `hardGatesPass: true` | No |
+| **unverified** | Music intent declared AND no analysis (relay, granipa before analysis) | MS1/MS2/MS3: `status: 'unverified'`; MS4: `skip: true` | `'unverified'`, `hardGatesPass: true` | No (advisory) |
+| **verified** | Analysis present | MS1/MS2: HARD pass/fail | `'pass'` or `'fail'` | Yes on HARD fail |
+
+**Music-intent detection (render-free):** the runner reads `src/videos/<slug>/Main.tsx` for
+`MusicBed` import/usage or `staticFile(...music...)` references, and checks
+`public/<slug>/MANIFEST.md` for an Audio section. Videos with no music composition
+(sereno) resolve to no-intent → `skip`. Music-scored videos (relay, granipa) resolve to
+intent → `unverified` when no `.analysis.json` is present.
+
+**Why three states?** A music-scored video whose analysis was never run previously silently
+skipped all four gates and shipped READY with beat-lock unchecked — a false-READY on the
+core virality lever. The `unverified` state emits a loud advisory (`MUSIC: UNVERIFIED ...`)
+and records `musicsync.status: 'unverified'` in `ship/report.json`, so the ship gate no
+longer silently passes unanalyzed music-scored videos.
+
+SKIP is also triggered gate-by-gate (independent of the top-level three-state logic):
 - MS3 skips when analysis has no `drops` array, or when `--climax=F` is not supplied.
 - MS4 skips when no cut frames are found in the timeline (degenerate case).
 
 **SKIP must never block ship.** A `musicsync.ran = false` entry in `ship/report.json`
 is the expected steady-state for any video whose `analyze-music.mjs` has not been run.
+`musicsync.status: 'unverified'` is the expected state for a music-scored video that has
+not yet been analyzed — it is advisory, not a hard blocker.
 
 ## Usage
 
@@ -106,9 +123,9 @@ of record — inspect `hardGatesPass` and the per-gate `pass`/`hard`/`skip` fiel
 
 ---
 
-**Recorded snapshots — 2026-06-22. Both reference videos running in SKIP mode
-(no audio analysis bundled). Do not hand-edit; re-run the command shown under
-each video to update.**
+**Recorded snapshots — 2026-06-24. relay=UNVERIFIED (music intent detected, no analysis),
+sereno=SKIP (no music intent). Do not hand-edit; re-run the command shown under each video
+to update.**
 
 ### RelayLaunch
 
@@ -116,22 +133,24 @@ each video to update.**
 scripts/musicsync.sh RelayLaunch relay
 ```
 
-**Recorded snapshot — 2026-06-22. `hardGatesPass: true` (SKIP mode — no analysis)**
+**Recorded snapshot — 2026-06-24. `hardGatesPass: true` (UNVERIFIED — music intent detected, analysis not yet run)**
 
 ```
-MS1 Tempo lock             [HARD]     SKIP — no audio analysis provided
-MS2 Downbeat lock          [HARD]     SKIP — no audio analysis provided
-MS3 Climax on drop         [advisory] SKIP — no audio analysis provided
+MS1 Tempo lock             [HARD]     UNVERIFIED — music intent declared but analysis not run
+MS2 Downbeat lock          [HARD]     UNVERIFIED — music intent declared but analysis not run
+MS3 Climax on drop         [advisory] UNVERIFIED — music intent declared but analysis not run
 MS4 Cut-on-beat coverage   [advisory] SKIP — no audio analysis provided
 
-Summary  passed=0 failed=0 skipped=4  bpm=120 fps=30 cuts=8
+Summary  passed=0 failed=0 skipped=1 unverified=3  bpm=120 fps=30 cuts=8
+
+MUSIC: UNVERIFIED (declared but unanalyzed — run `node scripts/analyze-music.mjs relay`)
 HARD GATES: PASS
 ```
 
-All four gates skip: no `public/relay/*.analysis.json` present (open-source video
-ships without bundled audio). SKIP-mode PASS never blocks ship. When a licensed
-track is committed and `analyze-music.mjs` is run, re-run this command and update
-the snapshot.
+MS1/MS2/MS3 are UNVERIFIED (not SKIP): relay imports `MusicBed` and declares `bpm:120`,
+so music intent is detected. MS4 stays `skip: true` (no analysis for the beat grid).
+HARD GATES: PASS (advisory — does not block ship). Run `node scripts/analyze-music.mjs relay`
+and re-run this command to move to the `verified` state.
 
 ### GranipaLaunch
 
@@ -139,7 +158,30 @@ the snapshot.
 scripts/musicsync.sh GranipaLaunch granipa
 ```
 
-**Recorded snapshot — 2026-06-22. `hardGatesPass: true` (SKIP mode — no analysis)**
+**Recorded snapshot — 2026-06-24. `hardGatesPass: true` (UNVERIFIED — music intent detected, analysis not yet run)**
+
+```
+MS1 Tempo lock             [HARD]     UNVERIFIED — music intent declared but analysis not run
+MS2 Downbeat lock          [HARD]     UNVERIFIED — music intent declared but analysis not run
+MS3 Climax on drop         [advisory] UNVERIFIED — music intent declared but analysis not run
+MS4 Cut-on-beat coverage   [advisory] SKIP — no audio analysis provided
+
+Summary  passed=0 failed=0 skipped=1 unverified=3  bpm=122 fps=30 cuts=9
+
+MUSIC: UNVERIFIED (declared but unanalyzed — run `node scripts/analyze-music.mjs granipa`)
+HARD GATES: PASS
+```
+
+Same three-state rationale as RelayLaunch: granipa imports `MusicBed`, so music intent is
+detected. Run `node scripts/analyze-music.mjs granipa` to move to the `verified` state.
+
+### SerenoLaunch
+
+```bash
+scripts/musicsync.sh SerenoLaunch sereno
+```
+
+**Recorded snapshot — 2026-06-24. `hardGatesPass: true` (clean SKIP — no music intent)**
 
 ```
 MS1 Tempo lock             [HARD]     SKIP — no audio analysis provided
@@ -147,9 +189,10 @@ MS2 Downbeat lock          [HARD]     SKIP — no audio analysis provided
 MS3 Climax on drop         [advisory] SKIP — no audio analysis provided
 MS4 Cut-on-beat coverage   [advisory] SKIP — no audio analysis provided
 
-Summary  passed=0 failed=0 skipped=4  bpm=122 fps=30 cuts=9
+Summary  passed=0 failed=0 skipped=4  bpm=60 fps=30 cuts=4
 HARD GATES: PASS
 ```
 
-All four gates skip: no `public/granipa/*.analysis.json` present. Same rationale as
-RelayLaunch above.
+All four gates skip: sereno does not compose `MusicBed` and declares no music track, so
+music intent resolves to false → clean SKIP (not UNVERIFIED). SKIP is the correct steady
+state for audio-less videos and never blocks ship.

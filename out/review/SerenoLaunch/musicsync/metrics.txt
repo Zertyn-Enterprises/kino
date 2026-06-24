@@ -1,0 +1,10 @@
+
+── Music-sync verdict ──────────────────────────────────────
+MS1 Tempo lock             [HARD]     SKIP — no audio analysis provided
+MS2 Downbeat lock          [HARD]     SKIP — no audio analysis provided
+MS3 Climax on drop         [advisory] SKIP — no audio analysis provided
+MS4 Cut-on-beat coverage   [advisory] SKIP — no audio analysis provided
+───────────────────────────────────────────────────────────
+Summary  passed=0 failed=0 skipped=4  bpm=60 fps=30 cuts=4
+HARD GATES: PASS
+

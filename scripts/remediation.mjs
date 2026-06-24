@@ -303,6 +303,14 @@ const ADVISORY_MAP = {
   },
 
   // Music sync
+  'Music sync unverified': {
+    gate: 'musicsync',
+    symptom: 'Music-sync gate: UNVERIFIED — music intent declared but analysis not run',
+    likelyCause: "Main.tsx imports MusicBed or references a music asset, but no .analysis.json is present in public/<slug>/",
+    fix: "Run `node scripts/analyze-music.mjs <slug>` to detect BPM, firstBeatSec, and drops. Commit the .analysis.json, then re-run `scripts/musicsync.sh <CompId> <slug>` to verify MS1/MS2 alignment",
+    docRef: '.claude/skills/produce/musicsync.md §Graceful SKIP mode',
+    inspect: 'out/review/<CompId>/musicsync/metrics.json → verdict, musicIntent, analysisPresent',
+  },
   'Climax on drop': {
     gate: 'musicsync',
     symptom: 'Music-sync MS3 (Climax on drop) — declared climax frame is more than 3 frames from the nearest detected drop',
